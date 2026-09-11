@@ -1,0 +1,363 @@
+" 公钥" = " Public Key";
+"%@（%lld 个标签）" = "%@ (%lld tabs)";
+"B 别名或 user@B:22；多级用逗号分隔" = "B alias or user@B:22; separate multiple hops with commas";
+"Ctrl + 双指上滑放大，下滑缩小；每步 0.5 pt。" = "Ctrl + two-finger swipe up/down to change font size by 0.5 pt.";
+"IP、域名或 SSH 别名" = "IP address, hostname or SSH alias";
+"MyTerm 设置" = "MyTerm Settings";
+"SFTP 文件" = "SFTP Files";
+"SSH 压缩（节省带宽）" = "SSH compression (save bandwidth)";
+"SSH 启动失败" = "SSH failed to start";
+"SSH 密码" = "SSH Passwords";
+"SSH 密码管理" = "SSH Password Manager";
+"SSH 密钥" = "SSH Keys";
+"SSH 密钥管理" = "SSH Key Manager";
+"SSH 已退出" = "SSH exited";
+"SSH 服务器" = "SSH Servers";
+"SSH 进程运行中" = "SSH process running";
+"SSH 连接已断开" = "SSH disconnected";
+"X11 转发" = "X11 Forwarding";
+"Zmodem 传输完成" = "Zmodem transfer complete";
+"Zmodem 发送文件" = "Send Files with Zmodem";
+"Zmodem 已取消" = "Zmodem cancelled";
+"Zmodem 拖拽上传仅支持可读取的普通文件。" = "Zmodem drag and drop supports readable regular files only.";
+"Zmodem 接收目录" = "Zmodem Download Folder";
+"Zmodem 接收缓冲超限，已取消。" = "Zmodem receive buffer limit exceeded. Transfer cancelled.";
+"Zmodem 握手缓存过大，已取消。" = "Zmodem handshake buffer limit exceeded. Transfer cancelled.";
+"Zmodem 正在发送…" = "Sending with Zmodem…";
+"Zmodem 正在接收…" = "Receiving with Zmodem…";
+"⌘T 新终端   ·   ⌘N 添加服务器" = "⌘T New Terminal   ·   ⌘N Add Server";
+"上传" = "Upload";
+"上传 / 续传" = "Upload / Resume";
+"上传 / 续传…" = "Upload / Resume…";
+"上传文件" = "Upload File";
+"上次退出时的会话" = "Last Session";
+"下载" = "Download";
+"下载 / 续传" = "Download / Resume";
+"下载 / 续传…" = "Download / Resume…";
+"中文（简体）" = "Chinese (Simplified)";
+"主机" = "Host";
+"主题与字体" = "Theme & Fonts";
+"仅等宽" = "Monospaced only";
+"从 SSH 配置导入" = "Import SSH Configuration";
+"从 SSH 配置导入…" = "Import SSH Configuration…";
+"代理地址" = "Proxy host";
+"代理端口" = "Proxy port";
+"代理类型" = "Proxy type";
+"会话历史" = "Session History";
+"会话历史…" = "Session History…";
+"会话历史与导出…" = "History & Export…";
+"会话已结束" = "Session ended";
+"会话文件不能超过 20 MB。" = "Session files must not exceed 20 MB.";
+"会话输入与输出编码；切换后作用于新文本，文件传输不受影响。" = "Input and output encoding. Changes apply to new text; file transfers are unaffected.";
+"你的服务器工作台" = "Your server workspace";
+"使用 SCP（断点续传使用 SFTP）" = "Use SCP (resume via SFTP)";
+"使用 SSH 配置" = "Use SSH Configuration";
+"使用此路径的会话将无法再用该密钥认证，原始文件不受影响。" = "Sessions using this path will no longer be able to authenticate with this key. The original file is unaffected.";
+"例如：开发服务器" = "Example: Development Server";
+"例如：生产环境、测试环境、客户项目。" = "Examples: Production, Testing, Customer Projects.";
+"保存" = "Save";
+"保存与恢复会话" = "Save & Restore Sessions";
+"保存并连接" = "Save & Connect";
+"保存当前会话" = "Save Current Session";
+"保存当前会话…" = "Save Current Session…";
+"保存标签顺序和连接配置，恢复时重新连接。密码和终端进程不会被保存。" = "Save tab order and connection settings. Restoring reconnects the sessions; passwords and running processes are not saved.";
+"保留最近 50,000 行回滚与当前屏幕；每 30 秒及关闭时保存。文本内可用 ⌘F 查找。" = "Keep the latest 50,000 scrollback lines and current screen. Save every 30 seconds and on close. Use ⌘F to search.";
+"信任并继续" = "Trust & Continue";
+"光标颜色" = "Cursor color";
+"全选" = "Select All";
+"关于 MyTerm" = "About MyTerm";
+"关闭" = "Close";
+"关闭会话" = "Close Session";
+"关闭当前标签页" = "Close Current Tab";
+"关闭本地 shell 和 SSH 的 BEL 响铃提示，默认禁用。" = "Disable the terminal bell for local shells and SSH. Disabled by default.";
+"再次输入口令" = "Repeat passphrase";
+"准备 SSH 连接…" = "Preparing SSH connection…";
+"准备下载…" = "Preparing download…";
+"准备启动" = "Ready to start";
+"删除" = "Delete";
+"删除分组（保留服务器）" = "Delete Group (Keep Servers)";
+"删除记录" = "Delete Record";
+"删除配置" = "Delete Configuration";
+"刷新" = "Refresh";
+"剪切" = "Cut";
+"动态 SOCKS5" = "Dynamic SOCKS5";
+"包含服务器、分组和已保存的多标签会话。当前标签请先保存；密码、私钥和历史文本不包含在内。" = "Includes servers, groups and saved multi-tab sessions. Save current tabs first. Passwords, private keys and history are excluded.";
+"双击连接 SSH 会话" = "Double-click to connect via SSH";
+"取消" = "Cancel";
+"取消 Zmodem" = "Cancel Zmodem";
+"受信任转发（-Y）" = "Trusted Forwarding (-Y)";
+"口令不能为空，且两次输入必须一致。" = "The passphrase cannot be empty and both entries must match.";
+"可选，使用默认密钥" = "Optional; use default keys";
+"右键服务器 → 移至分组" = "Right-click a server → Move to Group";
+"右键直接粘贴" = "Right-click to paste";
+"名称" = "Name";
+"启动失败" = "Failed to start";
+"备份包含密码和私钥。请妥善保管口令，遗失后无法恢复。" = "The backup contains passwords and private keys. Keep the passphrase safe; it cannot be recovered.";
+"备份口令" = "Backup passphrase";
+"备份口令不正确，或文件已损坏。" = "Incorrect backup passphrase or damaged backup file.";
+"复制" = "Copy";
+"复制会话（新连接）" = "Duplicate Session (New Connection)";
+"好" = "OK";
+"字号：%@ pt" = "Font size: %@ pt";
+"完成 SSH 登录后，点击连接 SFTP。" = "Sign in to SSH, then click Connect for SFTP.";
+"密码" = "Password";
+"密码不能为空。" = "Password cannot be empty.";
+"密码在认证窗口输入，可在登录成功后保存到 应用本地加密数据库；失效时提示更新。密钥口令和验证码不自动保存。" = "Enter the password in the authentication dialog. Save it to the app's encrypted database after login; rejected passwords prompt for an update. Key passphrases and verification codes are not saved.";
+"密码已更新，下次连接生效。" = "Password updated. It will be used on the next connection.";
+"密钥" = "Key";
+"密钥库" = "Key Library";
+"导入 MyTerm 导出的 JSON 文件。相同记录跳过，冲突时取消整次导入；不会自动连接。" = "Import a MyTerm JSON export. Identical records are skipped; conflicts cancel the import. No connections are opened.";
+"导入 SSH 私钥" = "Import SSH Private Key";
+"导入会话配置" = "Import Session Configuration";
+"导入会话配置…" = "Import Session Configuration…";
+"导入失败" = "Import failed";
+"导入完成" = "Import complete";
+"导入私钥…" = "Import Private Key…";
+"导出 OpenSSH 配置" = "Export OpenSSH Configuration";
+"导出 OpenSSH 配置…" = "Export OpenSSH Configuration…";
+"导出会话历史" = "Export Session History";
+"导出会话配置" = "Export Session Configuration";
+"导出会话配置…" = "Export Session Configuration…";
+"导出侧栏服务器。引用现有 ~/.ssh/config、密钥路径及代理辅助程序；请保存为独立文件，使用 ssh -F 指定。" = "Export sidebar servers with references to ~/.ssh/config, key paths and the proxy helper. Save as a separate file and use ssh -F.";
+"导出偏好设置备份" = "Export Preferences Backup";
+"导出偏好设置备份…" = "Export Preferences Backup…";
+"导出当前会话文本…" = "Export Current Session Text…";
+"导出文本…" = "Export Text…";
+"将替换会话、分组、密码、应用密钥和偏好设置，并关闭当前连接。历史文件保留；界面设置重启后生效。" = "This replaces sessions, groups, passwords, app keys and preferences, and closes current connections. History files are preserved; restart to apply interface settings.";
+"屏幕共享时保持终端大小；窗口变小时可滚动查看，取消后恢复自动适配。" = "Keep terminal dimensions during screen sharing. Scroll when the window is smaller; unlock to fit automatically.";
+"展开 / 收起 SFTP 文件面板" = "Show / Hide SFTP Files";
+"工作会话" = "Work Session";
+"已删除应用内副本。" = "App copy deleted.";
+"已删除所选密码。" = "Selected password deleted.";
+"已复制到应用密钥库，原文件保持不变。" = "Copied to the app's key library. The original file is unchanged.";
+"已清除 MyTerm 保存的 SSH 密码。" = "All saved SSH passwords have been cleared.";
+"平均" = "Average";
+"平均速度" = "Average speed";
+"应用字体" = "Apply Font";
+"开启后，按住 Shift 再右键仍可打开菜单。\n⌘C 复制、⌘V 粘贴始终可用。" = "When enabled, Shift + right-click still opens the menu.\n⌘C and ⌘V always work.";
+"开始一个新会话" = "Start a New Session";
+"当前需要有 1–100 个标签才能更新保存的会话。" = "Open 1–100 tabs to update a saved session.";
+"恢复" = "Restore";
+"恢复偏好设置备份" = "Restore Preferences Backup";
+"恢复偏好设置备份…" = "Restore Preferences Backup…";
+"恢复完成，请重启应用以应用全部偏好设置。" = "Restore complete. Restart the app to apply all preferences.";
+"恢复并替换当前偏好设置？" = "Restore and replace current preferences?";
+"打开已保存会话" = "Open Saved Session";
+"打开本地终端" = "Open Local Terminal";
+"按文件已传输字节计算；断点续传不包含此前已完成的部分。SCP 通过临时文件大小采样。" = "Based on transferred file bytes, excluding the previous resume offset. SCP samples the staging file size.";
+"搜索会话名称" = "Search session names";
+"搜索别名" = "Search aliases";
+"搜索已安装字体" = "Search installed fonts";
+"搜索服务器或分组" = "Search servers or groups";
+"撤销" = "Undo";
+"支持 ssh-keygen 的 OpenSSH / PEM 私钥，包括有口令的密钥。按原格式复制，口令仍在连接时输入；同名 .pub 文件会一并导入。也可在 SSH 配置中直接选用 ~/.ssh 的原文件。" = "Import OpenSSH / PEM private keys from ssh-keygen, including passphrase-protected keys. Files are copied unchanged; enter passphrases when connecting. Matching .pub files are imported too. You can also use original files from ~/.ssh directly.";
+"支持无认证代理；设置跳板机时，代理连接第一台跳板机。跳板机自身的密钥等设置使用 SSH 配置中的别名。" = "Supports proxies without authentication. With jump hosts, the proxy connects to the first hop. Configure jump-host keys using SSH aliases.";
+"文件" = "File";
+"文字颜色" = "Text color";
+"新建 SSH 会话…" = "New SSH Session…";
+"新建 SSH 会话、连接已保存的服务器，或打开本地终端。" = "Create an SSH session, connect to a saved server, or open a local terminal.";
+"新建会话…" = "New Session…";
+"新建会话分组" = "New Session Group";
+"新建本地会话" = "New Local Session";
+"新建本地终端" = "New Local Terminal";
+"显示 / 隐藏侧栏" = "Show / Hide Sidebar";
+"显示 / 隐藏侧栏 ⌃⌘S" = "Show / Hide Sidebar ⌃⌘S";
+"普通转发（-X）" = "Untrusted Forwarding (-X)";
+"暂无导入的密钥" = "No imported keys";
+"暂无已保存的密码" = "No saved passwords";
+"更改 SSH 配置…" = "Edit SSH Configuration…";
+"更改标签名称" = "Rename Tab";
+"更改标签名称…" = "Rename Tab…";
+"更新密码…" = "Update Password…";
+"更新已保存密码" = "Update Saved Password";
+"更新并登录" = "Update & Sign In";
+"最小化" = "Minimize";
+"最近约 2 秒的 ZMODEM 数据流速率，包含协议开销和重传；完成后显示平均速率。" = "ZMODEM stream throughput over roughly 2 seconds, including overhead and retries. Shows the average when complete.";
+"未分组" = "Ungrouped";
+"未找到 lrzsz。请安装后重试：brew install lrzsz" = "lrzsz not found. Install it and retry: brew install lrzsz";
+"未找到 lrzsz，请先安装：brew install lrzsz" = "lrzsz not found. Install it first: brew install lrzsz";
+"未找到此字体，请先通过 macOS 字体册安装，再点击刷新。" = "Font not found. Install it with Font Book, then click Refresh.";
+"未收到 rz 响应；请确认远端已安装 lrzsz，并停留在 shell 提示符。" = "No rz response. Make sure lrzsz is installed remotely and the terminal is at the shell prompt.";
+"未检测到 X11 DISPLAY，请安装并启动 XQuartz 后重新连接，或关闭 X11 转发。" = "No X11 DISPLAY detected. Install and start XQuartz, then reconnect, or disable X11 forwarding.";
+"本地 Bash" = "Local Bash";
+"本地 → 远端" = "Local → Remote";
+"本地终端" = "Local Terminal";
+"查找文本" = "Find Text";
+"查看公钥" = "View Public Key";
+"检查文件并准备上传…" = "Checking file and preparing upload…";
+"正在取消，保留续传文件…" = "Cancelling; keeping partial files for resume…";
+"正在启动远端 rz，等待 Zmodem 握手…" = "Starting remote rz; waiting for Zmodem handshake…";
+"此密钥没有附带 .pub 公钥文件。可将同名 .pub 放在原私钥旁后重新导入。" = "No accompanying .pub file. Place the matching .pub next to the original private key and import again.";
+"每个保存的会话最多包含 100 个标签。" = "A saved session can contain at most 100 tabs.";
+"没有可保存的标签，或会话配置无法读取。" = "No tabs to save, or the saved-session configuration could not be read.";
+"没有可导出的服务器配置。" = "No server configurations to export.";
+"浅色" = "Light";
+"深色" = "Dark";
+"添加" = "Add";
+"添加 SSH 服务器…" = "Add SSH Server…";
+"添加常用服务器，\n双击即可打开 SSH 会话。" = "Add your servers,\nthen double-click to connect.";
+"添加服务器 ⌘N" = "Add Server ⌘N";
+"清除" = "Clear";
+"清除所有已保存的 SSH 密码？" = "Clear all saved SSH passwords?";
+"清除所有已记住的 SSH 密码" = "Clear All Saved SSH Passwords";
+"点击新建会话或打开已保存会话" = "Click to create or open a saved session";
+"用当前标签配置更新" = "Update from Current Tabs";
+"用户名" = "Username";
+"界面外观" = "Appearance";
+"界面语言" = "Interface Language";
+"留空使用 SSH 配置" = "Leave blank to use SSH configuration";
+"留空使用 SSH 配置 / 22" = "Leave blank to use SSH configuration / 22";
+"登录成功后记住密码（应用本地加密数据库）" = "Remember after login (app's encrypted database)";
+"监听地址" = "Bind address";
+"监听端口" = "Listen port";
+"目标主机" = "Destination host";
+"目标端口" = "Destination port";
+"禁用终端响铃" = "Disable terminal bell";
+"私钥文件" = "Private key file";
+"移至分组" = "Move to Group";
+"窗口" = "Window";
+"端口" = "Port";
+"端口转发" = "Port Forwarding";
+"类型" = "Type";
+"粘贴" = "Paste";
+"终端字体" = "Terminal font";
+"终端行为" = "Terminal Behavior";
+"继续" = "Continue";
+"编码" = "Encoding";
+"编辑" = "Edit";
+"编辑…" = "Edit…";
+"缩放" = "Zoom";
+"背景颜色" = "Background color";
+"自动" = "Automatic";
+"自定义字体名称（如 Menlo-Regular）" = "Custom font name (e.g. Menlo-Regular)";
+"认证成功后记住密码。可更新或删除本地记录，密码不会显示在列表中。旧版记录没有账号描述，使用编号标识。" = "Passwords are saved after successful authentication. Update or delete local records; passwords are hidden in this list. Older records are identified by ID.";
+"认证方式" = "Authentication";
+"设置…" = "Settings…";
+"设置备份口令" = "Set Backup Passphrase";
+"设置立即应用到所有终端。程序自身的 ANSI 配色仍由程序控制。" = "Settings apply to all terminals immediately. Programs control their own ANSI colors.";
+"设置立即应用到所有终端，并在下次启动时保留。" = "Settings apply to all terminals immediately and persist across restarts.";
+"语言" = "Language";
+"语言设置已保存，重启应用后生效。当前连接不会被中断。" = "Language saved. Restart the app to apply it; current connections remain open.";
+"请先修复 groups.json 并重启，以免覆盖原分组。" = "Fix groups.json and restart before continuing to avoid overwriting the original groups.";
+"请先修复 ~/Library/Application Support/MyTerm/servers.json 并重启，以免覆盖无法读取的配置。" = "Fix ~/Library/Application Support/MyTerm/servers.json and restart before continuing.";
+"请先修复服务器配置文件。" = "Fix the server configuration file first.";
+"请先在左侧终端完成 SSH 登录，再连接 SFTP。" = "Complete SSH login in the terminal before connecting SFTP.";
+"请另存为独立文件，避免覆盖被引用的 ~/.ssh/config。" = "Save to a separate file to avoid overwriting the referenced ~/.ssh/config.";
+"请回到 SSH shell 提示符，并等待当前传输结束后再拖入文件。" = "Return to the SSH shell prompt and wait for the current transfer to finish before dropping files.";
+"请输入会话名称。" = "Enter a session name.";
+"请输入标签名称。" = "Enter a tab name.";
+"读取 ~/.ssh/config…" = "Reading ~/.ssh/config…";
+"读取目录…" = "Reading directory…";
+"跟随系统" = "Follow System";
+"跳板机" = "Jump host";
+"转发随此 SSH 会话启动和关闭；远程转发是否允许外部访问取决于服务器配置。" = "Forwarding starts and stops with this SSH session. External access to remote forwarding depends on the server configuration.";
+"输入备份口令" = "Enter Backup Passphrase";
+"远端 → 本地" = "Remote → Local";
+"远端发起了接收方向相反的传输，请重试。" = "The remote host requested the opposite transfer direction. Please retry.";
+"远端文件名；再次使用相同文件和名称可断点续传。已有完整文件不会被覆盖。" = "Remote filename. Use the same file and name again to resume. Existing complete files will not be overwritten.";
+"远端目录" = "Remote directory";
+"连接" = "Connect";
+"连接 SFTP…" = "Connecting SFTP…";
+"连接已保存的服务器" = "Connect to Saved Server";
+"退出 MyTerm" = "Quit MyTerm";
+"选中会话" = "Select Session";
+"选中文本后自动复制" = "Copy selected text automatically";
+"选区背景" = "Selection background";
+"选择 Zmodem 发送文件…" = "Choose files to send with Zmodem…";
+"选择 Zmodem 接收目录…" = "Choose a Zmodem download folder…";
+"选择…" = "Choose…";
+"选择新会话类型" = "Choose a session type";
+"选择要加入侧栏的主机。连接时仍使用原 SSH 配置，配置文件不会被修改。" = "Select hosts to add to the sidebar. Connections use the original SSH configuration without modifying it.";
+"通过网络代理连接" = "Connect through a network proxy";
+"速度" = "Speed";
+"配置读取失败，请修复后再导入，以免覆盖原文件。" = "Configuration could not be read. Fix it before importing to avoid overwriting the original files.";
+"配置读取失败，请修复后再导出。" = "Configuration could not be read. Fix it before exporting.";
+"重命名…" = "Rename…";
+"重命名会话" = "Rename Session";
+"重命名分组" = "Rename Group";
+"重新连接" = "Reconnect";
+"锁定尺寸" = "Lock Size";
+"需要本机运行 XQuartz、远端允许 X11Forwarding。受信任模式仅用于可信服务器，远端程序可访问本地 X server。" = "Requires a running local XQuartz server and remote X11Forwarding. Use trusted mode only for trusted servers; remote applications can access your local X server.";
+"预设" = "Presets";
+"默认列出全部已安装字体。终端表格与 tmux 推荐使用等宽字体，如 Menlo、Monaco、Courier；安装其他字体后点击刷新即可选择。" = "All installed fonts are listed by default. Monospaced fonts such as Menlo, Monaco and Courier work best for terminal tables and tmux. Refresh after installing new fonts.";
+"鼠标与响铃" = "Mouse & Bell";
+"鼠标与粘贴设置…" = "Mouse & Paste Settings…";
+"确认 SSH 主机" = "Confirm SSH Host";
+"请更新 SSH 密码" = "Update SSH Password";
+"SSH 认证" = "SSH Authentication";
+"上次密码未被接受，请重新输入。" = "The previous password was rejected. Please enter it again.";
+"语言切换立即生效，并自动保存。当前连接不会被中断。" = "Language changes apply immediately and are saved automatically. Current connections stay open.";
+
+"分组名称（1–60 个字符）" = "Group name (1–60 characters)";
+
+"请输入分组名称，不能只包含空格。" = "Enter a group name; spaces alone are not allowed.";
+
+"分组名称不能超过 60 个字符。" = "Group names cannot exceed 60 characters.";
+
+"分组名称不能包含换行、制表符或其他控制字符。" = "Group names cannot contain newlines, tabs, or other control characters.";
+
+"‘未分组’是保留名称，请换一个名称。" = "“未分组” is a reserved name. Choose another name.";
+
+"分组名称或编号重复。" = "A group with this name or identifier already exists.";
+
+"拖拽会话到此加入分组" = "Drop a session here to add it to this group";
+
+"拖拽会话到此退出分组" = "Drop a session here to remove it from its group";
+
+"SSH 连接调试（-vvv）" = "SSH connection debugging (-vvv)";
+
+"默认关闭。开启后，详细连接日志显示在终端中；保存后重新打开该 SSH 会话生效。" = "Off by default. Detailed connection logs appear in the terminal when enabled. Reopen the SSH session after saving to apply changes.";
+
+"详细配置跳板机" = "Configure individual jump hosts";
+
+"按顺序经过下列跳板机，再连接目标服务器。" = "Connect through these jump hosts in order, then connect to the destination.";
+
+"添加一级跳板机" = "Add jump host";
+
+"跳板机地址" = "Jump host address";
+
+"IP 或域名" = "IP address or domain name";
+
+"上移" = "Move up";
+
+"下移" = "Move down";
+
+"连接时会分别提示各级跳板机的密码或密钥口令。密码可在登录成功后保存到应用本地加密数据库。" = "Each jump host prompts for its own password or key passphrase when connecting. Passwords can be saved to the app’s encrypted local database after a successful login.";
+
+"请配置 1–10 台跳板机。" = "Configure between 1 and 10 jump hosts.";
+
+"详细跳板机设置不能与跳板别名同时使用。" = "Individual jump hosts and a legacy jump alias cannot be used together.";
+
+"跳板机编号重复。" = "Duplicate jump host identifiers.";
+
+"分组信息异常，请修复或移除。服务器会话不受影响。" = "Group information is invalid. Repair or remove it; server sessions are unaffected.";
+
+"修复分组" = "Repair groups";
+
+"移除分组" = "Remove groups";
+
+"trzsz 文件传输（支持 tmux）" = "trzsz file transfers (tmux compatible)";
+
+"拖拽上传协议" = "Drag-and-drop upload protocol";
+
+"自动（全屏终端用 trzsz）" = "Automatic (trzsz in full-screen terminals)";
+
+"远端需安装 trz/tsz。在 shell 提示符下执行 trz 上传、tsz 文件名下载；拖拽时也请停留在 shell 提示符。进度显示在终端中，Ctrl+C 取消。保存后重新打开连接生效。" = "Install trz/tsz on the remote host. At a shell prompt, run trz to upload or tsz filename to download. Drop files only at a shell prompt. Progress appears in the terminal; Ctrl+C cancels. Reopen the connection after saving.";
+
+"trzsz 客户端缺失，请重新安装 MyTerm 或关闭该连接的 trzsz 支持。" = "The trzsz client is missing. Reinstall MyTerm or disable trzsz for this connection.";
+
+"请选择上传文件。" = "Choose files to upload.";
+
+"上传路径必须可读，且不能包含控制字符。" = "Upload paths must be readable and contain no control characters.";
+
+"trzsz 仅支持普通文件和目录。" = "trzsz supports regular files and directories only.";
+
+"展开 / 收起底部状态栏" = "Show / hide bottom status bar";
+
+"收起底部状态栏" = "Hide bottom status bar";
+
+"下一个标签页" = "Next Tab";
+
+"上一个标签页" = "Previous Tab";
+
+"双击空白处最大化 / 还原窗口，拖动以移动窗口" = "Double-click empty space to zoom / restore; drag to move the window";
