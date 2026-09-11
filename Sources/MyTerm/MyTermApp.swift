@@ -239,6 +239,7 @@ struct WorkspaceView: View {
                                     .contextMenu {
                                         Button("选中会话") { workspace.selectedID = session.id }
                                         Button("复制会话（新连接）") { workspace.duplicate(session) }
+                                        SessionHistoryLoggingMenu(session: session, workspace: workspace)
                                         Button("更改标签名称…") { workspace.renameTab(session) }
                                         if session.sourceServer != nil {
                                             Button("更改 SSH 配置…") { workspace.editConnection(session) }
@@ -358,8 +359,8 @@ struct WorkspaceView: View {
                 }.padding(12).background(.orange.opacity(0.12))
             }
         }
-        .sheet(item: $workspace.editor) { server in
-            ServerEditor(server: server, workspace: workspace)
+        .onChange(of: workspace.editor) { _, server in
+            if let server { ServerEditorWindowController.shared.present(server: server, workspace: workspace) }
         }
         .sheet(isPresented: $workspace.importPresented) { SSHImportView(workspace: workspace) }
         .sheet(isPresented: $workspace.historyPresented) { HistoryView(model: workspace.history, refresh: workspace.showHistory) }
@@ -434,22 +435,29 @@ struct ServerEditor: View {
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @StateObject private var draft: ServerDraft
     @ObservedObject var workspace: Workspace
-    @Environment(\.dismiss) private var dismiss
-    init(server: Server, workspace: Workspace) {
+    @ObservedObject var theme = ThemePreferences.shared
+    let onClose: () -> Void
+    let onZoom: () -> Void
+    init(server: Server, workspace: Workspace, onClose: @escaping () -> Void, onZoom: @escaping () -> Void) {
         self.workspace = workspace
+        self.onClose = onClose; self.onZoom = onZoom
         _draft = StateObject(wrappedValue: ServerDraft(server: server))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("SSH 服务器").font(.title2.bold())
-            ScrollView { Form {
-                TextField("名称", text: $draft.server.name, prompt: Text("例如：开发服务器"))
-                TextField("主机", text: $draft.server.host, prompt: Text("IP、域名或 SSH 别名"))
-                TextField("用户名", text: $draft.server.user, prompt: Text("留空使用 SSH 配置"))
-                TextField("端口", text: $draft.server.port, prompt: Text("留空使用 SSH 配置 / 22"))
+            HStack {
+                Text("SSH 服务器").font(.title2.bold())
+                Spacer()
+                Button("最大化 / 还原", action: onZoom)
+            }.layoutPriority(1)
+            ScrollView(.vertical) { VStack(alignment: .leading, spacing: 14) {
+                EditorTextField(title: "名称", text: $draft.server.name, prompt: "例如：开发服务器")
+                EditorTextField(title: "主机", text: $draft.server.host, prompt: "IP、域名或 SSH 别名")
+                EditorTextField(title: "用户名", text: $draft.server.user, prompt: "留空使用 SSH 配置")
+                EditorTextField(title: "端口", text: $draft.server.port, prompt: "留空使用 SSH 配置 / 22")
                 HStack {
-                    TextField("私钥文件", text: $draft.server.identityFile, prompt: Text("可选，使用默认密钥"))
+                    EditorTextField(title: "私钥文件", text: $draft.server.identityFile, prompt: "可选，使用默认密钥")
                     Menu("密钥库") {
                         ForEach((try? SSHKeyLibrary().list()) ?? []) { key in
                             Button(key.name) { draft.server.identityFile = key.url.path }
@@ -459,7 +467,7 @@ struct ServerEditor: View {
                 }
                 Toggle("详细配置跳板机", isOn: $draft.detailedJumps)
                 if draft.detailedJumps {
-                    Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary)
+                    Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     ForEach($draft.jumpServers) { $hop in
                         SSHJumpEditor(hop: $hop, position: (draft.jumpServers.firstIndex(where: { $0.id == hop.id }) ?? 0) + 1,
                                       moveUp: { draft.moveJump(hop.id, offset: -1) }, moveDown: { draft.moveJump(hop.id, offset: 1) },
@@ -467,14 +475,14 @@ struct ServerEditor: View {
                     }
                     Button("添加一级跳板机") { draft.jumpServers.append(SSHJumpServer()) }.disabled(draft.jumpServers.count >= 10)
                 } else {
-                    TextField("跳板机", text: $draft.jumpHost, prompt: Text("B 别名或 user@B:22；多级用逗号分隔"))
+                    EditorTextField(title: "跳板机", text: $draft.jumpHost, prompt: "B 别名或 user@B:22；多级用逗号分隔")
                 }
                 Picker("X11 转发", selection: Binding(get: { draft.server.x11Forwarding ?? .disabled }, set: { draft.server.x11Forwarding = $0 })) {
                     Text("关闭").tag(X11Forwarding.disabled)
                     Text("普通转发（-X）").tag(X11Forwarding.untrusted)
                     Text("受信任转发（-Y）").tag(X11Forwarding.trusted)
                 }
-                Text("需要本机运行 XQuartz、远端允许 X11Forwarding。受信任模式仅用于可信服务器，远端程序可访问本地 X server。").font(.caption).foregroundStyle(.secondary)
+                Text("需要本机运行 XQuartz、远端允许 X11Forwarding。受信任模式仅用于可信服务器，远端程序可访问本地 X server。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Picker("认证方式", selection: $draft.authentication) {
                     Text("自动").tag(AuthenticationMode.automatic)
                     Text("密码").tag(AuthenticationMode.password)
@@ -489,10 +497,15 @@ struct ServerEditor: View {
                         Text("ZMODEM").tag(DragUploadProtocol.zmodem)
                     }
                     Text("远端需安装 trz/tsz。在 shell 提示符下执行 trz 上传、tsz 文件名下载；拖拽时也请停留在 shell 提示符。进度显示在终端中，Ctrl+C 取消。保存后重新打开连接生效。")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
+                Picker("会话日志", selection: Binding(get: { draft.server.historyLogging ?? .inherit }, set: { draft.server.historyLogging = $0 })) {
+                    ForEach(HistoryLoggingMode.allCases, id: \.self) { mode in Text(L10n.text(mode.title)).tag(mode) }
+                }
+                Text("此选择随 SSH 配置保存，对新连接生效。当前标签可右键 → 会话日志即时调整。")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Toggle("SSH 连接调试（-vvv）", isOn: Binding(get: { draft.server.debugLogging ?? false }, set: { draft.server.debugLogging = $0 }))
-                Text("默认关闭。开启后，详细连接日志显示在终端中；保存后重新打开该 SSH 会话生效。").font(.caption).foregroundStyle(.secondary)
+                Text("默认关闭。开启后，详细连接日志显示在终端中；保存后重新打开该 SSH 会话生效。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
                 Toggle("通过网络代理连接", isOn: $draft.proxyEnabled)
                 if draft.proxyEnabled {
@@ -500,9 +513,9 @@ struct ServerEditor: View {
                         Text("HTTP CONNECT").tag(ProxyKind.http)
                         Text("SOCKS5").tag(ProxyKind.socks5)
                     }
-                    TextField("代理地址", text: $draft.proxyHost)
-                    TextField("代理端口", text: $draft.proxyPort)
-                    Text("支持无认证代理；设置跳板机时，代理连接第一台跳板机。跳板机自身的密钥等设置使用 SSH 配置中的别名。").font(.caption).foregroundStyle(.secondary)
+                    EditorTextField(title: "代理地址", text: $draft.proxyHost)
+                    EditorTextField(title: "代理端口", text: $draft.proxyPort)
+                    Text("支持无认证代理；设置跳板机时，代理连接第一台跳板机。跳板机自身的密钥等设置使用 SSH 配置中的别名。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Divider()
                 HStack { Text("端口转发").font(.headline); Spacer(); Button("添加") { draft.forwards.append(PortForward()) } }
@@ -516,25 +529,37 @@ struct ServerEditor: View {
                             }
                             Button { draft.forwards.removeAll { $0.id == forward.id } } label: { Image(systemName: "minus.circle") }
                         }
-                        HStack { TextField("监听地址", text: $forward.bindAddress); TextField("监听端口", text: $forward.listenPort).frame(width: 90) }
+                        HStack(alignment: .top, spacing: 16) {
+                            EditorTextField(title: "监听地址", text: $forward.bindAddress)
+                            EditorTextField(title: "监听端口", text: $forward.listenPort).frame(width: 160)
+                        }
                         if forward.kind != .dynamic {
-                            HStack { TextField("目标主机", text: $forward.destinationHost); TextField("目标端口", text: $forward.destinationPort).frame(width: 90) }
+                            HStack(alignment: .top, spacing: 16) {
+                                EditorTextField(title: "目标主机", text: $forward.destinationHost)
+                                EditorTextField(title: "目标端口", text: $forward.destinationPort).frame(width: 160)
+                            }
                         }
                     }.padding(8).background(.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
                 }
-                Text("转发随此 SSH 会话启动和关闭；远程转发是否允许外部访问取决于服务器配置。").font(.caption).foregroundStyle(.secondary)
-            }.textFieldStyle(.roundedBorder) }.frame(maxHeight: 500)
+                Text("转发随此 SSH 会话启动和关闭；远程转发是否允许外部访问取决于服务器配置。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }.textFieldStyle(.roundedBorder)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 8).padding(.bottom, 12)
+                .background(EditorScrollbars())
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
             Text("密码在认证窗口输入，可在登录成功后保存到 应用本地加密数据库；失效时提示更新。密钥口令和验证码不自动保存。")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let validationError = draft.validationError { Text(L10n.text(validationError)).font(.callout).foregroundStyle(.red) }
             HStack {
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("取消") { onClose() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("保存") { save(connect: false) }
                 Button("保存并连接") { save(connect: true) }.keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
             }
-        }.padding(28).frame(width: 620)
+        }.padding(20).frame(minWidth: 640, maxWidth: .infinity, minHeight: 480, maxHeight: .infinity)
+            .preferredColorScheme(theme.scheme)
+            .environment(\.locale, interfaceLanguage.locale)
     }
 
     private func save(connect: Bool) {
@@ -542,7 +567,7 @@ struct ServerEditor: View {
             let validated = try draft.server.validated()
             if workspace.save(validated) {
                 if connect { workspace.connect(validated) }
-                dismiss()
+                onClose()
             } else {
                 draft.validationError = workspace.error
                 workspace.error = nil
@@ -582,4 +607,14 @@ final class ServerDraft: ObservableObject {
     var proxyHost: String { get { server.proxy?.host ?? "" } set { server.proxy?.host = newValue } }
     var proxyPort: String { get { server.proxy?.port ?? "" } set { server.proxy?.port = newValue } }
     var forwards: [PortForward] { get { server.forwards ?? [] } set { server.forwards = newValue } }
+}
+
+struct SessionHistoryLoggingMenu: View {
+    @ObservedObject var session: TerminalSession
+    @ObservedObject var workspace: Workspace
+    var body: some View {
+        Picker("会话日志", selection: Binding(get: { session.historyLogging }, set: { workspace.setHistoryLogging($0, for: session) })) {
+            ForEach(HistoryLoggingMode.allCases, id: \.self) { mode in Text(L10n.text(mode.title)).tag(mode) }
+        }
+    }
 }

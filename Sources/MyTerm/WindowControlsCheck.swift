@@ -23,6 +23,7 @@ final class WindowControlsCheck {
             try ThemeColorCheck.run()
             ThemeLayoutCheck.run()
             try SettingsTabsCheck.run()
+            try ServerEditorLayoutCheck.run()
             check.require(!window.isOpaque && window.backgroundColor == .clear, "Window must composite terminal background opacity")
             window.makeKeyAndOrderFront(nil)
             check.local = workspace.selected!

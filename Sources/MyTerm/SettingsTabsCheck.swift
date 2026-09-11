@@ -3,6 +3,7 @@ import MyTermCore
 
 enum SettingsTabsCheck {
     static func run() throws {
+        try HistorySettingsCheck.run()
         let controller = MouseSettingsController.shared
         let language = LanguagePreferences.shared, original = LanguagePreferences.shared.selection
         let originalPage = controller.selection.page
@@ -40,6 +41,15 @@ enum SettingsTabsCheck {
                 settle()
                 try require(controller.selection.page == page, "Actual tab click did not select page")
                 try require(tab.state == .on, "Selected tab is not indicated")
+                if page == .terminal {
+                    let scrolls = descendants(root).compactMap { $0 as? NSScrollView }
+                    try require(!scrolls.isEmpty, "Terminal/history settings are not scrollable")
+                    for scroll in scrolls {
+                        if let document = scroll.documentView {
+                            try require(document.frame.width <= scroll.contentView.bounds.width + 1, "History settings overflow horizontally")
+                        }
+                    }
+                }
                 if page == .theme {
                     try require(descendants(root).contains(where: { $0 is NSScrollView }), "Theme page is empty")
                     if let index = CommandLine.arguments.firstIndex(of: "--theme-snapshots"), CommandLine.arguments.indices.contains(index + 1),

@@ -3,6 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 import MyTermCore
 import CryptoKit
+import Combine
 
 struct HistorySummary: Identifiable {
     let id: UUID
@@ -18,25 +19,64 @@ final class HistoryModel: ObservableObject {
     @Published var query = ""
     @Published var error: String?
     @Published var loading = false
+    private(set) var saving = false // Main thread: at most one periodic snapshot batch.
     private let repository: HistoryRepository
     private let queue = DispatchQueue(label: "MyTerm.History", qos: .utility)
     private var lastDigest: [UUID: SHA256.Digest] = [:] // Accessed only on the serial queue.
-    private var excluded = Set<UUID>()
-    init(directory: URL) { repository = HistoryRepository(directory: directory) }
+    private var excluded = Set<UUID>() // Serial queue only.
+    private var known = Set<UUID>()
+    private var policy = HistoryPolicy()
+    private let permissionLock = NSLock()
+    private var globalEnabled = false
+    private var validPolicy = true
+    private var overrides: [UUID: HistoryLoggingMode] = [:]
+    func setLoggingMode(_ mode: HistoryLoggingMode, for id: UUID) {
+        permissionLock.lock()
+        let changed = overrides[id] != mode
+        overrides[id] = mode
+        permissionLock.unlock()
+        if changed { queue.async { self.lastDigest[id] = nil } }
+    }
+    private func mayWrite(_ id: UUID) -> Bool {
+        permissionLock.lock(); defer { permissionLock.unlock() }
+        return validPolicy && (overrides[id] ?? .inherit).resolves(global: globalEnabled)
+    }
+    private var policySubscription: AnyCancellable?
+    init(directory: URL) {
+        repository = HistoryRepository(directory: directory)
+        policySubscription = HistoryPreferences.shared.$policy.sink { [weak self] value in
+            guard let self else { return }
+            self.permissionLock.lock()
+            self.globalEnabled = value.enabled
+            self.validPolicy = (try? value.validate()) != nil
+            self.permissionLock.unlock()
+            self.queue.async {
+                if !value.enabled { self.policy.enabled = false }
+                guard (try? value.validate()) != nil else { return }
+                self.policy = value; self.lastDigest.removeAll()
+            }
+        }
+    }
 
     func save(_ records: [SessionHistory], wait: Bool = false) {
-        let allowed = records.filter { !excluded.contains($0.id) }
+        guard wait || !saving else { return }
+        saving = true
         let work = { [self] in
-            for record in allowed {
+            defer { if !wait { DispatchQueue.main.async { self.saving = false } } }
+            known.formUnion(records.map(\.id))
+            for record in records where !excluded.contains(record.id) && mayWrite(record.id) {
                 let digest = SHA256.hash(data: Data(record.text.utf8))
                 guard lastDigest[record.id] != digest else { continue }
-                do { try repository.save(record); lastDigest[record.id] = digest }
+                var effective = policy; effective.enabled = true
+                do { try repository.save(record, policy: effective, shouldWrite: { self.mayWrite(record.id) }); lastDigest[record.id] = digest }
                 catch { DispatchQueue.main.async { self.error = "保存会话历史失败：\(error.localizedDescription)" } }
             }
+            do { if records.contains(where: { mayWrite($0.id) }) { try repository.enforceCapacity(policy) } }
+            catch { DispatchQueue.main.async { self.error = error.localizedDescription } }
             // Only active records need a cache; archives remain on disk.
             if lastDigest.count > 100 { lastDigest.removeAll() }
         }
-        if wait { queue.sync(execute: work) } else { queue.async(execute: work) }
+        if wait { queue.sync(execute: work); saving = false } else { queue.async(execute: work) }
     }
     func refresh(select id: UUID? = nil) {
         loading = true
@@ -73,12 +113,30 @@ final class HistoryModel: ObservableObject {
     }
     func deleteSelected() {
         guard let id = selectedID else { return }
-        excluded.insert(id) // An open session must not immediately recreate a deleted archive.
         queue.async { [self] in
+            excluded.insert(id) // Do not recreate an explicitly deleted open session.
             do {
                 try repository.delete(id); lastDigest[id] = nil
                 DispatchQueue.main.async { self.refresh() }
-            } catch { DispatchQueue.main.async { self.excluded.remove(id); self.error = error.localizedDescription } }
+            } catch { excluded.remove(id); DispatchQueue.main.async { self.error = error.localizedDescription } }
+        }
+    }
+    func cleanHistory(olderOnly: Bool) {
+        let alert = NSAlert()
+        alert.messageText = L10n.text(olderOnly ? "清理 30 天前的记录？" : "清空全部历史记录？")
+        alert.informativeText = L10n.text("删除后无法恢复，不影响服务器配置。已清理的当前会话在重新打开标签页前不会再次保存。")
+        alert.addButton(withTitle: L10n.text("取消"))
+        alert.addButton(withTitle: L10n.text("删除记录"))
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        let cutoff = olderOnly ? Date().addingTimeInterval(-30 * 86400) : nil
+        queue.async { [self] in
+            do {
+                let deleted = try repository.clean(before: cutoff)
+                excluded.formUnion(deleted)
+                if !olderOnly { excluded.formUnion(known) }
+                lastDigest.removeAll()
+                DispatchQueue.main.async { self.refresh() }
+            } catch { DispatchQueue.main.async { self.error = error.localizedDescription } }
         }
     }
     func exportSelected() {
@@ -111,6 +169,10 @@ struct HistoryView: View {
                 Button("刷新", action: refresh).disabled(model.loading)
                 Button("导出文本…", action: model.exportSelected).disabled(model.selectedID == nil || model.text.isEmpty)
                 Button("删除记录", role: .destructive, action: model.deleteSelected).disabled(model.selectedID == nil)
+                Menu("清理历史") {
+                    Button("清理 30 天前的记录") { model.cleanHistory(olderOnly: true) }
+                    Button("清空全部历史记录", role: .destructive) { model.cleanHistory(olderOnly: false) }
+                }
                 Button("关闭") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             HSplitView {
@@ -128,7 +190,7 @@ struct HistoryView: View {
                 HistoryTextView(text: model.text).frame(minWidth: 420)
             }
             HStack {
-                Text("保留最近 50,000 行回滚与当前屏幕；每 30 秒及关闭时保存。文本内可用 ⌘F 查找。")
+                Text("自动保存默认关闭，可在设置 → 终端行为中开启并调整限制。文本内可用 ⌘F 查找。")
                 Spacer()
                 Text("\(model.entries.count) 条记录")
             }.font(.caption).foregroundStyle(.secondary)

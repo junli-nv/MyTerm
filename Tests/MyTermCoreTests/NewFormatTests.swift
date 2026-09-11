@@ -52,6 +52,7 @@ func checkNewFormats() throws {
     server.debugLogging = true
     let debugOptions = try run("/usr/bin/ssh", ["-G"] + server.sshArguments(configPath: "/dev/null"))
     checkEqual(debugOptions.contains("loglevel DEBUG3\n"), true)
+    checkEqual(debugOptions.contains("escapechar none\n"), true)
     try Data(OpenSSHExport.render([server], userConfig: root.appendingPathComponent("optional-config").path).utf8).write(to: config)
     let debugExport = try run("/usr/bin/ssh", ["-G", "-F", config.path, server.host])
     checkEqual(debugExport.contains("loglevel DEBUG3\n"), true)

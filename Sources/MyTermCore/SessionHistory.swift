@@ -24,16 +24,30 @@ public struct HistoryRepository {
     }
     public func ids() throws -> [UUID] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
-        return try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "json" }.compactMap { UUID(uuidString: $0.deletingPathExtension().lastPathComponent) }
+        return Array(Set(try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .compactMap { url -> UUID? in
+                let name = url.lastPathComponent
+                if name.hasSuffix(".json.gz") { return UUID(uuidString: String(name.dropLast(8))) }
+                if name.hasSuffix(".json") { return UUID(uuidString: String(name.dropLast(5))) }
+                return nil
+            }))
+    }
+    func recordFiles(_ id: UUID) -> [URL] {
+        [".json.gz", ".json"].map { directory.appendingPathComponent(id.uuidString + $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
     }
     public func load(_ id: UUID) throws -> SessionHistory {
-        let record = try JSONDecoder().decode(SessionHistory.self, from: Data(contentsOf: directory.appendingPathComponent(id.uuidString + ".json")))
+        guard let url = recordFiles(id).first else { throw ConfigurationError.invalid("历史记录不存在。") }
+        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size <= HistoryCompression.expandedLimit else { throw ConfigurationError.invalid("历史文件超过读取限制。") }
+        let data = try Data(contentsOf: url)
+        let decoded = url.pathExtension == "gz" ? try HistoryCompression.transform(data, compress: false) : data
+        let record = try JSONDecoder().decode(SessionHistory.self, from: decoded)
         guard record.id == id else { throw ConfigurationError.invalid("会话历史编号不匹配。") }
         return record
     }
     public func delete(_ id: UUID) throws {
-        try FileManager.default.removeItem(at: directory.appendingPathComponent(id.uuidString + ".json"))
+        for url in recordFiles(id) { try FileManager.default.removeItem(at: url) }
     }
     public static func export(_ text: String, to url: URL) throws {
         try Data(text.utf8).write(to: url, options: .atomic)

@@ -64,7 +64,7 @@ final class Workspace: ObservableObject {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         var saved = savedSessions
         if !sessions.isEmpty, sessions.count <= 100 {
-            saved.append(SavedSession(name: "备份时的会话", tabs: sessions.map { SessionTab(server: $0.sourceServer, directory: $0.sourceServer == nil ? $0.directory : nil, encoding: $0.encoding) }, selectedIndex: sessions.firstIndex(where: { $0.id == selectedID }) ?? 0))
+            saved.append(SavedSession(name: "备份时的会话", tabs: sessions.map { SessionTab(server: $0.sourceServer, directory: $0.sourceServer == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) }, selectedIndex: sessions.firstIndex(where: { $0.id == selectedID }) ?? 0))
         }
         return ["servers.json": try encoder.encode(servers), "groups.json": try encoder.encode(groups), "sessions.json": try encoder.encode(saved)]
     }
@@ -221,7 +221,10 @@ final class Workspace: ObservableObject {
     func duplicate(_ session: TerminalSession) {
         if let server = session.sourceServer { connect(server) }
         else { newLocal(directory: session.directory) }
-        if selectedID != session.id { selected?.encoding = session.encoding }
+        if selectedID != session.id, let selected {
+            selected.encoding = session.encoding
+            setHistoryLogging(session.historyLogging, for: selected)
+        }
     }
 
     func renameTab(_ session: TerminalSession) {
@@ -243,7 +246,13 @@ final class Workspace: ObservableObject {
         editor = servers.first(where: { $0.id == server.id }) ?? server
     }
 
+    func setHistoryLogging(_ mode: HistoryLoggingMode, for session: TerminalSession) {
+        session.historyLogging = mode
+        history.setLoggingMode(mode, for: session.id)
+    }
+
     private func add(_ session: TerminalSession) {
+        history.setLoggingMode(session.historyLogging, for: session.id)
         session.onNormalExit = { [weak self, weak session] in
             guard let self, let session else { return }; self.close(session)
         }
@@ -307,7 +316,7 @@ final class Workspace: ObservableObject {
     private func persistSession(named name: String, replaceLast: Bool = false) {
         guard !sessionsLoadFailed, !sessions.isEmpty else { return }
         guard sessions.count <= 100 else { error = "每个保存的会话最多包含 100 个标签。"; return }
-        let item = SavedSession(name: name, tabs: sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding) },
+        let item = SavedSession(name: name, tabs: sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) },
             selectedIndex: sessions.firstIndex(where: { $0.id == selectedID }) ?? 0)
         var updated = savedSessions
         if replaceLast { updated.removeAll { $0.name == "上次退出时的会话" } }
@@ -336,7 +345,10 @@ final class Workspace: ObservableObject {
                 }
                 newLocal(directory: directory)
             }
-            if sessions.count > previousCount { selected?.encoding = tab.encoding ?? .utf8 }
+            if sessions.count > previousCount, let selected {
+                selected.encoding = tab.encoding ?? .utf8
+                setHistoryLogging(tab.historyLogging ?? selected.historyLogging, for: selected)
+            }
         }
         if sessions.indices.contains(start + saved.selectedIndex) { selectedID = sessions[start + saved.selectedIndex].id }
     }
@@ -368,7 +380,7 @@ final class Workspace: ObservableObject {
         }
         var updated = savedSessions
         guard let index = updated.firstIndex(where: { $0.id == saved.id }) else { return }
-        updated[index].tabs = sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding) }
+        updated[index].tabs = sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) }
         updated[index].selectedIndex = sessions.firstIndex(where: { $0.id == selectedID }) ?? 0
         do { try sessionRepository.save(updated); savedSessions = updated }
         catch { self.error = error.localizedDescription }
@@ -377,8 +389,10 @@ final class Workspace: ObservableObject {
     func stopAll() { sessions.forEach { $0.stop() } }
 
     func archiveHistory(_ tabs: [TerminalSession]? = nil, wait: Bool = false) {
-        guard !ProcessInfo.processInfo.arguments.contains("--smoke-test") else { return }
-        history.save((tabs ?? sessions).map { $0.historySnapshot() }.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }, wait: wait)
+        guard !ProcessInfo.processInfo.arguments.contains("--smoke-test"), wait || !history.saving else { return }
+        let candidates = tabs ?? sessions
+        for session in candidates { history.setLoggingMode(session.historyLogging, for: session.id) }
+        history.save(candidates.filter { $0.historyLogging.resolves(global: HistoryPreferences.shared.policy.enabled) }.map { $0.historySnapshot() }.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }, wait: wait)
     }
     func showHistory() {
         archiveHistory(); history.refresh(select: selectedID); historyPresented = true

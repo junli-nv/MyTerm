@@ -8,9 +8,10 @@ let package = Package(
     dependencies: [.package(path: "vendor/SwiftTerm")],
     targets: [
         .systemLibrary(name: "CSQLite"),
+        .systemLibrary(name: "CZlib"),
         .systemLibrary(name: "CIconv"),
         .systemLibrary(name: "CCommonCrypto"),
-        .target(name: "MyTermCore", dependencies: ["CSQLite", "CIconv", "CCommonCrypto"]),
+        .target(name: "MyTermCore", dependencies: ["CSQLite", "CIconv", "CCommonCrypto", "CZlib"]),
         .executableTarget(name: "MyTermProxy"),
         .executableTarget(name: "MyTerm", dependencies: ["MyTermCore", "SwiftTerm"]),
         .executableTarget(name: "MyTermChecks", dependencies: ["MyTermCore", "SwiftTerm"], path: "Tests/MyTermCoreTests")

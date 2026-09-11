@@ -453,3 +453,34 @@
 "文件中没有可用的终端配色。" = "No supported terminal colors were found in this file.";
 
 "字号" = "Font size";
+
+// Session log retention
+"会话日志与历史" = "Session logs and history";
+"自动保存会话日志（默认关闭）" = "Automatically save session logs (off by default)";
+"关闭后不再写入日志，已有历史仍保留；手动导出仍可使用。开启后保存当前回滚内容，每 30 秒及关闭时更新。" = "When off, existing history is kept and manual export remains available. When on, the current scrollback is saved every 30 seconds and on close.";
+"单会话最大行数" = "Maximum lines per session";
+"单文件上限（MiB）" = "Per-file limit (MiB)";
+"日志总容量（MiB）" = "Total log capacity (MiB)";
+"历史限制无效：行数 100–1,000,000，单文件 1–1,024 MiB，总容量 1–102,400 MiB，且总容量不能小于单文件。" = "Invalid limits: 100–1,000,000 lines; 1–1,024 MiB per file; 1–102,400 MiB total. Total capacity must be at least the per-file limit.";
+"有效设置立即生效。超过行数或文件限制保留最新内容；超过总容量按最久未更新的记录清理。缩小限制在下次保存时执行，旧记录可在历史窗口清理。" = "Valid settings apply immediately. Line and file limits keep the newest text; total capacity removes the least recently updated records. Reduced limits apply on the next save. Clean older records in the history window.";
+"清理 30 天前的记录？" = "Delete records last updated over 30 days ago?";
+"清空全部历史记录？" = "Delete all history?";
+"删除后无法恢复，不影响服务器配置。已清理的当前会话在重新打开标签页前不会再次保存。" = "Deletion cannot be undone. Server configurations are unaffected. Deleted open sessions will not be saved again until their tabs are reopened.";
+"清理历史" = "Clean history";
+"清理 30 天前的记录" = "Delete records older than 30 days";
+"清空全部历史记录" = "Delete all history";
+"自动保存默认关闭，可在设置 → 终端行为中开启并调整限制。文本内可用 ⌘F 查找。" = "Automatic saving is off by default. Enable it and adjust limits in Settings → Terminal Behavior. Use ⌘F to search text.";
+"使用 gzip 快速压缩（推荐）" = "Use fast gzip compression (recommended)";
+"应用日志限制" = "Apply log limits";
+"点击应用后调整限制。文件与总容量按压缩后大小计算；超限保留最新内容或清理最久未更新的记录。旧记录可在历史窗口清理。" = "Click Apply to change limits. File and total limits use compressed sizes. Excess data keeps the newest text or removes the least recently updated records. Clean older records in the history window.";
+
+// Per-session logging overrides
+"会话日志" = "Session logging";
+"跟随全局设置" = "Use global default";
+"始终保存日志" = "Always save logs";
+"不保存日志" = "Do not save logs";
+"全局默认：自动保存会话日志" = "Global default: automatically save session logs";
+"默认关闭。会话可选择跟随全局、始终保存或不保存。全局开关仅影响跟随全局的会话，已有历史保留，手动导出始终可用。" = "Off by default. Each session can inherit the global default, always save, or never save. The global switch only affects inheriting sessions. Existing history is retained and manual export remains available.";
+"此选择随 SSH 配置保存，对新连接生效。当前标签可右键 → 会话日志即时调整。" = "Saved with the SSH configuration for new connections. For an open tab, right-click → Session logging to change it immediately.";
+
+"最大化 / 还原" = "Maximize / Restore";

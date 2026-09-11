@@ -3,9 +3,10 @@ import Foundation
 public struct SessionTab: Codable, Equatable {
     public var server: Server?
     public var directory: String?
+    public var historyLogging: HistoryLoggingMode?
     public var encoding: TerminalEncoding?
-    public init(server: Server? = nil, directory: String? = nil, encoding: TerminalEncoding? = nil) {
-        self.server = server; self.directory = directory; self.encoding = encoding
+    public init(server: Server? = nil, directory: String? = nil, encoding: TerminalEncoding? = nil, historyLogging: HistoryLoggingMode? = nil) {
+        self.server = server; self.directory = directory; self.encoding = encoding; self.historyLogging = historyLogging
     }
 }
 

@@ -19,9 +19,9 @@ struct SSHJumpEditor: View {
                 Button(action: moveDown) { Image(systemName: "arrow.down") }.help("下移")
                 Button(role: .destructive, action: remove) { Image(systemName: "trash") }.help("删除")
             }
-            TextField("跳板机地址", text: $hop.host, prompt: Text("IP 或域名"))
-            TextField("端口", text: $hop.port, prompt: Text("22"))
-            TextField("用户名", text: $hop.user)
+            EditorTextField(title: "跳板机地址", text: $hop.host, prompt: "IP 或域名")
+            EditorTextField(title: "端口", text: $hop.port, prompt: "22")
+            EditorTextField(title: "用户名", text: $hop.user)
             Picker("认证方式", selection: $hop.authentication) {
                 Text("自动").tag(AuthenticationMode.automatic)
                 Text("密码").tag(AuthenticationMode.password)
@@ -29,7 +29,7 @@ struct SSHJumpEditor: View {
             }
             if hop.authentication != .password {
                 HStack {
-                    TextField("私钥文件", text: $hop.identityFile, prompt: Text("可选，使用默认密钥"))
+                    EditorTextField(title: "私钥文件", text: $hop.identityFile, prompt: "可选，使用默认密钥")
                     Menu("密钥库") {
                         ForEach((try? SSHKeyLibrary().list()) ?? []) { key in
                             Button(key.name) { hop.identityFile = key.url.path }
@@ -41,7 +41,7 @@ struct SSHJumpEditor: View {
                     }
                 }
             }
-            Text("连接时会分别提示各级跳板机的密码或密钥口令。密码可在登录成功后保存到应用本地加密数据库。").font(.caption).foregroundStyle(.secondary)
+            Text("连接时会分别提示各级跳板机的密码或密钥口令。密码可在登录成功后保存到应用本地加密数据库。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.padding(10).background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 8))
     }
 }

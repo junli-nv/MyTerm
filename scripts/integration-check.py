@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import select
+import pty
+import sys
 import shlex
 import shutil
 import socket
@@ -24,6 +26,41 @@ if not CHECKS.exists():
 
 def run(args, **kwargs):
     return subprocess.check_output(args, timeout=30, **kwargs)
+
+def console_escape_check(root, arguments, wrapped):
+    helper = root / 'console-escape.py'
+    helper.write_text("import os, tty\ntty.setraw(0)\nos.write(1,b'CONSOLE_READY')\ndata=b''\nwhile len(data)<3: data+=os.read(0,3-len(data))\nos.write(1,b'RECEIVED:'+data.hex().encode())\nassert data==b'~.\\r', data\nassert os.read(0,1)==b'q'\nos.write(1,b'CONSOLE_DONE')\n")
+    command = ['/usr/bin/ssh', '-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ClearAllForwardings=yes'] + arguments + [shlex.join([sys.executable, str(helper)])]
+    if wrapped:
+        command = [str(ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz'), '--dragfile'] + command
+    master, slave = pty.openpty()
+    process = subprocess.Popen(command, stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+    os.close(slave)
+    output = bytearray()
+    def expect(marker):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            if marker in output: return
+            if select.select([master], [], [], .05)[0]:
+                try: output.extend(os.read(master, 65536))
+                except OSError: break
+        raise AssertionError('Console escape check failed: ' + output.decode(errors='replace'))
+    try:
+        expect(b'CONSOLE_READY')
+        # First input after login: OpenSSH treats this as the start of a line.
+        os.write(master, b'~.\r')
+        expect(b'RECEIVED:7e2e0d')
+        assert process.poll() is None, 'Outer SSH disconnected'
+        os.write(master, b'q')
+        expect(b'CONSOLE_DONE')
+        assert process.wait(timeout=10) == 0
+        print('PASS: console ~. reaches remote unchanged; SSH stays alive (' + ('trzsz' if wrapped else 'direct') + ')', flush=True)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try: process.wait(timeout=5)
+            except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=5)
+        os.close(master)
 
 def free_port():
     with socket.socket() as sock:
@@ -228,6 +265,10 @@ Host *
                         assert b'PASS' in output
                         if proxy: assert proxy.connections > before, 'proxy was bypassed'
                         print(f'PASS: {mode}: SSH, compression, L/R/D forwarding, multiplexed SFTP', flush=True)
+                        if mode == 'direct':
+                            console_escape_check(root, launch['arguments'], False)
+                            if (ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz').is_file():
+                                console_escape_check(root, launch['arguments'], True)
                         if mode == 'direct' and os.environ.get('MYTERM_TMUX_CHECK') == '1':
                             tmux = shutil.which('tmux')
                             assert tmux, 'tmux is required'

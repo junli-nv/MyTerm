@@ -2,7 +2,7 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
 
-当前版本 **1.4.3（Build 111）**。发布说明见 [RELEASE-NOTES-1.4.3.md](packaging/RELEASE-NOTES-1.4.3.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.3/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.4.7（Build 112）**。发布说明见 [RELEASE-NOTES-1.4.7.md](packaging/RELEASE-NOTES-1.4.7.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.7/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
 
@@ -224,3 +224,12 @@ SSH 连接默认启用内置 trzsz-go 1.2.0 客户端，无需在 Mac 另装客�
 “背景不透明度”从 0%（透明）到 100%（不透明），默认 100%；仅影响默认背景和左右留白，不会降低文字、光标、选区或程序指定背景色的透明度。预设切换保留字体、字号和透明度。完整设置随偏好设置备份保存。
 
 导入/导出 `.itermcolors` 支持基础六项颜色和 ANSI 16 色，保留字体、字号、界面外观和透明度；缺失的颜色保持当前值。支持 sRGB、Calibrated 和 P3 输入，导出 sRGB。iTerm2 特有的光标引导线、徽标、明暗双方案等扩展不导入。ANSI 调色板不改写程序的 RGB 真彩色；关键词规则仍在“输出着色”中设置。
+
+MyTerm 的交互式 SSH 使用 `-e none` 禁用外层客户端转义键处理，让 `~.` 等按键传给远端 ipmitool 等控制台程序。退出 SSH 可在远端 shell 输入 `exit`，或关闭标签页。
+
+会话日志默认关闭，可在「设置 → 终端行为」显式开启。可配置回滚/保存行数（默认 50,000 行）、单个历史文件大小（默认 20 MiB）和历史总容量（默认 500 MiB）。大小包括 JSON 元数据，超限保留最新文本，总容量超限清理最久未更新记录。手动导出不受自动日志开关影响。历史窗口可清理 30 天前或全部记录。
+日志使用 gzip 快速压缩（可关闭），压缩/解压及磁盘操作在后台执行；文件与容量上限按实际压缩后大小计算。
+
+日志保存开关是全局默认。SSH 配置及当前标签的右键菜单可分别选择「跟随全局设置」「始终保存日志」「不保存日志」。当前标签的选择即时生效，复制及保存/恢复多标签会话时保留；SSH 编辑中的选择随服务器配置保存，用于新连接。压缩、行数、单文件和总容量继续遵守全局限制。
+
+SSH 配置使用独立可缩放窗口，支持最大化/还原与全屏。长配置区域显示固定滚动栏，底部保存操作保持可见；端口转发标签位于输入框上方，避免窄窗口截断。

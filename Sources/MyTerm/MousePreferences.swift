@@ -81,6 +81,7 @@ private struct MouseSettingsView: View {
     @ObservedObject private var preferences = MousePreferences.shared
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 18) {
             Text("鼠标与响铃").font(.title2.bold())
             Toggle("选中文本后自动复制", isOn: $preferences.copyOnSelection)
@@ -93,6 +94,9 @@ private struct MouseSettingsView: View {
                 .font(.callout).foregroundStyle(.secondary)
             Text("设置立即应用到所有终端，并在下次启动时保留。")
                 .font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(width: 440, alignment: .leading)
+            Divider()
+            HistorySettingsView()
+        }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

@@ -16,6 +16,7 @@ public struct Server: Identifiable, Codable, Equatable {
     public var forwards: [PortForward]?
     public var authentication: AuthenticationMode?
     public var x11Forwarding: X11Forwarding?
+    public var historyLogging: HistoryLoggingMode?
     public var debugLogging: Bool?
     public var trzszEnabled: Bool?
     public var dragUploadProtocol: DragUploadProtocol?
@@ -127,7 +128,9 @@ public struct Server: Identifiable, Codable, Equatable {
     }
 
     public func sshArguments(controlPath: String? = nil, configPath: String? = nil) throws -> [String] {
-        var args = ["-tt"]
+        // Remote consoles (e.g. ipmitool) own ~. and other escape sequences.
+        // Disable only this outer interactive SSH client's escape processing.
+        var args = ["-tt", "-e", "none"]
         if debugLogging == true { args.append("-vvv") }
         if let controlPath {
             args += ["-o", "ControlMaster=auto", "-o", "ControlPersist=no", "-o", "ControlPath=\(controlPath)"]

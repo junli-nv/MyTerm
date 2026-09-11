@@ -8,3 +8,5 @@
 - Retain only the current local release package after successful validation and installation, as requested by the user. Preserve user settings and sessions during upgrades.
 
 - For settings/localization changes, validate the complete settings window, not only an isolated page: switch languages repeatedly, preserve the selected page, and click all six visible tabs. Keep explicit tabs; do not reintroduce an adaptive overflow menu.
+
+- Configuration forms must remain scrollable at their minimum supported window size, with long labels and explanations wrapping rather than clipping. Keep the SSH editor as a resizable standalone window with maximize/restore and a visible vertical scrollbar. Validate expanded jump, proxy and forwarding sections in Chinese and English in Debug, Release and the installed bundle.

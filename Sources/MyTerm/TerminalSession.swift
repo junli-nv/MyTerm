@@ -7,6 +7,7 @@ import Combine
 final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProcessTerminalViewDelegate {
     let id = UUID()
     let startedAt = Date()
+    @Published var historyLogging: HistoryLoggingMode = .inherit
     @Published var label: String
     let executable: String
     private(set) var arguments: [String]
@@ -32,6 +33,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     var sourceServer: Server? { configuredServer ?? server }
     private var started = false
     private var stopped = false
+    private var historySubscription: AnyCancellable?
     private var themeSubscription: AnyCancellable?
     private var authentication: SSHAuthentication?
 
@@ -40,6 +42,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         self.executable = executable
         self.arguments = arguments
         self.server = server
+        self.historyLogging = server?.historyLogging ?? .inherit
         self.configuredServer = server
         self.connectionContext = context
         self.directory = directory ?? FileManager.default.homeDirectoryForCurrentUser.path
@@ -47,7 +50,13 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         super.init()
         terminal.processDelegate = self
         terminal.configureOutputHighlighting(isSSH: executable == "/usr/bin/ssh")
-        terminal.getTerminal().changeScrollback(50_000)
+        let historyPolicy = HistoryPreferences.shared.policy
+        terminal.getTerminal().changeScrollback((try? historyPolicy.validate()) != nil ? historyPolicy.maximumLines : 50_000)
+        historySubscription = HistoryPreferences.shared.$policy.dropFirst().sink { [weak self] policy in
+            guard (try? policy.validate()) != nil else { return }
+            guard let terminal = self?.terminal.getTerminal(), terminal.options.scrollback != policy.maximumLines else { return }
+            terminal.changeScrollback(policy.maximumLines)
+        }
         if server != nil {
             terminal.zmodem = ZmodemBridge(terminal: terminal)
             terminal.registerForDraggedTypes([.fileURL])
