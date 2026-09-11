@@ -26,14 +26,15 @@ final class MousePreferences: ObservableObject {
 final class MouseSettingsController: NSWindowController {
     static let shared = MouseSettingsController()
     private var languageObserver: NSObjectProtocol?
+    let selection = SettingsSelection()
     deinit { if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) } }
     private init() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = L10n.text("MyTerm 设置")
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: SettingsView())
         super.init(window: window)
+        window.contentView = NSHostingView(rootView: SettingsView(selection: selection))
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
             self?.window?.title = L10n.text("MyTerm 设置")
         }
@@ -47,16 +48,29 @@ final class MouseSettingsController: NSWindowController {
     }
 }
 
-private struct SettingsView: View {
+struct SettingsView: View {
+    @ObservedObject var selection: SettingsSelection
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @ObservedObject var theme = ThemePreferences.shared
     var body: some View {
-        TabView {
-            LanguageSettingsView().tabItem { Text("语言") }
-            ThemeSettingsView().tabItem { Text("主题与字体") }
-            MouseSettingsView().tabItem { Text("终端行为") }
-            CredentialSettingsView().tabItem { Text("SSH 密码") }
-            SSHKeySettingsView().tabItem { Text("SSH 密钥") }
+        VStack(spacing: 12) {
+            HStack(spacing: 6) {
+                ForEach(SettingsPage.allCases, id: \.self) { page in
+                    SettingsTabButton(page: page, selected: selection.page == page) { selection.page = page }
+                        .frame(width: (760.0 - 24 - 30) / 6, height: 42)
+                }
+            }
+            Divider()
+            Group {
+                switch selection.page {
+                case .language: LanguageSettingsView()
+                case .theme: ThemeSettingsView()
+                case .highlighting: OutputHighlightSettingsView()
+                case .terminal: MouseSettingsView()
+                case .passwords: CredentialSettingsView()
+                case .keys: SSHKeySettingsView()
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.padding(12).frame(width: 760, height: 620).preferredColorScheme(theme.scheme)
             .environment(\.locale, interfaceLanguage.locale)
     }

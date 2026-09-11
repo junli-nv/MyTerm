@@ -84,6 +84,7 @@ let serverTests = ServerTests()
 let ptyTests = PTYTests()
 let features = FeatureTests()
 let checks: [(String, () throws -> Void)] = [
+    ("Output highlight literal matching, boundaries, priority, limits and backup", checkOutputHighlight),
     ("trzsz literal paths, invalid drag input and saved connection options", checkTrzsz),
     ("Encrypted preferences backup, credential restore, tampering and resume throughput", checkBackupAndRates),
     ("Streaming character encodings, managed OpenSSH keys and OpenSSH export", checkNewFormats),

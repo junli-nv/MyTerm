@@ -10,6 +10,7 @@ final class WindowControlsCheck {
     private var timer: Timer?
     private var baseline = NSRect.zero
     private var originalWindow = NSRect.zero
+    private var tabAreaBeforeSwitch = NSRect.zero
     private var fixture: TerminalSession!
     private var local: TerminalSession!
     private var deadline = Date().addingTimeInterval(30)
@@ -18,6 +19,12 @@ final class WindowControlsCheck {
     static func run(window: NSWindow, workspace: Workspace) {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
+            try OutputHighlightCheck.run()
+            try ThemeColorCheck.run()
+            ThemeLayoutCheck.run()
+            try SettingsTabsCheck.run()
+            check.require(!window.isOpaque && window.backgroundColor == .clear, "Window must composite terminal background opacity")
+            window.makeKeyAndOrderFront(nil)
             check.local = workspace.selected!
             let server = Server(host: "localhost")
             let context = try SSHLaunchContext(server: server)
@@ -98,8 +105,16 @@ final class WindowControlsCheck {
             doubleClickBlank()
         case 8:
             require(abs(window.frame.width - originalWindow.width) < 2 && abs(window.frame.height - originalWindow.height) < 2, "Double-click did not restore")
+            guard let area = descendants(window.contentView!).first(where: { $0 is TabBarDragView }) else { fail("No tab drag area") }
+            tabAreaBeforeSwitch = area.convert(area.bounds, to: nil)
+            let sftp = button("tabbar.sftp")
+            require(sftp.convert(sftp.bounds, to: nil).minX > window.contentView!.bounds.width - 90, "SFTP toggle must sit beside the right-hand plus button")
             workspace.selectedID = local.id
         case 9:
+            guard let area = descendants(window.contentView!).first(where: { $0 is TabBarDragView }) else { fail("No tab drag area") }
+            let after = area.convert(area.bounds, to: nil)
+            require(abs(after.minX - tabAreaBeforeSwitch.minX) < 1 && abs(after.width - tabAreaBeforeSwitch.width) < 1, "Switching SSH/local shifted the tab strip")
+            require(!descendants(window.contentView!).contains(where: { $0.identifier?.rawValue == "tabbar.sftp" }), "Local shell must not expose SFTP control")
             clickButton("tabbar.status")
         case 10:
             require(local.statusBarVisible && !fixture.statusBarVisible, "Tab switch button changed wrong session")
@@ -108,7 +123,7 @@ final class WindowControlsCheck {
             clickButton("tabbar.status")
         case 12:
             require(fixture.statusBarVisible && local.statusBarVisible, "Session button lost its target after switching back")
-            print("PASS: window controls: actual mouse clicks, padded targets, bottom bar, sidebar, SFTP panel, double-click maximize/restore and per-tab state")
+            print("PASS: window controls: actual mouse clicks, padded targets, bottom bar, sidebar, SFTP panel, double-click maximize/restore, per-tab state and stable SSH/local tab geometry")
             timer?.invalidate(); timer = nil
             workspace.stopAll()
             NSApp.terminate(nil)

@@ -27,6 +27,8 @@ class Terminal:
                 except OSError: pass
             if predicate(): return
             if self.process.poll() is not None: break
+        # The child can exit between the predicate and poll above.
+        if predicate(): return
         raise AssertionError(bytes(self.output[-6000:]).decode(errors='replace'))
     def settle(self):
         deadline = time.monotonic() + 1.5

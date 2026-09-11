@@ -2,13 +2,13 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
 
-当前版本 **1.2.1（Build 106）**。发布说明见 [RELEASE-NOTES-1.2.1.md](packaging/RELEASE-NOTES-1.2.1.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.2.1/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.4.3（Build 111）**。发布说明见 [RELEASE-NOTES-1.4.3.md](packaging/RELEASE-NOTES-1.4.3.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.3/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
 
 ## 构建与启动
 
-需要 macOS 14+、Swift 6.0+，首次构建需要网络下载依赖。
+需要 macOS 14+、Swift 6.0+，SwiftTerm 源码随仓库提供，版本和渲染扩展说明见 `vendor/SwiftTerm/MYTERM-PATCH.md`。
 
 ```bash
 cd /Users/junliz/myterm
@@ -206,3 +206,21 @@ SSH 连接默认启用内置 trzsz-go 1.2.0 客户端，无需在 Mac 另装客�
 使用 Ctrl+Tab 切换到下一个标签页，Ctrl+Shift+Tab 切换到上一个；首尾循环，可在“窗口”菜单中查看。快捷键在主终端窗口生效，不发送到远端 shell/tmux。
 
 发布流程会对 Debug 和实际 Release 应用执行相同的窗口鼠标交互检查，验证侧栏、底栏、SFTP 面板展开/收起、标签切换后的状态，以及双击最大化/还原；任一失败都会阻止生成 ZIP。SSH 标签栏提供独立 SFTP 开关，无需先展开底栏。
+
+### 输出着色与终端留白
+
+**设置 → 输出着色** 默认对 SSH 输出中的 Error、fail 等词标红，up、active、ok 等词标绿，warning 等词标黄。可添加或删除规则、自定义关键词和颜色、调整优先级，并选择整词匹配和区分大小写。多个关键词用逗号分隔，按普通文本匹配。设置立即生效，随偏好设置备份导入导出。
+
+默认保留远端 ANSI 颜色，仅对 SSH 普通屏幕生效；本地终端及 tmux/vim 等全屏程序可以单独开启。着色只作用于显示，复制、历史导出及传输的数据保持原样。终端左右各保留 8 点空白，自动适配的列数按实际可用宽度计算。
+
+### 安装一致性检查
+
+`bash scripts/create-dmg.sh` 挂载生成的 DMG，逐项核对包内应用与 Release 构建的文件、权限及符号链接，复制到独立目录后执行相同的窗口及着色测试。`bash scripts/install-release.sh` 从该 DMG 安装到 `/Applications/MyTerm.app`，再次核对文件、签名并运行窗口测试，通过后打开安装版；安装验证失败时恢复原应用。该脚本同时将 `dist/MyTerm.app` 同步为相同的已验证产物，不另行构建。
+
+### 灵活配色与透明背景
+
+在 **设置 → 主题与字体** 中分别编辑普通/明亮 ANSI 16 色，以及文字、背景、光标、光标文字、选区背景和选区文字。颜色选择器支持系统调色，旁边的 HEX 框支持输入 `#RRGGBB` 后回车应用。提供深色、浅色、Solarized、午夜蓝、柔和纸白五个预设及真实终端预览。
+
+“背景不透明度”从 0%（透明）到 100%（不透明），默认 100%；仅影响默认背景和左右留白，不会降低文字、光标、选区或程序指定背景色的透明度。预设切换保留字体、字号和透明度。完整设置随偏好设置备份保存。
+
+导入/导出 `.itermcolors` 支持基础六项颜色和 ANSI 16 色，保留字体、字号、界面外观和透明度；缺失的颜色保持当前值。支持 sRGB、Calibrated 和 P3 输入，导出 sRGB。iTerm2 特有的光标引导线、徽标、明暗双方案等扩展不导入。ANSI 调色板不改写程序的 RGB 真彩色；关键词规则仍在“输出着色”中设置。

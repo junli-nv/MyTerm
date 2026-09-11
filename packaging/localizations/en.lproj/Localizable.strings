@@ -361,3 +361,95 @@
 "上一个标签页" = "Previous Tab";
 
 "双击空白处最大化 / 还原窗口，拖动以移动窗口" = "Double-click empty space to zoom / restore; drag to move the window";
+
+"输出着色" = "Output Colors";
+
+"启用输出关键词着色" = "Highlight output keywords";
+
+"同时应用于本地终端" = "Also apply to local terminals";
+
+"同时应用于 tmux / vim 等全屏程序" = "Also apply to full-screen apps (tmux / vim)";
+
+"保留服务器已有的文字颜色" = "Preserve existing server text colors";
+
+"仅改变显示颜色，复制、历史导出和文件传输保留原文。修改立即生效。" = "Display colors only; copying, history export and transfers retain original text. Changes apply immediately.";
+
+"用逗号分隔关键词；按列表顺序优先匹配。仅匹配文字，不使用正则表达式。" = "Separate keywords with commas. Earlier rules take priority. Matches literal text, not regular expressions.";
+
+"启用规则" = "Enable rule";
+
+"关键词（例如 error, failed）" = "Keywords (e.g. error, failed)";
+
+"完整词匹配" = "Whole words";
+
+"区分大小写" = "Case sensitive";
+
+"添加规则" = "Add rule";
+
+"恢复默认着色规则" = "Restore default rules";
+
+"着色规则最多 32 条，且不能包含重复标识。" = "Up to 32 highlight rules are supported; rule identifiers must be unique.";
+
+"关键词需为单行文本，每项最多 128 字符，每条规则最多 32 项。" = "Keywords must be single-line text: up to 128 characters each and 32 keywords per rule.";
+
+"午夜蓝" = "Midnight Blue";
+
+"柔和纸白" = "Soft Paper";
+
+"基础颜色" = "Basic colors";
+
+"光标文字" = "Cursor text";
+
+"选区文字" = "Selected text";
+
+"ANSI 调色板" = "ANSI palette";
+
+"标准色" = "Normal";
+
+"明亮色" = "Bright";
+
+"黑色" = "Black";
+
+"红色" = "Red";
+
+"绿色" = "Green";
+
+"黄色" = "Yellow";
+
+"蓝色" = "Blue";
+
+"洋红" = "Magenta";
+
+"青色" = "Cyan";
+
+"白色" = "White";
+
+"导入配色…" = "Import colors…";
+
+"导出配色…" = "Export colors…";
+
+"输入 #RRGGBB 后按回车应用。" = "Enter #RRGGBB and press Return to apply.";
+
+"粗体使用明亮 ANSI 颜色" = "Use bright ANSI colors for bold text";
+
+"实时终端预览" = "Live terminal preview";
+
+"背景不透明度" = "Background opacity";
+
+"100% 完全不透明，0% 完全透明；仅影响默认背景，文字和选区保持清晰。" = "100% is opaque, 0% is transparent. Only the default background changes; text and selections stay opaque.";
+
+"ANSI 调色板控制程序使用的标准 16 色；RGB 真彩色保持程序指定的颜色。关键词着色在“输出着色”中单独设置。" = "The ANSI palette controls the standard 16 colors. RGB true color stays as specified by programs. Configure keyword colors separately in Output highlighting.";
+
+"颜色立即应用到所有终端。配色导入导出使用 .itermcolors，保留当前字体和字号。" = "Colors apply immediately to all terminals. Import and export .itermcolors without changing the current font or size.";
+
+"颜色值必须在 0–1 之间，ANSI 调色板必须包含 16 色。" = "Color values must be between 0 and 1, with exactly 16 ANSI colors.";
+
+"无法读取配色文件，请选择有效的 .itermcolors 文件。" = "Choose a valid .itermcolors file.";
+
+"配色文件包含无效的 RGB 颜色。" = "The file contains invalid RGB colors.";
+
+"配色文件包含不支持的颜色空间。" = "The file uses an unsupported color space.";
+
+"文件中没有可用的终端配色。" = "No supported terminal colors were found in this file.";
+
+"字号" = "Font size";

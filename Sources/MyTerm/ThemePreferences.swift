@@ -6,7 +6,7 @@ struct ThemeColor: Codable, Equatable {
     init(_ red: Double, _ green: Double, _ blue: Double) { self.red = red; self.green = green; self.blue = blue }
     init(_ color: NSColor) {
         let value = color.usingColorSpace(.sRGB) ?? .white
-        self.init(value.redComponent, value.greenComponent, value.blueComponent)
+        self.init(min(1, max(0, value.redComponent)), min(1, max(0, value.greenComponent)), min(1, max(0, value.blueComponent)))
     }
     var native: NSColor { NSColor(srgbRed: red, green: green, blue: blue, alpha: 1) }
 }
@@ -18,6 +18,32 @@ struct TerminalTheme: Codable, Equatable {
     var cursor = ThemeColor(0.4, 0.9, 0.75)
     var selection = ThemeColor(0.13, 0.35, 0.43)
     var appearance = "dark"
+    var cursorText = ThemeColor(0.055, 0.067, 0.09)
+    var selectionText = ThemeColor(0, 0, 0)
+    var ansi = TerminalTheme.defaultANSI
+    var brightBold = true
+    var backgroundOpacity = 1.0
+    init() {}
+    enum CodingKeys: String, CodingKey {
+        case fontName, fontSize, foreground, background, cursor, selection, appearance, cursorText, selectionText, ansi, brightBold, backgroundOpacity
+    }
+    init(from decoder: Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fontName = try c.decodeIfPresent(String.self, forKey: .fontName) ?? fontName
+        fontSize = try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? fontSize
+        appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? appearance
+        foreground = try c.decodeIfPresent(ThemeColor.self, forKey: .foreground) ?? foreground
+        background = try c.decodeIfPresent(ThemeColor.self, forKey: .background) ?? background
+        cursor = try c.decodeIfPresent(ThemeColor.self, forKey: .cursor) ?? cursor
+        selection = try c.decodeIfPresent(ThemeColor.self, forKey: .selection) ?? selection
+        cursorText = try c.decodeIfPresent(ThemeColor.self, forKey: .cursorText) ?? background
+        selectionText = try c.decodeIfPresent(ThemeColor.self, forKey: .selectionText) ?? selectionText
+        ansi = try c.decodeIfPresent([ThemeColor].self, forKey: .ansi) ?? ansi
+        brightBold = try c.decodeIfPresent(Bool.self, forKey: .brightBold) ?? brightBold
+        backgroundOpacity = try c.decodeIfPresent(Double.self, forKey: .backgroundOpacity) ?? 1
+        try validateColors()
+    }
 }
 final class ThemePreferences: ObservableObject {
     static let shared = ThemePreferences()
@@ -49,13 +75,21 @@ final class ThemePreferences: ObservableObject {
         if terminal.font != font { terminal.font = font }
         terminal.nativeForegroundColor = theme.foreground.native
         terminal.nativeBackgroundColor = theme.background.native
+        terminal.backgroundOpacity = theme.backgroundOpacity
         terminal.caretColor = theme.cursor.native
-        terminal.caretTextColor = theme.background.native
+        terminal.caretTextColor = theme.cursorText.native
         terminal.selectedTextBackgroundColor = theme.selection.native
+        terminal.selectedTextForegroundColor = theme.selectionText.native
+        terminal.useBrightColors = theme.brightBold
+        if terminal.appliedANSI != theme.ansi {
+            terminal.installColors(theme.ansi.map(\.terminalColor))
+            terminal.appliedANSI = theme.ansi
+        }
     }
     func preset(_ name: String) {
         var value = TerminalTheme()
         value.fontName = theme.fontName; value.fontSize = theme.fontSize
+        value.backgroundOpacity = theme.backgroundOpacity
         if name == "浅色" {
             value.appearance = "light"; value.background = ThemeColor(0.97, 0.97, 0.96)
             value.foreground = ThemeColor(0.12, 0.14, 0.17); value.cursor = ThemeColor(0.1, 0.35, 0.65)
@@ -64,6 +98,18 @@ final class ThemePreferences: ObservableObject {
             value.background = ThemeColor(0, 0.17, 0.21); value.foreground = ThemeColor(0.58, 0.63, 0.63)
             value.cursor = ThemeColor(0.71, 0.54, 0); value.selection = ThemeColor(0.03, 0.25, 0.29)
         }
+        if name == "午夜蓝" {
+            value.background = ThemeColor(hex: "#101827")!; value.foreground = ThemeColor(hex: "#D6E4F0")!
+            value.ansi = ["182334", "F27883", "86D6A0", "F4D58A", "82B5F5", "CAA4EA", "7DD8DC", "CFDCE8", "62758B", "FFA0A8", "A9EDBB", "FFE4A3", "A6CCFF", "E0C2FA", "A1EBEE", "F1F7FC"].map { ThemeColor(hex: $0)! }
+        } else if name == "柔和纸白" {
+            value.appearance = "light"; value.background = ThemeColor(hex: "#FAF7F0")!; value.foreground = ThemeColor(hex: "#343B43")!
+            value.cursor = ThemeColor(hex: "#285C85")!; value.selection = ThemeColor(hex: "#CDDDE9")!
+            value.ansi = ["343B43", "AC3343", "35734A", "886B17", "315EAC", "85469C", "227980", "CBD0D5", "626E79", "C44555", "408354", "98781B", "426EBB", "9957AF", "2E8C92", "EEECE5"].map { ThemeColor(hex: $0)! }
+        } else if name == "Solarized" {
+            value.ansi = ["073642", "DC322F", "859900", "B58900", "268BD2", "D33682", "2AA198", "EEE8D5", "002B36", "CB4B16", "586E75", "657B83", "839496", "6C71C4", "93A1A1", "FDF6E3"].map { ThemeColor(hex: $0)! }
+        }
+        value.cursorText = value.background
+        value.selectionText = value.foreground
         theme = value
     }
 }
@@ -89,59 +135,61 @@ struct ThemeSettingsView: View {
     private func applyCustomFont() {
         draft.fontError = preferences.useFont(named: draft.customFont) ? nil : "未找到此字体，请先通过 macOS 字体册安装，再点击刷新。"
     }
-    private func color(_ key: WritableKeyPath<TerminalTheme, ThemeColor>) -> Binding<Color> {
-        Binding(get: { Color(nsColor: preferences.theme[keyPath: key].native) },
-                set: { preferences.theme[keyPath: key] = ThemeColor(NSColor($0)) })
-    }
     var body: some View {
-        ScrollView {
-        Form {
-            HStack {
-                Text("预设")
-                ForEach(["深色", "浅色", "Solarized"], id: \.self) { name in Button(L10n.text(name)) { preferences.preset(name) } }
+        GeometryReader { geometry in
+        ScrollView(.vertical) {
+        VStack(alignment: .leading, spacing: 16) {
+            ThemeSettingRow(title: "预设") {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 125), spacing: 8)], spacing: 8) {
+                ForEach(["深色", "浅色", "Solarized", "午夜蓝", "柔和纸白"], id: \.self) { name in
+                    Button { preferences.preset(name) } label: {
+                        Text(L10n.text(name)).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
+                    }
+                }
             }
-            Picker("界面外观", selection: $preferences.theme.appearance) {
-                Text("跟随系统").tag("system"); Text("深色").tag("dark"); Text("浅色").tag("light")
             }
-            Picker("终端字体", selection: $preferences.theme.fontName) {
-                ForEach(visibleFonts, id: \.self) { Text($0).tag($0) }
+            ThemeSettingRow(title: "界面外观") {
+                Picker("界面外观", selection: $preferences.theme.appearance) {
+                    Text("跟随系统").tag("system"); Text("深色").tag("dark"); Text("浅色").tag("light")
+                }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
             }
+            ThemeSettingRow(title: "终端字体") {
             VStack(alignment: .leading, spacing: 6) {
-                Text("搜索已安装字体")
+                Picker("终端字体", selection: $preferences.theme.fontName) {
+                    ForEach(visibleFonts, id: \.self) { Text($0).tag($0) }
+                }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
+                Text(preferences.theme.fontName).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            }
+            ThemeSettingRow(title: "搜索已安装字体") {
                 HStack(spacing: 12) {
                     TextField("", text: $draft.fontSearch).labelsHidden()
                         .accessibilityLabel(Text("搜索已安装字体"))
-                        .textFieldStyle(.roundedBorder).frame(minWidth: 160, maxWidth: .infinity)
+                        .textFieldStyle(.roundedBorder).frame(minWidth: 80, maxWidth: .infinity)
                     Toggle("仅等宽", isOn: $draft.onlyMonospaced).fixedSize()
                     Button("刷新", action: preferences.refreshFonts).fixedSize()
                 }
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("自定义字体名称（如 Menlo-Regular）").fixedSize(horizontal: false, vertical: true)
+            ThemeSettingRow(title: "自定义字体名称（如 Menlo-Regular）") {
                 HStack(spacing: 12) {
                     TextField("", text: $draft.customFont, prompt: Text("Menlo-Regular")).labelsHidden()
                         .accessibilityLabel(Text("自定义字体名称（如 Menlo-Regular）"))
-                        .textFieldStyle(.roundedBorder).frame(minWidth: 160, maxWidth: .infinity).onSubmit(applyCustomFont)
+                        .textFieldStyle(.roundedBorder).frame(minWidth: 80, maxWidth: .infinity).onSubmit(applyCustomFont)
                     Button("应用字体", action: applyCustomFont).fixedSize()
                 }
             }
             if let fontError = draft.fontError { Text(L10n.text(fontError)).font(.caption).foregroundStyle(.red) }
             Text("默认列出全部已安装字体。终端表格与 tmux 推荐使用等宽字体，如 Menlo、Monaco、Courier；安装其他字体后点击刷新即可选择。")
-                .font(.caption).foregroundStyle(.secondary)
-            Stepper("字号：\(preferences.theme.fontSize.formatted()) pt", value: $preferences.theme.fontSize, in: 9...36, step: 0.5)
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            ThemeSettingRow(title: "字号") {
+                Stepper("\(preferences.theme.fontSize.formatted()) pt", value: $preferences.theme.fontSize, in: 9...36, step: 0.5)
+                    .fixedSize()
+            }
             Text("Ctrl + 双指上滑放大，下滑缩小；每步 0.5 pt。").font(.caption).foregroundStyle(.secondary)
-            ColorPicker("文字颜色", selection: color(\.foreground), supportsOpacity: false)
-            ColorPicker("背景颜色", selection: color(\.background), supportsOpacity: false)
-            ColorPicker("光标颜色", selection: color(\.cursor), supportsOpacity: false)
-            ColorPicker("选区背景", selection: color(\.selection), supportsOpacity: false)
-            Text("user@server:~ $ echo 你好 MyTerm\nHello, terminal!")
-                .font(.custom(preferences.theme.fontName, size: preferences.theme.fontSize))
-                .foregroundStyle(Color(nsColor: preferences.theme.foreground.native))
-                .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(nsColor: preferences.theme.background.native), in: RoundedRectangle(cornerRadius: 6))
-            Text("设置立即应用到所有终端。程序自身的 ANSI 配色仍由程序控制。")
-                .font(.caption).foregroundStyle(.secondary)
-        }.padding(24)
+            ThemeColorControls(preferences: preferences)
+        }.frame(width: max(0, geometry.size.width - 40), alignment: .leading).padding(20)
+        }
         }.onAppear { preferences.refreshFonts() }
     }
 }

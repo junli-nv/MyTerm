@@ -1,8 +1,28 @@
 import AppKit
 import SwiftTerm
 import MyTermCore
+import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
+    var appliedANSI: [ThemeColor]?
+    private var highlighting: TerminalOutputHighlighter?
+    private var highlightSubscription: AnyCancellable?
+    func configureOutputHighlighting(isSSH: Bool, preferences: OutputHighlightPreferences = .shared) {
+        highlightSubscription = preferences.$configuration.sink { [weak self] configuration in
+            guard let self else { return }
+            if !configuration.enabled {
+                self.highlighting = nil
+                self.rowForegroundProvider = nil
+                return
+            }
+            guard let highlighter = try? TerminalOutputHighlighter(configuration) else { return }
+            self.highlighting = highlighter
+            self.rowForegroundProvider = { [weak self] row, line, columns in
+                guard let self else { return [:] }
+                return self.highlighting?.colors(terminal: self.getTerminal(), row: row, line: line, columns: columns, isSSH: isSSH) ?? [:]
+            }
+        }
+    }
     var preferences = MousePreferences.shared
     var zmodem: ZmodemBridge?
     var canUploadFiles: (() -> Bool)?

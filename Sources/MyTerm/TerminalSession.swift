@@ -46,6 +46,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         if let server, let context { sftp = SFTPModel(server: server, context: context) } else { sftp = nil }
         super.init()
         terminal.processDelegate = self
+        terminal.configureOutputHighlighting(isSSH: executable == "/usr/bin/ssh")
         terminal.getTerminal().changeScrollback(50_000)
         if server != nil {
             terminal.zmodem = ZmodemBridge(terminal: terminal)
@@ -220,6 +221,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
 }
 
 struct TerminalSurface: NSViewRepresentable {
+    @ObservedObject private var theme = ThemePreferences.shared
     @ObservedObject var session: TerminalSession
 
     func makeNSView(context: Context) -> TerminalContainer {
@@ -248,6 +250,9 @@ final class TerminalContainer: NSView {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(_ session: TerminalSession) {
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+        needsDisplay = true
         self.session = session
         if scroll.documentView !== session.terminal {
             focusOnAttach = true
@@ -260,9 +265,22 @@ final class TerminalContainer: NSView {
         needsLayout = true
         scheduleSize()
     }
+    override func draw(_ dirtyRect: NSRect) {
+        let theme = ThemePreferences.shared.theme
+        theme.background.native.withAlphaComponent(theme.backgroundOpacity).setFill()
+        let path = NSBezierPath(rect: bounds)
+        if session.terminal.window != nil {
+            let terminalRect = session.terminal.convert(session.terminal.bounds, to: self).intersection(bounds)
+            if !terminalRect.isEmpty { path.appendRect(terminalRect) }
+        }
+        path.windingRule = .evenOdd
+        path.fill()
+    }
     override func layout() {
         super.layout()
-        scroll.frame = bounds
+        needsDisplay = true
+        scroll.frame = NSRect(x: bounds.minX + 8, y: bounds.minY,
+                              width: max(0, bounds.width - 16), height: bounds.height)
         scheduleSize()
     }
     private func scheduleSize() {

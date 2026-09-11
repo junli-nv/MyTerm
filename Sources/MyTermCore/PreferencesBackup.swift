@@ -7,7 +7,7 @@ public struct PreferencesBackup: Codable {
     public var files: [String: Data]
     public var preferences: Data
     public init(files: [String: Data], preferences: Data) { self.files = files; self.preferences = preferences }
-    public static let preferenceKeys = ["terminal.theme", "mouse.rightClickPastes", "mouse.copyOnSelection", "terminal.disableBell", "layout.sidebarHidden", "interface.language", "AppleLanguages"]
+    public static let preferenceKeys = ["terminal.theme", "terminal.outputHighlight", "mouse.rightClickPastes", "mouse.copyOnSelection", "terminal.disableBell", "layout.sidebarHidden", "interface.language", "AppleLanguages"]
     private struct Envelope: Codable { var version: Int; var salt: Data; var sealed: Data }
     private static func key(_ passphrase: String, salt: Data) throws -> SymmetricKey {
         guard !passphrase.isEmpty, passphrase.utf8.count <= 4096, salt.count == 16 else { throw ConfigurationError.invalid("备份口令或盐值无效。") }
@@ -32,6 +32,10 @@ public struct PreferencesBackup: Codable {
         guard (files["Credentials/passwords.sqlite"] == nil) == (files["Credentials/encryption.key"] == nil) else { throw ConfigurationError.invalid("备份密码库与密钥不完整。") }
         let props = try PropertyListSerialization.propertyList(from: preferences, format: nil)
         guard let dictionary = props as? [String: Any], Set(dictionary.keys).isSubset(of: Set(Self.preferenceKeys)) else { throw ConfigurationError.invalid("备份偏好设置无效。") }
+        if let saved = dictionary["terminal.outputHighlight"] {
+            guard let data = saved as? Data else { throw ConfigurationError.invalid("备份偏好设置无效。") }
+            try JSONDecoder().decode(OutputHighlightConfiguration.self, from: data).validate()
+        }
     }
     public func encrypted(passphrase: String) throws -> Data {
         try validate()

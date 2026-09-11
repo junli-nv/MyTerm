@@ -49,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "MyTerm"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
         window.minSize = NSSize(width: 850, height: 540)
         window.isReleasedWhenClosed = false
         let content = NSHostingView(rootView: WorkspaceView(workspace: workspace).ignoresSafeArea(.container, edges: .top))
@@ -262,9 +264,16 @@ struct WorkspaceView: View {
                             .frame(minWidth: geometry.size.width, alignment: .leading)
                     }
                     }
+                    Group {
+                        if let session = workspace.selected, session.sftp != nil {
+                            TerminalSFTPButton(session: session)
+                        } else {
+                            Color.clear.accessibilityHidden(true)
+                        }
+                    }.frame(width: 32, height: 28)
                     Menu { newSessionActions } label: { Image(systemName: "plus") }
                         .menuStyle(.borderlessButton).fixedSize().padding(.horizontal, 10).help("选择新会话类型")
-                }.frame(height: 30)
+                }.frame(height: 30).background(Color(nsColor: .windowBackgroundColor))
                 Divider()
         HSplitView {
             if workspace.sidebarVisible {
@@ -311,6 +320,7 @@ struct WorkspaceView: View {
                 Text("⌘T 新终端   ·   ⌘N 添加服务器")
                     .font(.caption2).foregroundStyle(.secondary)
             }.padding(16).frame(minWidth: 210, idealWidth: 240, maxWidth: 300)
+                .background(Color(nsColor: .windowBackgroundColor))
                 .ignoresSafeArea(.container, edges: .top)
             }
             VStack(spacing: 0) {
@@ -332,7 +342,7 @@ struct WorkspaceView: View {
                             }
                             Button("打开本地终端", action: { workspace.newLocal() }).buttonStyle(.bordered)
                         }
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
                 }
             }.frame(minWidth: 600).ignoresSafeArea(.container, edges: .top)
         }
@@ -368,12 +378,16 @@ struct TerminalStatusBarButton: View {
         TabBarButton(symbol: "rectangle.bottomthird.inset.filled", tooltip: "展开 / 收起底部状态栏", identifier: "tabbar.status", selected: session.statusBarVisible) {
             session.statusBarVisible.toggle()
         }.frame(width: 28, height: 28).contentShape(Rectangle())
-        if session.sftp != nil {
-            TabBarButton(symbol: "sidebar.right", tooltip: "展开 / 收起 SFTP 文件面板", identifier: "tabbar.sftp", selected: session.showSFTP) {
-                session.showSFTP.toggle()
-            }.frame(width: 28, height: 28).contentShape(Rectangle())
-        }
         }.padding(.trailing, 4)
+    }
+}
+
+struct TerminalSFTPButton: View {
+    @ObservedObject var session: TerminalSession
+    var body: some View {
+        TabBarButton(symbol: "sidebar.right", tooltip: "展开 / 收起 SFTP 文件面板", identifier: "tabbar.sftp", selected: session.showSFTP) {
+            session.showSFTP.toggle()
+        }.frame(width: 28, height: 28).contentShape(Rectangle())
     }
 }
 
@@ -385,7 +399,7 @@ struct TerminalPane: View {
             if let sftp = session.sftp {
                 HSplitView {
                     TerminalSurface(session: session).frame(minWidth: 300)
-                    if session.showSFTP { SFTPPanel(model: sftp) }
+                    if session.showSFTP { SFTPPanel(model: sftp).background(Color(nsColor: .windowBackgroundColor)) }
                 }
             } else { TerminalSurface(session: session) }
             if let bridge = session.terminal.zmodem { ZmodemStatusView(bridge: bridge) }
@@ -410,7 +424,7 @@ struct TerminalPane: View {
                     Button { session.statusBarVisible = false } label: { Image(systemName: "chevron.down") }
                         .buttonStyle(.plain).help("收起底部状态栏")
                 }
-            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 3)
+            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 3).background(Color(nsColor: .windowBackgroundColor))
             }
         }
     }

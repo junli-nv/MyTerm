@@ -5,7 +5,7 @@ let package = Package(
     name: "MyTerm",
     platforms: [.macOS(.v14)],
     products: [.executable(name: "MyTerm", targets: ["MyTerm"])],
-    dependencies: [.package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.20.0")],
+    dependencies: [.package(path: "vendor/SwiftTerm")],
     targets: [
         .systemLibrary(name: "CSQLite"),
         .systemLibrary(name: "CIconv"),
