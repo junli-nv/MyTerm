@@ -456,6 +456,7 @@ public class SelectionService: CustomDebugStringConvertible {
     }
     
     public var selectingRows: Bool = false
+    private var selectingLogicalRows = false
     
     /// Tracks the current selection mode to maintain consistency during extension
     public enum SelectionMode {
@@ -469,10 +470,10 @@ public class SelectionService: CustomDebugStringConvertible {
     /**
      * Selectss the specified row and triggers the selection
      */
-    public func select(row: Int)
+    public func select(row: Int, logicalLine: Bool = false)
     {
-        start = Position(col: 0, row: row)
-        end = Position(col: terminal.cols-1, row: row)
+        selectingLogicalRows = logicalLine
+        setRowSelection(from: row, through: row)
         selectingRows = true
         selectionMode = .row
         wordSelectionAnchor = nil
@@ -485,8 +486,17 @@ public class SelectionService: CustomDebugStringConvertible {
     }
 
     private func setRowSelection(from anchorRow: Int, through targetRow: Int) {
-        start = Position(col: 0, row: min(anchorRow, targetRow))
-        end = Position(col: terminal.cols - 1, row: max(anchorRow, targetRow))
+        let buffer = terminal.displayBuffer
+        let last = max(0, buffer.lines.count - 1)
+        var firstRow = max(0, min(last, min(anchorRow, targetRow)))
+        var lastRow = max(0, min(last, max(anchorRow, targetRow)))
+        if selectingLogicalRows {
+            while firstRow > 0 && buffer.lines[firstRow].isWrapped { firstRow -= 1 }
+            while lastRow < last && buffer.lines[lastRow + 1].isWrapped { lastRow += 1 }
+        }
+        start = Position(col: 0, row: firstRow)
+        // Selection endpoints are exclusive: include the final cell as well.
+        end = Position(col: terminal.cols, row: lastRow)
     }
 
     private func character (at position: Position, in buffer: Buffer) -> Character
@@ -713,13 +723,13 @@ public class SelectionService: CustomDebugStringConvertible {
         }
     }
     
-    public func getSelectedText () -> String {
+    public func getSelectedText (preserveLineBreaks: Bool = false) -> String {
         let (min, max) = if Position.compare(start, end) == .before {
             (start, end)
         } else {
             (end, start)
         }
-        let r = terminal.getDisplayText(start: min, end: max)
+        let r = terminal.getDisplayText(start: min, end: max, preserveLineBreaks: preserveLineBreaks)
         return r
     }
     

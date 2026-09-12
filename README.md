@@ -2,7 +2,7 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
 
-当前版本 **1.4.7（Build 112）**。发布说明见 [RELEASE-NOTES-1.4.7.md](packaging/RELEASE-NOTES-1.4.7.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.7/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.4.10（Build 118）**。发布说明见 [RELEASE-NOTES-1.4.10.md](packaging/RELEASE-NOTES-1.4.10.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.10/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
 
@@ -233,3 +233,9 @@ MyTerm 的交互式 SSH 使用 `-e none` 禁用外层客户端转义键处理，
 日志保存开关是全局默认。SSH 配置及当前标签的右键菜单可分别选择「跟随全局设置」「始终保存日志」「不保存日志」。当前标签的选择即时生效，复制及保存/恢复多标签会话时保留；SSH 编辑中的选择随服务器配置保存，用于新连接。压缩、行数、单文件和总容量继续遵守全局限制。
 
 SSH 配置使用独立可缩放窗口，支持最大化/还原与全屏。长配置区域显示固定滚动栏，底部保存操作保持可见；端口转发标签位于输入框上方，避免窄窗口截断。
+
+复制默认合并终端记录的自动折行，保留硬换行；真实 LF 和行尾清除会更新旧折行关系，避免重绘后的短行被合并。字体缩放重新排版后仍按逻辑行复制。需要保留视觉排版时可用 Shift+右键 →「复制（保留屏幕换行）」。
+
+注意：全屏程序若用光标定位逐行重画、未传递自动折行关系，终端无法从屏幕可靠区分原文件的硬换行与折行；此时仍可能按屏幕分行复制。
+
+双击终端文本会选中完整逻辑行，包含自动折行的全部屏幕行；遇到真实换行停止。启用远端鼠标报告时，按住 Shift 双击可在本地选中。

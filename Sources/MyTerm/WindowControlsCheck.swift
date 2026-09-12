@@ -19,6 +19,7 @@ final class WindowControlsCheck {
     static func run(window: NSWindow, workspace: Workspace) {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
+            try TerminalCopyCheck.run()
             try OutputHighlightCheck.run()
             try ThemeColorCheck.run()
             ThemeLayoutCheck.run()

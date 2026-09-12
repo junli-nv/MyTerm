@@ -123,6 +123,11 @@ class MouseTerminalView: LocalProcessTerminalView {
         if !bytes.isEmpty { super.send(source: source, data: bytes[...]) }
     }
 
+    override func mouseDown(with event: NSEvent) {
+        doubleClickSelectsLogicalLine = true
+        super.mouseDown(with: event)
+    }
+
     override func mouseUp(with event: NSEvent) {
         super.mouseUp(with: event)
         // Mouse-aware remote applications own ordinary left clicks; Shift selects locally.
@@ -147,6 +152,18 @@ class MouseTerminalView: LocalProcessTerminalView {
         // The complete action is handled on mouse down; don't paste or forward a release twice.
     }
 
+    // Join verified soft wraps in every buffer; hard line boundaries are maintained
+    // by the emulator as text is advanced, erased and reflowed.
+    override func copy(_ sender: Any) {
+        writeSelection(preserveLineBreaks: false)
+    }
+    @objc func copyPreservingScreenLines(_ sender: Any) { writeSelection(preserveLineBreaks: true) }
+    private func writeSelection(preserveLineBreaks: Bool) {
+        let text = selection.getSelectedText(preserveLineBreaks: preserveLineBreaks)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         if preferences.rightClickPastes && !event.modifierFlags.contains(.shift) { return nil }
         let menu = NSMenu()
@@ -154,6 +171,8 @@ class MouseTerminalView: LocalProcessTerminalView {
         let copyItem = menu.addItem(withTitle: L10n.text("复制"), action: #selector(copy(_:)), keyEquivalent: "")
         copyItem.target = self
         copyItem.isEnabled = selection.active && !selection.getSelectedText().isEmpty
+        let joined = menu.addItem(withTitle: L10n.text("复制（保留屏幕换行）"), action: #selector(copyPreservingScreenLines(_:)), keyEquivalent: "")
+        joined.target = self; joined.isEnabled = copyItem.isEnabled
         let pasteItem = menu.addItem(withTitle: L10n.text("粘贴"), action: #selector(paste(_:)), keyEquivalent: "")
         pasteItem.target = self
         pasteItem.isEnabled = NSPasteboard.general.canReadItem(withDataConformingToTypes: [NSPasteboard.PasteboardType.string.rawValue])

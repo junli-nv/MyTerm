@@ -1729,9 +1729,10 @@ open class Terminal {
             buffer.y = by + 1
             movedToNextLine = true
             let line = buffer.lines[buffer.yBase + buffer.y]
-            if !line.isWrapped {
-                line.bidiState = currentBidiState
-            }
+            // An explicit LF starts a new logical line even when this row used
+            // to be the continuation of a different, longer line before repaint.
+            line.isWrapped = false
+            line.bidiState = currentBidiState
         }
         
         // If the end of the line is hit, prevent this action from wrapping around to the next line.
@@ -3263,6 +3264,14 @@ open class Terminal {
         switch p {
         case 0:
             eraseInBufferLine (y: buffer.y, start: buffer.x, end: cols)
+            // Truncating a row also ends its old continuation on the next row.
+            // Keep the current row's incoming wrap (the tail of a genuine long
+            // line), and allow the one-cell gap produced by a wide character.
+            let next = buffer.yBase + buffer.y + 1
+            if !marginMode, buffer.x < cols - 1, next < buffer.lines.count,
+               buffer.lines[buffer.yBase + buffer.y].renderMode == .single {
+                buffer.lines[next].isWrapped = false
+            }
         case 1:
             eraseInBufferLine (y: buffer.y, start: 0, end: buffer.x + 1)
         case 2:
@@ -7204,9 +7213,9 @@ open class Terminal {
         return linkMatch(at: location, mode: mode)?.text
     }
 
-    func getDisplayText (start: Position, end: Position) -> String
+    func getDisplayText (start: Position, end: Position, preserveLineBreaks: Bool = false) -> String
     {
-        getText(start: start, end: end, buffer: displayBuffer)
+        getText(start: start, end: end, buffer: displayBuffer, preserveLineBreaks: preserveLineBreaks)
     }
 
     func linkMatch(at location: LinkLookupLocation, mode: LinkLookupMode) -> LinkMatch?
@@ -7838,9 +7847,9 @@ open class Terminal {
         return text[text.index(before: range.lowerBound)] == "$"
     }
 
-    func getText (start: Position, end: Position, buffer: Buffer) -> String
+    func getText (start: Position, end: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> String
     {
-        let lines = getSelectedLines(p1: start, p2: end, buffer: buffer)
+        let lines = getSelectedLines(p1: start, p2: end, buffer: buffer, preserveLineBreaks: preserveLineBreaks)
         if lines.count == 0 {
             return ""
         }
@@ -7852,7 +7861,7 @@ open class Terminal {
     }
 
     // This version validates the input parameters
-    func getSelectedLines(p1: Position, p2: Position, buffer: Buffer) -> [Line]
+    func getSelectedLines(p1: Position, p2: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> [Line]
     {
         var start = p1
         var end = p2
@@ -7875,10 +7884,10 @@ open class Terminal {
         if end.row >= b.lines.count {
             end.row = b.lines.count-1
         }
-        return _getSelectedLines(start, end, buffer: buffer)
+        return _getSelectedLines(start, end, buffer: buffer, preserveLineBreaks: preserveLineBreaks)
     }
     
-    func _getSelectedLines(_ start: Position, _ end: Position, buffer: Buffer) -> [Line]
+    func _getSelectedLines(_ start: Position, _ end: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> [Line]
     {
         var lines: [Line] = []
         let buf = buffer
@@ -7919,7 +7928,7 @@ open class Terminal {
         var isWrapped = false
         while line < end.row {
             bufferLine = buffer.lines [line]
-            isWrapped = bufferLine.isWrapped
+            isWrapped = bufferLine.isWrapped && !preserveLineBreaks
             
             str = translateBufferLineToString (buffer: buf, line: line, start: 0, end: -1)
             
@@ -7961,7 +7970,7 @@ open class Terminal {
             if bufferLine.hasAnyContent () {
                 addBlanks ()
                 
-                isWrapped = bufferLine.isWrapped
+                isWrapped = bufferLine.isWrapped && !preserveLineBreaks
                 str = translateBufferLineToString (buffer: buf, line: end.row, start: 0, end: end.col)
                 if !isWrapped {
                     currentLine.add(fragment: LineFragment.newLine (line: line - 1))

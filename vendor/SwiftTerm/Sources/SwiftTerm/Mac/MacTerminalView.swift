@@ -2882,6 +2882,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// apply.
     private(set) var semanticDeferralScheduleCount = 0
 
+    /// Select a complete logical line on double click, including soft wraps.
+    public var doubleClickSelectsLogicalLine = false
+
     open override func mouseDown(with event: NSEvent) {
         pendingSemanticClick?.cancel()
         pendingSemanticClick = nil
@@ -2910,12 +2913,16 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             }
         case 2:
             let displayBuffer = terminal.displayBuffer
-            selection.selectWordOrExpression(at: Position(col: hit.col, row: hit.row), in: displayBuffer)
+            if doubleClickSelectsLogicalLine {
+                selection.select(row: hit.row, logicalLine: true)
+            } else {
+                selection.selectWordOrExpression(at: Position(col: hit.col, row: hit.row), in: displayBuffer)
+            }
 
         default:
             // 3 and higher
 
-            selection.select(row: hit.row)
+            selection.select(row: hit.row, logicalLine: doubleClickSelectsLogicalLine)
         }
         setNeedsDisplay(bounds)
     }
