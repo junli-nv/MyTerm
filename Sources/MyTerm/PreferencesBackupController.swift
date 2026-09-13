@@ -93,6 +93,7 @@ enum PreferencesBackupController {
                 let parts = entry.id.split(separator: ":", maxSplits: 1)
                 if parts.count == 2, let scope = scopes[String(parts[0])], scope != parts[0], let password {
                     try credentials.save(password, account: scope + ":" + parts[1], label: entry.label)
+                    if let name = entry.name { try credentials.rename(scope + ":" + parts[1], name: name) }
                     try credentials.delete(entry.id)
                 }
             }

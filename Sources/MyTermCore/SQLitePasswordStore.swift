@@ -6,6 +6,8 @@ import Darwin
 public struct StoredPasswordInfo: Identifiable {
     public let id: String
     public let label: String
+    public let name: String?
+    public var displayName: String { name ?? label }
 }
 
 /// App-owned encrypted credential database. The local key is deliberately independent
@@ -55,6 +57,7 @@ public struct SQLitePasswordStore: PasswordStore {
         try check(sqlite3_exec(db, "PRAGMA secure_delete=ON", nil, nil, nil))
         try check(sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS credentials (account TEXT PRIMARY KEY NOT NULL, sealed BLOB NOT NULL)", nil, nil, nil))
         try check(sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS credential_labels (account TEXT PRIMARY KEY NOT NULL, label TEXT NOT NULL)", nil, nil, nil))
+        try check(sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS credential_names (account TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)", nil, nil, nil))
         return try action(db, key)
     }
     private func statement(_ db: OpaquePointer, _ sql: String) throws -> OpaquePointer {
@@ -116,14 +119,39 @@ public struct SQLitePasswordStore: PasswordStore {
             let metadata = try statement(db, "DELETE FROM credential_labels WHERE account = ?")
             defer { sqlite3_finalize(metadata) }
             try check(sqlite3_bind_text(metadata, 1, account, -1, transient)); try check(sqlite3_step(metadata))
+            let name = try statement(db, "DELETE FROM credential_names WHERE account = ?")
+            defer { sqlite3_finalize(name) }
+            try check(sqlite3_bind_text(name, 1, account, -1, transient)); try check(sqlite3_step(name))
         }
     }
     public func deleteAll() throws {
-        try access { db, _ in try check(sqlite3_exec(db, "DELETE FROM credentials; DELETE FROM credential_labels", nil, nil, nil)) }
+        try access { db, _ in try check(sqlite3_exec(db, "DELETE FROM credentials; DELETE FROM credential_labels; DELETE FROM credential_names", nil, nil, nil)) }
+    }
+    public func rename(_ account: String, name: String) throws {
+        guard !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw failure("密码名称不能包含控制字符。") }
+        let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count <= 120 else { throw failure("密码名称最多 120 个字符。") }
+        try access { db, _ in
+            let query = try statement(db, "INSERT INTO credential_names(account, name) SELECT account, ? FROM credentials WHERE account = ? ON CONFLICT(account) DO UPDATE SET name = excluded.name")
+            defer { sqlite3_finalize(query) }
+            try check(sqlite3_bind_text(query, 1, value, -1, transient))
+            try check(sqlite3_bind_text(query, 2, account, -1, transient))
+            try check(sqlite3_step(query))
+            guard sqlite3_changes(db) > 0 else { throw failure("密码记录已不存在，请刷新。") }
+        }
+    }
+    public func invalidateCachedPassword(_ account: String) throws {
+        // A rejected password must not be reused, but its user-assigned name
+        // should survive when successful authentication replaces the secret.
+        try access { db, _ in
+            let query = try statement(db, "DELETE FROM credentials WHERE account = ?")
+            defer { sqlite3_finalize(query) }
+            try check(sqlite3_bind_text(query, 1, account, -1, transient)); try check(sqlite3_step(query))
+        }
     }
     public func list() throws -> [StoredPasswordInfo] {
         try access { db, _ in
-            let query = try statement(db, "SELECT c.account, l.label FROM credentials c LEFT JOIN credential_labels l ON c.account = l.account ORDER BY l.label, c.account")
+            let query = try statement(db, "SELECT c.account, l.label, n.name FROM credentials c LEFT JOIN credential_labels l ON c.account = l.account LEFT JOIN credential_names n ON c.account = n.account ORDER BY COALESCE(NULLIF(n.name, ''), l.label), c.account")
             defer { sqlite3_finalize(query) }
             var result: [StoredPasswordInfo] = []
             while true {
@@ -132,7 +160,8 @@ public struct SQLitePasswordStore: PasswordStore {
                 guard code == SQLITE_ROW else { try check(code); return result }
                 let account = String(cString: sqlite3_column_text(query, 0))
                 let label = sqlite3_column_text(query, 1).map { String(cString: $0) } ?? "旧版密码 · \(account.prefix(12))…"
-                result.append(StoredPasswordInfo(id: account, label: label))
+                let name = sqlite3_column_text(query, 2).map { String(cString: $0) }
+                result.append(StoredPasswordInfo(id: account, label: label, name: name?.isEmpty == false ? name : nil))
             }
         }
     }

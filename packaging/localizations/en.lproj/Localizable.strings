@@ -491,3 +491,31 @@
 
 "断开前的全屏画面" = "Screen before disconnection";
 "按 R/r 重新连接" = "Press R/r to reconnect";
+
+"设置密码名称" = "Set password name";
+
+"最多 120 个字符；留空恢复默认名称，不影响登录配置。" = "Up to 120 characters. Leave blank to restore the default name. Login settings are unchanged.";
+
+"密码名称已保存。" = "Password name saved.";
+
+"密码名称不能包含控制字符。" = "Password names cannot contain control characters.";
+
+"密码名称最多 120 个字符。" = "Password names may contain up to 120 characters.";
+
+"密码记录已不存在，请刷新。" = "This password no longer exists. Please refresh.";
+
+"关联会话" = "Used by sessions";
+
+"无匹配会话（配置可能已更改或删除）" = "No matching session (its configuration may have changed or been deleted)";
+
+"设置名称…" = "Set name…";
+
+"查看密码" = "Show password";
+
+"隐藏密码" = "Hide password";
+
+"已打开" = "Open";
+
+"可为密码设置名称、查看关联会话，或按需显示当前密码。密码默认隐藏；离开页面或窗口失去焦点后重新隐藏。" = "Name your passwords, see which sessions use them, and reveal them when needed. Passwords stay hidden by default and hide again when you leave this page or the window loses focus.";
+
+"仅更新本地记录，不修改服务器密码；下次认证时使用。" = "Updates the local record only, not the server password. Used at the next authentication.";

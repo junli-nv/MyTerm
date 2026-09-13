@@ -6,9 +6,11 @@ public protocol PasswordStore {
     func save(_ password: String, account: String) throws
     func save(_ password: String, account: String, label: String) throws
     func delete(_ account: String) throws
+    func invalidateCachedPassword(_ account: String) throws
 }
 public extension PasswordStore {
     func save(_ password: String, account: String, label: String) throws { try save(password, account: account) }
+    func invalidateCachedPassword(_ account: String) throws { try delete(account) }
 }
 /// Only OpenSSH's ordinary password prompt is reusable. OTPs, key passphrases,
 /// host-key confirmations and password-change challenges remain interactive.
@@ -41,7 +43,7 @@ public final class SSHPasswordMemory {
         guard Self.isPassword(prompt) else { return nil }
         let key = account(prompt)
         pending[key] = nil // A repeated challenge rejects the last candidate.
-        guard !attempted.contains(key) else { try store.delete(key); return nil }
+        guard !attempted.contains(key) else { try store.invalidateCachedPassword(key); return nil }
         attempted.insert(key)
         return try store.read(key)
     }

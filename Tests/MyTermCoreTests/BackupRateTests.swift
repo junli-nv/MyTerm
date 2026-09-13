@@ -17,6 +17,7 @@ func checkBackupAndRates() throws {
     defer { try? FileManager.default.removeItem(at: root) }
     let store = SQLitePasswordStore(directory: root.appendingPathComponent("source"))
     try store.save("synthetic-backup-password", account: "test", label: "test@example.com")
+    try store.rename("test", name: "Backup credential name")
     let props = try PropertyListSerialization.data(fromPropertyList: ["mouse.copyOnSelection": true, "interface.language": "english"], format: .binary, options: 0)
     let backup = PreferencesBackup(files: try store.backupFiles(), preferences: props)
     let encrypted = try backup.encrypted(passphrase: "synthetic backup passphrase")
@@ -35,6 +36,7 @@ func checkBackupAndRates() throws {
         try bytes.write(to: file)
     }
     checkEqual(try SQLitePasswordStore(directory: target.appendingPathComponent("Credentials")).read("test"), "synthetic-backup-password")
+    checkEqual(try SQLitePasswordStore(directory: target.appendingPathComponent("Credentials")).list().first?.name, "Backup credential name")
     var invalid = backup; invalid.files["Keys/../../outside"] = Data()
     checkThrows(try invalid.validate())
     invalid = backup; invalid.files["Credentials/encryption.key"] = nil

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Temporary password-only SSH server; never reads or changes any real user's password."""
+import os
 import socket
 import subprocess
 import tempfile
@@ -45,7 +46,10 @@ with tempfile.TemporaryDirectory(prefix='myterm-password-', dir='/tmp') as direc
         except Exception as error:
             failures.append(error)
     worker = threading.Thread(target=serve, daemon=True); worker.start()
-    checks = next((root / '.build').glob('*/debug/MyTermChecks'))
-    subprocess.run([str(checks), '--password-integration', str(port), str(known), str(root / 'dist/MyTerm.app/Contents/MacOS/MyTerm')], check=True, timeout=90)
+    configuration = os.environ.get('MYTERM_TEST_CONFIGURATION', 'debug')
+    if configuration not in ('debug', 'release'): raise ValueError('Invalid build configuration')
+    checks = next((root / '.build').glob(f'*/{configuration}/MyTermChecks'))
+    app = Path(os.environ.get('MYTERM_TEST_APP', str(root / 'dist/MyTerm.app')))
+    subprocess.run([str(checks), '--password-integration', str(port), str(known), str(app / 'Contents/MacOS/MyTerm')], check=True, timeout=90)
     worker.join(3)
     if failures: raise failures[0]

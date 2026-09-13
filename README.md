@@ -2,7 +2,7 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
 
-当前版本 **1.4.13（Build 121）**。发布说明见 [RELEASE-NOTES-1.4.13.md](packaging/RELEASE-NOTES-1.4.13.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.4.13/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.5（Build 122）**。发布说明见 [RELEASE-NOTES-1.5.md](packaging/RELEASE-NOTES-1.5.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.5/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
 
@@ -140,6 +140,8 @@ bash scripts/check.sh
 
 
 ## 应用自管的密码存储
+
+在 **设置 → 密码管理** 中，可为已保存密码设置名称、查看关联服务器/会话，并点击“查看密码”显示本地保存的密码。密码默认隐藏，离开页面或窗口失去焦点后自动隐藏；自定义名称随偏好设置备份保存，更新密码时保留。
 
 密码使用系统自带 SQLite 管理，采用 CryptoKit 的 AES-256-GCM 加密和完整性校验；每次保存使用新的随机 nonce，并将账号标识绑定到密文。SQL 使用参数绑定。没有系统钥匙串读写，也没有新增加密算法实现。
 
