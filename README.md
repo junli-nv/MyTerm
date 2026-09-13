@@ -2,7 +2,7 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
 
-当前版本 **1.5（Build 122）**。发布说明见 [RELEASE-NOTES-1.5.md](packaging/RELEASE-NOTES-1.5.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.5/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.5.1（Build 123）**。发布说明见 [RELEASE-NOTES-1.5.1.md](packaging/RELEASE-NOTES-1.5.1.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.5.1/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
 
@@ -163,7 +163,7 @@ SSH / SFTP 默认启用 `ServerAliveInterval=30`、`ServerAliveCountMax=6` 和 `
 
 **设置 → SSH 密码** 列出已保存记录，可更新单条密码、删除或清空。更新只改变本地密码，不修改服务器密码。新记录显示服务器及认证提示；旧版哈希记录显示编号。密码继续保存在应用自管的加密 SQLite 中，不使用系统钥匙串。
 
-**设置 → SSH 密钥** 可导入私钥、查看附带的公钥和删除应用内副本。支持 ssh-keygen 生成的 OpenSSH 和 PEM 私钥（包括口令加密格式），原样保留字节；是否能认证还取决于系统 OpenSSH、服务器算法策略及硬件密钥设备。导入会复制到 `~/Library/Application Support/MyTerm/Keys`（目录 0700、私钥 0600），不删除原文件、不去除口令。同名 `.pub` 一并复制；在 SSH 编辑窗口通过“密钥库”选择，也可继续直接选择 `~/.ssh` 下的私钥。
+**设置 → SSH 密钥** 可导入私钥、查看附带的公钥和删除应用内副本。 密钥列表显示应用内显式引用该文件的服务器、保存会话、已打开标签及各级跳板机；路径匹配支持 `~` 和符号链接。删除被引用的密钥时会列出受影响会话并要求额外确认，取消任意一次确认均保留密钥。外部程序和 SSH 配置文件的隐式引用不在统计范围内。支持 ssh-keygen 生成的 OpenSSH 和 PEM 私钥（包括口令加密格式），原样保留字节；是否能认证还取决于系统 OpenSSH、服务器算法策略及硬件密钥设备。导入会复制到 `~/Library/Application Support/MyTerm/Keys`（目录 0700、私钥 0600），不删除原文件、不去除口令。同名 `.pub` 一并复制；在 SSH 编辑窗口通过“密钥库”选择，也可继续直接选择 `~/.ssh` 下的私钥。
 
 **文件 → 导出 OpenSSH 配置…** 导出侧栏服务器配置，使用 `ssh -F /path/to/myterm_ssh_config Host别名`。支持认证选项、保活、压缩、密钥路径、跳板、代理和端口转发。保留对当前 `~/.ssh/config` 和系统配置的 Include 引用，所以原 SSH 别名及跳板定义仍有效；代理配置引用 MyTermProxy。迁移到另一台机器时需同时配置这些依赖和密钥路径。本导出不是包含所有依赖的独立备份，不覆盖原 `~/.ssh/config`。同主机别名的多条配置会提示冲突；JSON 备份仍可保留这些记录。
 

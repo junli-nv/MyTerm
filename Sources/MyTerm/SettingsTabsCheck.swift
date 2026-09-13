@@ -5,6 +5,7 @@ enum SettingsTabsCheck {
     static func run() throws {
         try HistorySettingsCheck.run()
         try CredentialSettingsCheck.run()
+        try SSHKeySettingsCheck.run()
         let controller = MouseSettingsController.shared
         let language = LanguagePreferences.shared, original = LanguagePreferences.shared.selection
         let originalPage = controller.selection.page

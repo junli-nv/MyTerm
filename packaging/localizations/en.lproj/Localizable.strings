@@ -519,3 +519,17 @@
 "可为密码设置名称、查看关联会话，或按需显示当前密码。密码默认隐藏；离开页面或窗口失去焦点后重新隐藏。" = "Name your passwords, see which sessions use them, and reveal them when needed. Passwords stay hidden by default and hide again when you leave this page or the window loses focus.";
 
 "仅更新本地记录，不修改服务器密码；下次认证时使用。" = "Updates the local record only, not the server password. Used at the next authentication.";
+
+"密钥关联已变化，请重新检查后删除。" = "Key references changed. Review them again before deleting.";
+
+"此密钥正被会话引用，仍要删除？" = "Sessions reference this key. Delete it anyway?";
+
+"删除应用内密钥？" = "Delete the managed key?";
+
+"以下会话引用此密钥，删除后可能无法登录。会话配置不会自动修改。" = "The following sessions reference this key and may no longer be able to log in. Session settings will not be changed automatically.";
+
+"仍然删除密钥" = "Delete key anyway";
+
+"关联信息包含应用中的服务器、保存的会话、已打开标签和跳板机；不包含外部程序或 SSH 配置文件隐式引用。" = "References include servers, saved sessions, open tabs and jump hosts in MyTerm. References from other apps or implicit SSH configuration are not included.";
+
+"未发现应用内显式引用" = "No explicit references found in MyTerm";
