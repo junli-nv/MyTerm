@@ -89,6 +89,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if ProcessInfo.processInfo.arguments.contains("--smoke-test"),
+           ProcessInfo.processInfo.arguments.contains("--transfer-check") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                ZmodemWindowCheck().run { result in
+                    switch result {
+                    case .success: NSApp.terminate(nil)
+                    case .failure(let error): fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1)
+                    }
+                }
+            }
+            return
+        }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in

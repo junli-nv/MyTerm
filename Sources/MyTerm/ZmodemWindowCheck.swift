@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 import MyTermCore
 
@@ -79,4 +78,3 @@ final class ZmodemWindowCheck {
         else { print("PASS: Zmodem send, receive and dropped-file upload; directional throughput, idle decay and final average through real PTY"); callback?(.success(())) }
     }
 }
-#endif

@@ -72,12 +72,38 @@ final class FeatureTests {
                 continue // Remaining bytes now belong to the active protocol, not the detector.
             }
             let second = detector.feed(Data(header.dropFirst(split)))
-            checkEqual(String(decoding: first.visible + second.visible, as: UTF8.self), "hello")
+            let rendered = String(decoding: first.visible + second.visible, as: UTF8.self)
+            checkEqual(["hello", "hello*", "hello**"].contains(rendered), true)
+            checkEqual(second.handshake.map { $0.starts(with: header.prefix(18)) }, true)
             checkEqual(first.handshake != nil || second.handshake != nil, true)
             checkEqual(first.receiving || second.receiving, true)
         }
         var detector = ZmodemDetector()
         checkEqual(detector.feed(Data("normal output".utf8)).visible, Data("normal output".utf8))
+        // Each keystroke must be visible in the same read, without another key
+        // or a timer; subsequent output must never duplicate the prefix.
+        for text in ["*", "*", "*", "x", "\\", "*", " ", "**", "ok"] {
+            checkEqual(detector.feed(Data(text.utf8)).visible, Data(text.utf8))
+        }
+        let malformed = Data([42, 42, 24, 66]) + Data("not-a-header!!\r\nX".utf8)
+        for split in 0...malformed.count {
+            var parser = ZmodemDetector()
+            let a = parser.feed(Data(malformed.prefix(split)))
+            let b = parser.feed(Data(malformed.dropFirst(split)))
+            checkEqual(a.visible + b.visible, malformed)
+            checkEqual(a.handshake == nil && b.handshake == nil, true)
+        }
+        for type in ["00", "01"] {
+            let frame = Data([42, 42, 24, 66]) + Data((type + "000000000000").utf8)
+            var parser = ZmodemDetector()
+            var protocolBytes: Data?
+            for byte in frame {
+                let result = parser.feed(Data([byte]))
+                if let handshake = result.handshake { protocolBytes = handshake; checkEqual(result.receiving, type == "00") }
+            }
+            checkEqual(protocolBytes, frame)
+            checkEqual(parser.feed(Data("*".utf8)).visible, Data("*".utf8))
+        }
     }
 
     func sftpResume() throws {

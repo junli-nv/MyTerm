@@ -2,9 +2,7 @@ import AppKit
 import MyTermCore
 
 final class ZmodemBridge: ObservableObject {
-    #if DEBUG
     var testSelection: ((Bool) -> [URL])?
-    #endif
     @Published var active = false
     @Published var awaitingReceiver = false
     private var droppedURLs: [URL]?
@@ -92,13 +90,11 @@ final class ZmodemBridge: ObservableObject {
             guard !receiving else { cancel(); status = "远端发起了接收方向相反的传输，请重试。"; return }
             start(receiving: false, urls: urls); return
         }
-        #if DEBUG
-        if let testSelection {
+        if ProcessInfo.processInfo.arguments.contains("--smoke-test"), let testSelection {
             let urls = testSelection(receiving)
             DispatchQueue.main.async { [weak self] in self?.start(receiving: receiving, urls: urls) }
             return
         }
-        #endif
         guard let window = terminal?.window else { cancel(); return }
         let panel = NSOpenPanel(); self.panel = panel
         panel.title = receiving ? "Zmodem 接收目录" : "Zmodem 发送文件"
