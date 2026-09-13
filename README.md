@@ -1,6 +1,6 @@
 # MyTerm
 
-[GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest)
+[GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest) · [历史更新日志](CHANGELOG.md)
 
 当前版本 **1.5.2（Build 124）**。发布说明见 [RELEASE-NOTES-1.5.2.md](packaging/RELEASE-NOTES-1.5.2.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.5.2/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
