@@ -2746,9 +2746,13 @@ extension TerminalView {
     func feedPrepare()
     {
         search.invalidate()
-        // Preserve manual selection while output is streaming when mouse reporting is disabled.
-        if allowMouseReporting {
-            selection.active = false
+        // Incoming bytes must not cancel a local selection. Mouse reporting
+        // controls event routing, not whether existing text can be selected.
+        // Keep the viewport stationary while selecting normal-buffer history;
+        // output continues to be parsed and added to scrollback.
+        if selection.active && !terminal.isCurrentBufferAlternate {
+            userScrolling = true
+            terminal.userScrolling = true
         }
         startDisplayUpdates()
     }

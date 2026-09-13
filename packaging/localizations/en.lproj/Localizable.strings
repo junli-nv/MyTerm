@@ -488,3 +488,6 @@
 "复制（合并自动折行）" = "Copy (join wrapped lines)";
 
 "复制（保留屏幕换行）" = "Copy (preserve screen lines)";
+
+"断开前的全屏画面" = "Screen before disconnection";
+"按 R/r 重新连接" = "Press R/r to reconnect";

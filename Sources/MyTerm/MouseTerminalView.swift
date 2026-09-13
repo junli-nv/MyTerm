@@ -65,8 +65,8 @@ class MouseTerminalView: LocalProcessTerminalView {
             if let reconnectMonitor { NSEvent.removeMonitor(reconnectMonitor); self.reconnectMonitor = nil }
             guard reconnectHandler != nil else { return }
             reconnectMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self, self.window === event.window, self.window?.firstResponder === self else { return event }
-                return self.handleReconnectKey(event) ? nil : event
+                guard let self else { return event }
+                return self.handleReconnectEvent(event) ? nil : event
             }
         }
     }
@@ -78,6 +78,43 @@ class MouseTerminalView: LocalProcessTerminalView {
         guard let reconnectHandler, event.charactersIgnoringModifiers?.lowercased() == "r",
               event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
         reconnectHandler(); return true
+    }
+
+    func handleReconnectEvent(_ event: NSEvent) -> Bool {
+        guard let window, event.window === window, window.attachedSheet == nil,
+              !isHiddenOrHasHiddenAncestor, !visibleRect.isEmpty else { return false }
+        let responder = window.firstResponder
+        // Controls may retain focus when SSH ends. Allow R there, but never
+        // consume text typed in an editor or another terminal.
+        if responder is NSTextView || responder is NSTextField { return false }
+        if let other = responder as? TerminalView, other !== self { return false }
+        return handleReconnectKey(event)
+    }
+
+    func showConnectionFailure(_ message: String) {
+        let emulator = getTerminal()
+        let previous = emulator.isCurrentBufferAlternate
+            ? String(decoding: emulator.getBufferAsData(kind: .alt), as: UTF8.self) : ""
+        // Cancel incomplete escape strings; release full-screen rendering and
+        // input modes without clearing normal history.
+        feed(text: "\u{18}\u{1b}\\\u{1b}[?2026l")
+        if emulator.isCurrentBufferAlternate { feed(text: "\u{1b}[?47l") }
+        feed(text: "\u{1b}[0m\u{1b}[?6l\u{1b}[?69l\u{1b}[r\u{1b}[?7h\u{1b}[?25h\u{1b}[?1000l\u{1b}[?1002l\u{1b}[?1003l\u{1b}[?1006l\u{1b}[?2004l")
+        // Resetting origin/margins homes the cursor. Append below the screen,
+        // so neither the snapshot nor the hint overwrites existing rows.
+        feed(text: "\u{1b}[\(emulator.rows);1H")
+        func printable(_ text: String) -> String {
+            String(String.UnicodeScalarView(text.unicodeScalars.filter {
+                $0 == "\n" || $0 == "\t" || !CharacterSet.controlCharacters.contains($0)
+            }))
+        }
+        let snapshot = printable(previous).trimmingCharacters(in: .newlines)
+        if !snapshot.isEmpty {
+            feed(text: "\r\n[\(L10n.text("断开前的全屏画面"))]\r\n" + snapshot.replacingOccurrences(of: "\n", with: "\r\n"))
+        }
+        feed(text: "\r\n[\(printable(message)) · \(L10n.text("按 R/r 重新连接"))]\r\n")
+        scroll(toPosition: 1)
+        needsDisplay = true
     }
 
     override func bell(source: Terminal) {
@@ -124,7 +161,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        doubleClickSelectsLogicalLine = true
+        progressiveDoubleClickSelection = true
         super.mouseDown(with: event)
     }
 

@@ -1139,6 +1139,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
     
     open func bufferActivated(source: Terminal) {
+        // Coordinates from another screen buffer must not select unrelated text.
+        selection.selectNone()
         updateScroller ()
     }
     
@@ -1174,10 +1176,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
     
     open func linefeed(source: Terminal) {
-        // Preserve manual selection while output is streaming when mouse reporting is disabled.
-        if allowMouseReporting {
-            selection.selectNone()
-        }
+        // A newline is output, not a request to clear the user's selection.
+        // The terminal adjusts anchors when rows scroll or leave the buffer.
     }
     
     /// This vaiable controls whether mouse events are sent to the application running under the
@@ -2882,8 +2882,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// apply.
     private(set) var semanticDeferralScheduleCount = 0
 
-    /// Select a complete logical line on double click, including soft wraps.
-    public var doubleClickSelectsLogicalLine = false
+    /// Double click selects a token; repeating it expands to the logical line.
+    public var progressiveDoubleClickSelection = false
+    private var expandTokenOnDoubleClick = false
 
     open override func mouseDown(with event: NSEvent) {
         pendingSemanticClick?.cancel()
@@ -2895,6 +2896,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             clickCount: event.clickCount,
             pressWasSemanticEligible: false)
         if allowMouseReporting && !shiftBypassesMouseReporting(for: event) && terminal.mouseMode.sendButtonPress() {
+            expandTokenOnDoubleClick = false
             sharedMouseEvent(with: event)
             return
         }
@@ -2904,6 +2906,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
 
         switch event.clickCount {
         case 1:
+            expandTokenOnDoubleClick = progressiveDoubleClickSelection && selection.active && selection.selectionMode == .word
+                && Position.compare(hit, selection.start) != .before && Position.compare(hit, selection.end) == .before
             if selection.active == true {
                 if event.modifierFlags.contains(.shift) {
                     selection.shiftExtend(bufferPosition: Position(col: hit.col, row: hit.row))
@@ -2913,8 +2917,13 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             }
         case 2:
             let displayBuffer = terminal.displayBuffer
-            if doubleClickSelectsLogicalLine {
-                selection.select(row: hit.row, logicalLine: true)
+            if progressiveDoubleClickSelection {
+                if expandTokenOnDoubleClick {
+                    selection.select(row: hit.row, logicalLine: true)
+                } else {
+                    selection.selectWhitespaceWord(at: hit, in: displayBuffer)
+                }
+                expandTokenOnDoubleClick = false
             } else {
                 selection.selectWordOrExpression(at: Position(col: hit.col, row: hit.row), in: displayBuffer)
             }
@@ -2922,7 +2931,11 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         default:
             // 3 and higher
 
-            selection.select(row: hit.row, logicalLine: doubleClickSelectsLogicalLine)
+            if progressiveDoubleClickSelection && event.clickCount == 3 {
+                // macOS reports rapid double-double clicks as 1, 2, 3, 4.
+                break
+            }
+            selection.select(row: hit.row, logicalLine: progressiveDoubleClickSelection)
         }
         setNeedsDisplay(bounds)
     }

@@ -19,6 +19,7 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+TEST_APP = Path(os.environ.get('MYTERM_TEST_APP', str(ROOT / 'dist/MyTerm.app')))
 CHECKS = ROOT / '.build/arm64-apple-macosx/debug/MyTermChecks'
 if not CHECKS.exists():
     candidates = list((ROOT / '.build').glob('*/debug/MyTermChecks'))
@@ -278,7 +279,7 @@ Host *
                             tmux_fixture = root / 'tmux-fixture.json'
                             tmux_fixture.write_text(json.dumps(dict(arguments=args, socket=tmux_socket, tmux=tmux)))
                             try:
-                                output = subprocess.check_output([str(ROOT / 'dist/MyTerm.app/Contents/MacOS/MyTerm'), '--smoke-test', '--tmux-check', str(tmux_fixture)], timeout=55, stderr=subprocess.STDOUT)
+                                output = subprocess.check_output([str(TEST_APP / 'Contents/MacOS/MyTerm'), '--smoke-test', '--tmux-check', str(tmux_fixture)], timeout=55, stderr=subprocess.STDOUT)
                                 print(output.decode(), end='', flush=True)
                             except subprocess.CalledProcessError as error:
                                 raise RuntimeError(error.output.decode()) from error

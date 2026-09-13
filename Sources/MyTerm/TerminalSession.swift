@@ -163,11 +163,16 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         canReconnect = true
         status = "\(message) · 按 R 重新连接"
         terminal.reconnectHandler = { [weak self] in self?.reconnect() }
+        terminal.showConnectionFailure(L10n.text(message))
     }
 
     func reconnect() {
         guard canReconnect, !stopped, !terminal.process.running else { return }
         canReconnect = false; terminal.reconnectHandler = nil
+        terminal.selection.selectNone()
+        if !terminal.isHiddenOrHasHiddenAncestor, !terminal.visibleRect.isEmpty {
+            terminal.window?.makeFirstResponder(terminal)
+        }
         authentication?.stop(); authentication = nil; sftp?.stop(); sftp = nil
         terminal.zmodem?.cancel()
         connectionContext = nil; server = configuredServer
@@ -207,26 +212,30 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         self.directory = url.path
     }
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self, !self.stopped else { return }
-            self.isRunning = false
-            self.authentication?.stop(); self.authentication = nil
-            self.sftp?.stop(); self.sftp = nil
-            guard self.executable == "/usr/bin/ssh" else {
-                self.status = "会话已结束"
-                if let status = exitCode, status & 0x7f == 0 { self.onNormalExit?() }
-                return
-            }
-            self.terminal.zmodem?.cancel()
-            // SwiftTerm 1.20's forkpty backend passes raw waitpid status, not an exit code.
-            if let status = exitCode, status & 0x7f == 0, (status >> 8) & 0xff != 255 {
-                self.status = "SSH 已退出"; self.onNormalExit?()
-            } else {
-                self.connectionFailed("SSH 连接已断开")
-                self.terminal.feed(text: "\r\n[SSH 连接已断开，按 R 重新连接]\r\n")
-            }
+        DispatchQueue.main.async { [weak self] in self?.handleProcessTermination(exitCode: exitCode) }
+    }
+
+    // Process callbacks arrive off the UI queue; keep state changes and the
+    // disconnect presentation together on the main thread.
+    func handleProcessTermination(exitCode: Int32?) {
+        guard !stopped else { return }
+        isRunning = false
+        authentication?.stop(); authentication = nil
+        sftp?.stop(); sftp = nil
+        guard executable == "/usr/bin/ssh" else {
+            status = "会话已结束"
+            if let status = exitCode, status & 0x7f == 0 { onNormalExit?() }
+            return
+        }
+        terminal.zmodem?.cancel()
+        // SwiftTerm 1.20's forkpty backend passes raw waitpid status, not an exit code.
+        if let status = exitCode, status & 0x7f == 0, (status >> 8) & 0xff != 255 {
+            self.status = "SSH 已退出"; onNormalExit?()
+        } else {
+            connectionFailed("SSH 连接已断开")
         }
     }
+
 }
 
 struct TerminalSurface: NSViewRepresentable {

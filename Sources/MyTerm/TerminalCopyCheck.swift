@@ -18,13 +18,15 @@ enum TerminalCopyCheck {
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("Terminal copy: " + message) }
         }
-        func doubleClick(_ view: MouseTerminalView, screenRow: Int, shift: Bool = false) {
+        func doubleClick(_ view: MouseTerminalView, screenRow: Int, shift: Bool = false, counts: [Int] = [1, 2]) {
             let height = view.getOptimalFrameSize().height / CGFloat(view.getTerminal().rows)
             let point = view.convert(NSPoint(x: 5, y: view.frame.height - height * (CGFloat(screenRow) + 0.5)), to: nil)
-            for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
-                let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: shift ? [.shift] : [], timestamp: 0,
-                    windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 2, pressure: 1)!
-                if type == .leftMouseDown { view.mouseDown(with: event) } else { view.mouseUp(with: event) }
+            for count in counts {
+                for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
+                    let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: shift ? [.shift] : [], timestamp: 0,
+                        windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: count, pressure: 1)!
+                    if type == .leftMouseDown { view.mouseDown(with: event) } else { view.mouseUp(with: event) }
+                }
             }
         }
         let clicked = MouseTerminalView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
@@ -33,10 +35,15 @@ enum TerminalCopyCheck {
             let record = "hello world: 中文 abcdefghij END"
             clicked.feed(text: (alternate ? "\u{1b}[?1049h" : "") + "\u{1b}[2J\u{1b}[H" + record + "\r\nNEXT LINE!")
             for row in 0...3 {
+                clicked.selection.selectNone()
+                doubleClick(clicked, screenRow: row)
+                try require(clicked.selection.getSelectedText() == ["hello", "world:", "abcdefghij", "END"][row], "First double click did not select whitespace token")
                 doubleClick(clicked, screenRow: row)
                 try require(clicked.selection.getSelectedText() == record, "Double click missed wrapped logical line from row \(row)")
             }
             doubleClick(clicked, screenRow: 4)
+            try require(clicked.selection.getSelectedText() == "NEXT", "New token must restart progressive selection")
+            doubleClick(clicked, screenRow: 4, counts: [3, 4])
             try require(clicked.selection.getSelectedText() == "NEXT LINE!", "Double click crossed hard break or lost final column")
             // Mouse reporting retains ownership; Shift explicitly selects locally.
             clicked.feed(text: "\u{1b}[?1000h")
@@ -44,10 +51,62 @@ enum TerminalCopyCheck {
             doubleClick(clicked, screenRow: 1)
             try require(!clicked.selection.active, "Double click intercepted remote mouse input")
             doubleClick(clicked, screenRow: 1, shift: true)
+            try require(clicked.selection.getSelectedText() == "world:", "Shift first double click missed token")
+            doubleClick(clicked, screenRow: 1, shift: true)
             try require(clicked.selection.getSelectedText() == record, "Shift double click did not select locally")
             clicked.feed(text: "\u{1b}[?1000l")
         }
+        clicked.feed(text: "\u{1b}[2J\u{1b}[Hhttps://host/a-b?q=中文/path\r\nseparate")
+        for row in 0...2 {
+            clicked.selection.selectNone()
+            doubleClick(clicked, screenRow: row)
+            try require(clicked.selection.getSelectedText() == "https://host/a-b?q=中文/path", "Whitespace token split at punctuation, wide cell, or soft wrap")
+        }
+        clicked.feed(text: "\u{1b}[2J\u{1b}[H　token")
+        for col in [0, 1] {
+            clicked.selection.selectWhitespaceWord(at: Position(col: col, row: 0), in: clicked.getTerminal().buffer)
+            try require(clicked.selection.getSelectedText() == "　", "Full-width whitespace boundary was split")
+        }
+        print("PASS: progressive double clicks: whitespace tokens, punctuation, CJK, soft wraps, repeat/quad click and remote mouse routing")
         let view = MouseTerminalView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let streaming = MouseTerminalView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        streaming.resize(cols: 40, rows: 12)
+        streaming.feed(text: (0...7).map { "KEEP_\($0)\r\n" }.joined())
+        let lineHeight = streaming.getOptimalFrameSize().height / 12
+        func drag(_ row: Int) {
+            let point = streaming.convert(NSPoint(x: 5, y: streaming.frame.height - lineHeight * (CGFloat(row) + 0.5)), to: nil)
+            let event = NSEvent.mouseEvent(with: .leftMouseDragged, location: point, modifierFlags: [], timestamp: 0,
+                windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            streaming.mouseDragged(with: event)
+        }
+        try require(streaming.allowMouseReporting && streaming.getTerminal().mouseMode == .off, "Streaming test must use default mouse routing")
+        drag(1)
+        try require(streaming.selection.active, "First drag did not activate selection")
+        let viewport = streaming.getTerminal().buffer.yDisp
+        for chunk in 0..<20 {
+            streaming.feed(text: "OUTPUT_\(chunk)\r\n")
+            try require(streaming.selection.active, "Feed cleared selection at chunk \(chunk)")
+            drag(3)
+            try require(streaming.selection.active && streaming.selection.getSelectedText().trimmingCharacters(in: .newlines) == "KEEP_1\nKEEP_2", "Streaming chunk \(chunk): \(streaming.selection.debugDescription), viewport \(streaming.getTerminal().buffer.yDisp), text \(streaming.selection.getSelectedText().debugDescription)")
+        }
+        try require(streaming.getTerminal().buffer.yDisp == viewport, "Output moved viewport during selection")
+        try require(String(decoding: streaming.getTerminal().getBufferAsData(), as: UTF8.self).contains("OUTPUT_19"), "Selecting paused process output")
+        streaming.copy(streaming)
+        try require(clipboard.string(forType: .string)?.trimmingCharacters(in: .newlines) == "KEEP_1\nKEEP_2", "Copy failed while output was streaming")
+        streaming.selection.selectNone()
+        streaming.scroll(toPosition: 1)
+        let bottom = streaming.getTerminal().buffer.yDisp
+        streaming.feed(text: "FOLLOW_AGAIN\r\n")
+        try require(streaming.getTerminal().buffer.yDisp > bottom, "Scrolling to bottom did not resume output following")
+        // Full-screen applications may report mouse events. Shift-created local
+        // selections must also survive redraws elsewhere in their screen.
+        streaming.selection.select(row: streaming.getTerminal().buffer.yDisp)
+        streaming.feed(text: "\u{1b}[?1049h\u{1b}[HKEEP\r\n\u{1b}[?1000h")
+        try require(!streaming.selection.active, "Switching buffers retained an unrelated selection")
+        streaming.selection.setSelection(start: Position(col: 0, row: 0), end: Position(col: 4, row: 0))
+        for _ in 0..<10 { streaming.feed(text: "\u{1b}[3;1Hworking\u{1b}[K") }
+        try require(streaming.selection.active && streaming.selection.getSelectedText() == "KEEP", "Full-screen updates erased a local selection")
+        print("PASS: streaming selection: interleaved mouse drag/output, stable history viewport, clipboard, continued output, resume following and full-screen redraw")
         view.resize(cols: 10, rows: 8)
         view.feed(text: "1234567890abcdef")
         view.selection.setSelection(start: Position(col: 0, row: 0), end: Position(col: 6, row: 1))
@@ -88,6 +147,10 @@ enum TerminalCopyCheck {
             zoom.selection.setSelection(start: Position(col: 0, row: 0), end: Position(col: 0, row: Int.max))
             zoom.copy(zoom)
             try require((clipboard.string(forType: .string) ?? "").trimmingCharacters(in: .newlines) == paragraph + "\nsecond logical line", "Font zoom changed copied logical lines at \(size)")
+            zoom.selection.selectNone()
+            doubleClick(zoom, screenRow: 1)
+            let token = zoom.selection.getSelectedText()
+            try require(!token.isEmpty && paragraph.contains(token) && token != paragraph, "Zoomed first double click failed")
             doubleClick(zoom, screenRow: 1)
             try require(zoom.selection.getSelectedText() == paragraph, "Double click after font zoom missed logical line at \(size)")
         }

@@ -191,6 +191,7 @@ public class SelectionService: CustomDebugStringConvertible {
      * and the seed word would be dropped from the selection.
      */
     var wordSelectionAnchor: (start: Position, end: Position)?
+    private var whitespaceWordSelection = false
 
     /// The row that started a row selection. It stays fixed while the pointer
     /// moves across that row.
@@ -625,6 +626,10 @@ public class SelectionService: CustomDebugStringConvertible {
      * Extends a position to the nearest word boundary based on the character at that position
      */
     func extendToWordBoundary(position: Position, in buffer: Buffer, direction: Int) -> Position {
+        if whitespaceWordSelection {
+            let range = whitespaceRange(at: position, in: buffer)
+            return direction < 0 ? range.start : range.end
+        }
         let ch = character (at: position, in: buffer)
         var includeFunc: (Character) -> Bool
         
@@ -670,8 +675,59 @@ public class SelectionService: CustomDebugStringConvertible {
      * Implements the behavior to select the word at the specified position or an expression
      * which is a balanced set parenthesis, braces or brackets
      */
+    private func whitespaceRange(at position: Position, in buffer: Buffer) -> (start: Position, end: Position) {
+        let cols = terminal.cols
+        let row = max(0, min(position.row, buffer.lines.count - 1))
+        let point = Position(col: max(0, min(position.col, cols - 1)), row: row)
+        func previous(_ p: Position) -> Position? {
+            if p.col > 0 { return Position(col: p.col - 1, row: p.row) }
+            if p.row > 0 && buffer.lines[p.row].isWrapped { return Position(col: cols - 1, row: p.row - 1) }
+            return nil
+        }
+        func next(_ p: Position) -> Position? {
+            if p.col + 1 < cols { return Position(col: p.col + 1, row: p.row) }
+            if p.row + 1 < buffer.lines.count && buffer.lines[p.row + 1].isWrapped { return Position(col: 0, row: p.row + 1) }
+            return nil
+        }
+        func isSpace(_ p: Position) -> Bool {
+            let ch = character(at: p, in: buffer)
+            if ch == nullChar {
+                // Wide-character continuation cells and the gap before a wrapped
+                // wide character belong to the same token, not to whitespace.
+                if p.col > 0 && buffer.lines[p.row][p.col - 1].width == 2 {
+                    return character(at: Position(col: p.col - 1, row: p.row), in: buffer).isWhitespace
+                }
+                if p.col == cols - 1, let n = next(p), buffer.lines[n.row][n.col].width == 2 {
+                    return character(at: n, in: buffer).isWhitespace
+                }
+                return true
+            }
+            return ch.isWhitespace
+        }
+        let space = isSpace(point)
+        var first = point
+        var last = point
+        while let p = previous(first), isSpace(p) == space { first = p }
+        while let p = next(last), isSpace(p) == space { last = p }
+        return (first, Position(col: last.col + 1, row: last.row))
+    }
+
+    /// Select a whitespace-delimited token, preserving punctuation and soft wraps.
+    public func selectWhitespaceWord(at position: Position, in buffer: Buffer) {
+        let range = whitespaceRange(at: position, in: buffer)
+        start = range.start
+        end = range.end
+        whitespaceWordSelection = true
+        selectionMode = .word
+        wordSelectionAnchor = range
+        rowSelectionAnchor = nil
+        selectingRows = false
+        setActiveAndNotify()
+    }
+
     public func selectWordOrExpression (at uncheckedPosition: Position, in buffer: Buffer)
     {
+        whitespaceWordSelection = false
 //        let position = Position(
 //            col: max (min (uncheckedPosition.col, buffer.cols-1), 0),
 //            row: max (min (uncheckedPosition.row, buffer.rows-1+buffer.yDisp), buffer.yDisp))

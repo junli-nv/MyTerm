@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 import SwiftUI
 import MyTermCore
@@ -97,7 +96,9 @@ final class TmuxWindowCheck {
             let key = phase == 8 ? "r" : "R"
             let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: key == "R" ? [.shift] : [], timestamp: 0,
                 windowNumber: window.windowNumber, context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: 15)!
-            guard session.terminal.handleReconnectKey(event) else { finish("Reconnect key was not handled"); return }
+            window.makeFirstResponder(window.contentView)
+            guard session.terminal.handleReconnectEvent(event) else { finish("Reconnect key was not handled without terminal focus"); return }
+            guard window.firstResponder === session.terminal else { finish("Reconnect did not restore terminal input focus"); return }
             phase += 1
         case 13:
             guard text.contains("RECONNECT_12"), text.contains("RECONNECT_6") else { return }
@@ -115,4 +116,3 @@ final class TmuxWindowCheck {
         callback?(error.map { .failure(ConfigurationError.invalid($0)) } ?? .success(()))
     }
 }
-#endif

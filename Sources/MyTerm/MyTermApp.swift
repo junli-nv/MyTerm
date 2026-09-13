@@ -76,6 +76,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if ProcessInfo.processInfo.arguments.contains("--smoke-test"),
+           let index = ProcessInfo.processInfo.arguments.firstIndex(of: "--tmux-check"),
+           ProcessInfo.processInfo.arguments.indices.contains(index + 1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                TmuxWindowCheck().run(fixture: ProcessInfo.processInfo.arguments[index + 1]) { result in
+                    switch result {
+                    case .success: NSApp.terminate(nil)
+                    case .failure(let error): fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1)
+                    }
+                }
+            }
+            return
+        }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in
@@ -397,12 +410,12 @@ struct TerminalPane: View {
     @ObservedObject var session: TerminalSession
     var body: some View {
         VStack(spacing: 0) {
-            if let sftp = session.sftp {
-                HSplitView {
-                    TerminalSurface(session: session).frame(minWidth: 300)
-                    if session.showSFTP { SFTPPanel(model: sftp).background(Color(nsColor: .windowBackgroundColor)) }
+            HSplitView {
+                TerminalSurface(session: session).frame(minWidth: 300)
+                if session.showSFTP, let sftp = session.sftp {
+                    SFTPPanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
                 }
-            } else { TerminalSurface(session: session) }
+            }
             if let bridge = session.terminal.zmodem { ZmodemStatusView(bridge: bridge) }
             if session.statusBarVisible || !session.isRunning {
             Divider()

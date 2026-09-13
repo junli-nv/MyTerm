@@ -20,6 +20,7 @@ final class WindowControlsCheck {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
             try TerminalCopyCheck.run()
+            try SSHDisconnectCheck.run()
             try OutputHighlightCheck.run()
             try ThemeColorCheck.run()
             ThemeLayoutCheck.run()
