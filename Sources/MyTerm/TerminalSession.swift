@@ -5,6 +5,8 @@ import MyTermCore
 import Combine
 
 final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProcessTerminalViewDelegate {
+    weak var codexExecutionBridge: CodexBridge?
+    var codexTargetSessionID: UUID?
     let id = UUID()
     let startedAt = Date()
     @Published var historyLogging: HistoryLoggingMode = .inherit
@@ -193,6 +195,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     }
 
     func stop() {
+        if retainOnExit { let completion = onProcessExit; onProcessExit = nil; completion?(nil) }
         launchProxy = nil
         stopped = true
         canReconnect = false; terminal.reconnectHandler = nil

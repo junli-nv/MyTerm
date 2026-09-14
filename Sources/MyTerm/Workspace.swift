@@ -206,10 +206,13 @@ final class Workspace: ObservableObject {
         updated[index].collapsed.toggle(); saveGroups(updated)
     }
 
-    func openCodex(executable: String, arguments: [String], environment: [String: String], proxy: CodexSOCKSProxy? = nil, onExit: ((Int32?) -> Void)? = nil) {
+    @discardableResult
+    func openCodex(executable: String, arguments: [String], environment: [String: String], proxy: CodexSOCKSProxy? = nil, executionBridge: CodexBridge? = nil, targetSessionID: UUID? = nil, onExit: ((Int32?) -> Void)? = nil) -> TerminalSession {
         let session = TerminalSession(label: "Codex", executable: executable, arguments: arguments, launchEnvironment: environment, launchProxy: proxy, retainOnExit: true)
+        session.codexExecutionBridge = executionBridge; session.codexTargetSessionID = targetSessionID
         session.onProcessExit = onExit
         add(session)
+        return session
     }
 
     func newLocal(directory: String? = nil) {

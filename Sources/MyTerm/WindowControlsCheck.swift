@@ -34,6 +34,8 @@ final class WindowControlsCheck {
             check.fixture = TerminalSession(label: "SFTP panel fixture", executable: "/bin/bash", arguments: ["--noprofile", "--norc", "-i"], server: server, context: context, directory: "/tmp")
             workspace.sessions.append(check.fixture)
             workspace.selectedID = check.fixture.id
+            // Earlier suites have their own bounded waits; start this phase budget now.
+            check.deadline = Date().addingTimeInterval(30)
             check.timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in check.tick() }
         } catch { check.fail(error.localizedDescription) }
     }

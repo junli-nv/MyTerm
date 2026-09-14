@@ -683,3 +683,116 @@
 "外部 MCP 注册失败：" = "External MCP registration failed:";
 
 "外部 MCP 注册失败，请查看上方原始错误，检查 Codex 路径及配置文件权限。" = "External MCP registration failed. See the original error above and check the Codex executable and configuration file permissions.";
+
+"Codex SSH 执行控制" = "Codex SSH execution";
+
+"停止全部执行并撤销授权" = "Stop all commands and revoke access";
+
+"允许执行此命令" = "Approve this exact command";
+
+"Codex 已获执行授权" = "Codex has execution access";
+
+"停止执行并撤销授权" = "Stop execution and revoke access";
+
+"允许执行 SSH 命令" = "Allow SSH command execution";
+
+"默认只读。授权后固定诊断命令自动执行，其他命令须在执行控制窗口确认。独立通道不共享当前终端目录或 tmux 状态。" = "Read-only by default. Once authorized, fixed diagnostics run automatically; other commands require approval in the execution window. The separate channel does not share the terminal directory or tmux state.";
+
+"独立执行通道不共享终端的目录、环境变量或 tmux 状态。每次授权最多 10 分钟、30 条命令；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。" = "The separate channel does not share the terminal directory, environment or tmux state. Access lasts 10 minutes or 30 commands; each command has a 60-second timeout and 1 MB output limit. Stopping closes the execution channel, but detached remote processes may continue.";
+
+"界面显示输出开头；Codex 可按偏移读取全部保留输出。记录仅保存在内存中。" = "The preview shows the start of output; Codex can page through all retained output. Records are kept only in memory.";
+
+"按需读取已开放的 SSH 标签，无需保存日志。内容会交给 Codex 分析；默认只读；执行命令需要另行授权，不提供密码或密钥访问。" = "Read shared SSH tabs without saving logs. Content is sent to Codex for analysis. Read-only by default; execution requires separate authorization. Passwords and keys are never exposed.";
+
+"awaiting_approval" = "Awaiting approval";
+
+"running" = "Running";
+
+"completed" = "Completed";
+
+"cancelled" = "Cancelled or timed out";
+
+"rejected" = "Rejected";
+
+"failed" = "Failed";
+
+"输出超限，结果不完整；已阻止自动执行下一条命令。" = "Output exceeded capacity and is incomplete. Further automatic commands are blocked.";
+
+"执行前计划" = "Plan before execution";
+
+"确认此计划" = "Approve this plan";
+
+"approved" = "Plan approved";
+
+"执行前确认计划" = "Approve a plan before execution";
+
+"收起执行记录" = "Hide execution history";
+
+"查看执行记录" = "Show execution history";
+
+"命令待确认" = "Command approval needed";
+
+"有 SSH 命令等待确认" = "SSH command awaiting your approval";
+
+"点击启动 Codex 标签后，从 SSH 会话列表选择目标。启动成功后自动关闭此窗口；如需另开标签，可再次打开 Codex 接入。" = "Choose the target from the SSH session list after clicking Start Codex tab. This window closes after a successful launch. Reopen Codex integration to start another tab.";
+
+"默认只读。计划直接展示，无需确认；每条 SSH 命令均须明确确认后执行。独立通道不共享当前终端目录或 tmux 状态。" = "Read-only by default. Plans are displayed without confirmation; every SSH command requires explicit approval. The separate channel does not share the terminal directory or tmux state.";
+
+"每次启动默认关闭。启动 Codex 时选择关联的 SSH 标签；关闭共享或标签后立即撤销，已发送的内容无法撤回。" = "Sharing is off at startup. Select the SSH tab when launching Codex. Disabling sharing or closing the tab revokes access; previously sent content cannot be recalled.";
+
+"presented" = "Plan displayed";
+
+"计划已取消" = "Plan cancelled";
+
+"取消计划并停止执行" = "Cancel plan and stop execution";
+
+"执行授权有效至：" = "Execution access expires: ";
+
+"当前为只读；可在此重新授权执行。" = "Read-only. Re-authorize execution here.";
+
+"重新授权（10 分钟）" = "Re-authorize (10 minutes)";
+
+"已重新授权，请在当前 Codex 标签中继续；每条命令仍需确认。" = "Re-authorized. Continue in this Codex tab; every command still requires approval.";
+
+"请先开启共享并连接关联的 SSH 会话。" = "Enable sharing and connect the associated SSH session first.";
+
+"SSH 执行" = "SSH execution";
+
+"只读" = "Read-only";
+
+"授权" = "Authorize";
+
+"收起" = "Hide";
+
+"记录" = "History";
+
+"批准" = "Approve";
+
+"取消计划" = "Cancel plan";
+
+"收起计划" = "Hide plan";
+"展开计划" = "Show plan";
+
+"授权时长（分钟）" = "Authorization duration (minutes)";
+"每次授权命令额度" = "Commands per authorization";
+"到期或额度用尽后，可在当前 Codex 标签点击继续授权，按本次配置重置额度；每条命令仍需批准。" = "When access expires or the budget runs out, renew authorization in this tab using these limits. Every command still requires approval.";
+"继续授权" = "Renew";
+"剩余命令额度" = "Remaining command budget";
+"授权时长须为 1–1440 分钟，命令额度须为 1–10000 条。" = "Use 1–1440 minutes and 1–10000 commands.";
+"独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。" = "The execution channel does not share terminal directory, environment or tmux state. Set duration and command budget when starting a Codex tab; renew in the same tab. Each command is limited to 60 seconds and 1 MB. Stopping closes the channel; detached remote processes may keep running.";
+"授权已到期" = "Expired";
+"命令额度已用尽，请点击继续授权。" = "Command budget exhausted. Click Renew to continue.";
+
+"SSH 会话接入 Codex" = "Connect SSH sessions to Codex";
+"选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认只读，执行 SSH 命令需另行授权并逐条批准。" = "Select an open SSH session for Codex to analyze. Local shells are excluded. Access is read-only by default; SSH execution requires authorization and approval for each command.";
+"Codex 账号" = "Codex account";
+"登录仅用于 Codex 账号，不开放任何 SSH 会话。登录信息保存在本机；启动分析时会自动检查，未登录则引导登录。" = "Signing in does not grant access to SSH sessions. Credentials are saved locally. Starting analysis checks sign-in automatically and guides you through login if needed.";
+"SSH 会话分析" = "Analyze an SSH session";
+"执行记录与控制" = "Execution history and controls";
+"启动时统一选择 SSH 会话、读取范围、持续监控和执行授权。确认后开启接入，成功创建分析标签后关闭本窗口；可再次打开此入口创建其他分析标签。" = "Choose the SSH session, history range, monitoring and execution permission when starting. Confirmation enables access. This window closes after the analysis tab opens; reopen it to create another tab.";
+"SSH 接入状态" = "SSH access status";
+"允许 Codex 访问已授权的 SSH 会话" = "Allow Codex access to authorized SSH sessions";
+"这是所有 Codex 客户端的 SSH 接入总开关，开启不会自动授权会话；关闭会立即撤销全部读取、监控及执行权限。退出应用后默认关闭。" = "This controls SSH access for all Codex clients. Enabling it does not authorize sessions. Disabling it immediately revokes all reading, monitoring and execution access. It defaults to off after restarting the app.";
+"外部 Codex／IDE（可选）" = "External Codex / IDE (optional)";
+"仅外部 Codex 或 IDE 需要注册 MCP；MyTerm 内的 Codex 标签会自动配置。外部客户端只能访问已授权的 SSH 会话。" = "Only external Codex or IDE clients need MCP registration. MyTerm configures its Codex tabs automatically. External clients can access only authorized SSH sessions.";
+"SSH 接入已开启，仅允许访问已授权的 SSH 会话。" = "SSH access enabled for authorized SSH sessions only.";

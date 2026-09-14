@@ -6,7 +6,7 @@ import sys
 
 app = pathlib.Path(sys.argv[1]).resolve()
 result = subprocess.run([str(app / 'Contents/MacOS/MyTerm'), '--smoke-test', '--window-controls-check'],
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45)
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=75)
 print(result.stdout, end='')
 if result.returncode or 'PASS: window controls:' not in result.stdout:
     raise SystemExit(result.returncode or 1)

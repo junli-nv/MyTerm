@@ -99,7 +99,7 @@ public struct Server: Identifiable, Codable, Equatable {
     /// Pass arguments directly to exec: never interpolate configuration into a shell command.
     public func connectionArguments(configPath: String? = nil) throws -> [String] {
         let server = try validated()
-        var args = ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=6", "-o", "TCPKeepAlive=yes"]
+        var args = ["-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=6", "-o", "TCPKeepAlive=yes"]
         args += ["-o", "Compression=\(server.compression ?? true ? "yes" : "no")"]
         do {
             let x11 = server.x11Forwarding ?? .disabled

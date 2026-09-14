@@ -8,7 +8,7 @@ macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](
 
 ## Codex 接入
 
-新增按 SSH 标签授权的只读 MCP 接口，以及独立于 SSH 的 Codex HTTP／SOCKS5 代理设置。用法与边界见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。此功能包含在 1.6.1 安装包中。
+新增按 SSH 标签授权的只读 MCP 接口，以及独立于 SSH 的 Codex HTTP／SOCKS5 代理设置。用法与边界见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。已发布版本提供只读接入；1.6.4 新增默认关闭、需明确授权的 SSH 命令执行，详见同一说明。
 
 1.6.1 新增：启动时选择 SSH 标签，持续监控默认关闭；历史读取范围可配置并支持完整分页，MyTerm 只读工具使用独立免审批配置。
 

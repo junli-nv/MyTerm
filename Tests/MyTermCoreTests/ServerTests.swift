@@ -10,6 +10,8 @@ final class ServerTests {
         checkEqual(args.contains("ServerAliveInterval=30"), true)
         checkEqual(args.contains("ServerAliveCountMax=6"), true)
         checkEqual(args.contains("TCPKeepAlive=yes"), true)
+        checkEqual(args.contains("StrictHostKeyChecking=no"), true)
+        checkEqual(try Server(host: "dev-alias").sftpArguments(controlPath: "/tmp/control").contains("StrictHostKeyChecking=no"), true)
     }
 
     func testArgumentsPreserveKeyPathAsSingleArgument() throws {

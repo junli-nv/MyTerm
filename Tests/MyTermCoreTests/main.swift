@@ -2,6 +2,19 @@ import Foundation
 import Darwin
 import MyTermCore
 
+if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-execution-fixture" {
+    let arguments = try CodexExecutionPolicy.arguments(controlPath: CommandLine.arguments[2], host: "127.0.0.1", command: "printf 'mux-execution-fixture\\n'; printf 'stderr-fixture\\n' >&2; exit 7")
+    let job = try CodexCommandProcess(arguments: arguments, timeout: 5)
+    let deadline = Date().addingTimeInterval(8)
+    while Date() < deadline {
+        let result = try job.snapshot(offset: 0)
+        if result["state"] as? String != "running" {
+            print(String(decoding: try JSONSerialization.data(withJSONObject: result), as: UTF8.self)); exit(0)
+        }
+        Thread.sleep(forTimeInterval: 0.02)
+    }
+    job.cancel(); exit(1)
+}
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-launch-arguments" {
     let args = try CodexConnection.launchArguments(appExecutable: CommandLine.arguments[2])
     print(String(decoding: try JSONSerialization.data(withJSONObject: args), as: UTF8.self))

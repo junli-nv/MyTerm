@@ -444,6 +444,9 @@ struct TerminalPane: View {
                     SFTPPanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
                 }
             }
+            if let bridge = session.codexExecutionBridge, let target = session.codexTargetSessionID {
+                CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id)
+            }
             if let bridge = session.terminal.zmodem { ZmodemStatusView(bridge: bridge) }
             if session.statusBarVisible || !session.isRunning {
             Divider()

@@ -53,6 +53,10 @@ enum CodexBridgeCheck {
         ended.handleProcessTermination(exitCode: 0)
         ended.handleProcessTermination(exitCode: 0)
         try require(completions == 1, "Login completion ran more than once")
+        var stoppedCallback = 0
+        ended.onProcessExit = { if $0 == nil { stoppedCallback += 1 } }
+        ended.stop(); ended.stop()
+        try require(stoppedCallback == 1, "Closing Codex failed to revoke exactly once")
         let registration = try JSONSerialization.data(withJSONObject: ["enabled": true, "transport": ["command": Bundle.main.executableURL!.path, "args": ["--myterm-mcp"]]])
         let fixture = root.appendingPathComponent("registration.json")
         try registration.write(to: fixture)
@@ -179,14 +183,146 @@ enum CodexBridgeCheck {
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
             guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Missing Codex settings scrollbar") }
             try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Codex settings overflow horizontally or fail to scroll")
-            let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge).environment(\.locale, language.locale))
+            let chooserSelection = CodexChooserState()
+            let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection).environment(\.locale, language.locale))
             window.contentView = chooser
             window.setContentSize(NSSize(width: 558, height: 558))
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
-            try require(descendants(chooser).contains(where: { $0 is NSScrollView }), "Session chooser missing scrollable list")
+            chooserSelection.execute = true
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
+            guard let chooserScroll = descendants(chooser).compactMap({ $0 as? NSScrollView }).first, let chooserDoc = chooserScroll.documentView else { throw ConfigurationError.invalid("Session chooser missing scrollable list") }
+            try require(chooserDoc.frame.width <= chooserScroll.contentSize.width + 1 && chooserDoc.frame.height > chooserScroll.contentSize.height, "Expanded authorization limits do not fit/scroll")
         }
+        let execServer = Server(host: "localhost")
+        let execContext = try SSHLaunchContext(server: execServer)
+        let execSession = TerminalSession(label: "Execution fixture", executable: "/usr/bin/ssh", arguments: [], server: execServer, context: execContext)
+        workspace.sessions.append(execSession); execSession.isRunning = true
+        bridge.allowed.insert(execSession.id)
+        func deniedExecution() throws {
+            do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd"]); throw ConfigurationError.invalid("execution unexpectedly allowed") }
+            catch { try require(error.localizedDescription != "execution unexpectedly allowed", "Read-only execution gate failed") }
+        }
+        try deniedExecution()
+        let readonlyPlan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Read-only plan without execution authorization."])
+        try require(readonlyPlan["state"] as? String == "presented" && bridge.executionGrants.isEmpty, "Plan display required or granted execution authorization")
+        try deniedExecution()
+        try require(!CodexChooserState().execute, "Unsafe execution/plan defaults")
+        // A placeholder path permits authorization; real ssh must fail closed when it cannot multiplex.
+        FileManager.default.createFile(atPath: execContext.controlPath, contents: Data())
+        let windowsBeforeGrant = NSApp.windows.count
+        try bridge.grantExecution(execSession.id)
+        try require(NSApp.windows.count == windowsBeforeGrant, "Execution grant opened a popup")
+        try deniedExecution() // A malformed command request must not execute.
+        let plan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Check fixture output; make no changes."])
+        try deniedExecution()
+        try require(plan["state"] as? String == "presented", "Plan incorrectly requested confirmation")
+        let pending = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "printf fixture", "plan_id": plan["plan_id"]!, "reason": "Verify output capture"] )
+        try require(pending["state"] as? String == "awaiting_approval", "Arbitrary shell command bypassed confirmation")
+        let record = bridge.executionRecords.last!
+        try require(NSApp.windows.count == windowsBeforeGrant, "Pending plan or command opened a popup")
+        for locale in [InterfaceLanguage.english, .chinese] {
+            language.selection = locale
+            let inlineWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            inlineWindow.isReleasedWhenClosed = false
+            let inline = NSHostingView(rootView: CodexInlineExecutionView(bridge: bridge, sessionID: execSession.id))
+            inlineWindow.contentView = inline; inlineWindow.orderFront(nil)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); inline.layoutSubtreeIfNeeded()
+            try require(descendants(inline).contains(where: { $0 is NSScrollView }), "Inline approval missing scrollable command")
+            try require(inline.fittingSize.width <= 541 && inline.fittingSize.height <= 180, "Inline controls wrapped or exceeded compact height")
+            try require(record.state == "awaiting_approval" && record.process == nil, "Displaying inline approval executed command")
+            inlineWindow.close()
+        }
+        bridge.cancelPlan(execSession.id)
+        try require(bridge.executionRecords.first(where: { $0.id.uuidString == plan["plan_id"] as? String })?.state == "cancelled", "Plan cancellation was not recorded")
+        try require(bridge.executionGrants[execSession.id] == nil, "Cancelled plan retained execution permission")
+        bridge.approveExecution(record)
+        try require(record.process == nil && record.state == "rejected", "Stale approval executed after revocation")
+        try bridge.grantExecution(execSession.id)
+        _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Check directory"])
+        let automatic = bridge.executionRecords.last!
+        try require(automatic.process == nil && automatic.state == "awaiting_approval", "Diagnostic command bypassed explicit confirmation")
+        bridge.approveExecution(automatic)
+        let execDeadline = Date().addingTimeInterval(5)
+        while (try automatic.snapshot()["state"] as? String) == "running" && Date() < execDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require((try automatic.snapshot()["exit_code"] as? Int32) == 255, "Missing mux connection did not fail closed")
+        automatic.process = try CodexCommandProcess(executable: "/bin/bash", arguments: ["--noprofile", "--norc", "-c", "printf '%06000d' 0; printf END >&2"])
+        automatic.deliveredOffset = 0
+        let pageDeadline = Date().addingTimeInterval(3)
+        while (try automatic.snapshot()["state"] as? String) == "running" && Date() < pageDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Next step"]); throw ConfigurationError.invalid("Unread output bypass") }
+        catch { try require(error.localizedDescription.contains("Read ALL"), "Next command did not require complete output") }
+        do { _ = try bridge.read("command_status", arguments: ["session_id": execSession.id.uuidString, "job_id": automatic.id.uuidString, "offset": 4096]); throw ConfigurationError.invalid("Skipped output") }
+        catch { try require(error.localizedDescription.contains("Cannot skip"), "Output cursor allowed skipping pages") }
+        var offset = 0, fullOutput = "", allDelivered = false
+        repeat {
+            let page = try bridge.read("command_status", arguments: ["session_id": execSession.id.uuidString, "job_id": automatic.id.uuidString, "offset": offset])
+            fullOutput += page["output"] as? String ?? ""
+            offset = page["next_offset"] as! Int; allDelivered = page["all_output_delivered"] as? Bool == true
+        } while !allDelivered && offset < 7000
+        try require(fullOutput.utf8.count == 6003 && fullOutput.hasSuffix("END"), "Paginated command output lost content")
+        for locale in [InterfaceLanguage.english, .chinese] {
+            language.selection = locale
+            let checkWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 360), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+            checkWindow.isReleasedWhenClosed = false
+            let executionView = NSHostingView(rootView: CodexExecutionView(bridge: bridge))
+            checkWindow.contentView = executionView; checkWindow.orderFront(nil)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); executionView.layoutSubtreeIfNeeded()
+            guard let scroll = descendants(executionView).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Execution view missing scrollbar") }
+            try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Execution view overflow or missing vertical scroll")
+            checkWindow.close()
+        }
+        automatic.process = try CodexCommandProcess(executable: "/usr/bin/yes", arguments: ["bounded-output"], timeout: 0.1)
+        automatic.deliveredOffset = 0
+        let truncateDeadline = Date().addingTimeInterval(3)
+        while (try automatic.snapshot()["state"] as? String) == "running" && Date() < truncateDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Next step"]); throw ConfigurationError.invalid("Incomplete output bypass") }
+        catch { try require(error.localizedDescription.contains("incomplete"), "Incomplete output did not stop automatic progression") }
+        execSession.isRunning = false
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        try require(bridge.executionGrants.isEmpty, "Disconnect retained execution authorization")
+        try deniedExecution()
+        let disconnectedPlan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Explain diagnostics while the SSH execution channel is disconnected."])
+        try require(disconnectedPlan["state"] as? String == "presented", "Disconnected execution blocked plan display")
+        execSession.isRunning = true
+        try bridge.grantExecution(execSession.id, limits: CodexExecutionLimits(minutes: 120, commands: 1))
+        try require((bridge.executionGrants[execSession.id]?.timeIntervalSinceNow ?? 0) > 7190, "Custom duration ignored")
+        _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Budget fixture"])
+        bridge.cancelExecution(bridge.executionRecords.last!)
+        try require(bridge.remainingExecutionCommands(execSession.id) == 0, "Custom command budget ignored")
+        do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Budget exceeded"]); throw ConfigurationError.invalid("Budget bypass") }
+        catch { try require(error.localizedDescription.contains("budget exhausted"), "Budget exhaustion did not explain renewal") }
+        bridge.revokeExecution(execSession.id)
+        let tabA = UUID(), tabB = UUID()
+        bridge.renewExecution(execSession.id, owner: tabA)
+        try require(bridge.executionGrants[execSession.id] != nil, "Existing tab could not renew execution access")
+        try require(bridge.remainingExecutionCommands(execSession.id) == 1 && bridge.limitsForExecution(execSession.id).minutes == 120, "Renewal did not retain custom limits or reset budget")
+        bridge.renewExecution(execSession.id, owner: tabB)
+        bridge.releaseExecution(execSession.id, tab: tabA)
+        try require(bridge.executionGrants[execSession.id] != nil, "Old Codex tab revoked a newer tab's access")
+        bridge.releaseExecution(execSession.id, tab: tabB)
+        try require(bridge.executionGrants[execSession.id] == nil, "Owning tab did not revoke execution on close")
+        try deniedExecution()
+
+        print("PASS: Codex execution default-off, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
+        let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        launchWindow.isReleasedWhenClosed = false
+        var didCloseAfterLaunch = false
+        launchWindow.contentView = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: bridge, onStarted: { didCloseAfterLaunch = true; launchWindow.close() }))
+        launchWindow.orderFront(nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        bridge.connection.proxyMode = .inherited
+        let generation = bridge.launchGeneration
+        bridge.launch(sessionID: session.id, checkSavedLogin: false)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        try require(bridge.launchGeneration == generation + 1 && didCloseAfterLaunch && !launchWindow.isVisible, "Successful launch did not dismiss integration window")
+        try require(workspace.selected?.codexTargetSessionID == session.id, "Codex launch lost selected SSH target")
         bridge.stop()
         try require(!FileManager.default.fileExists(atPath: root.appendingPathComponent("bridge.json").path) && bridge.allowed.isEmpty, "Disable did not revoke discovery")
+        let beforeLoginTabs = workspace.sessions.count
+        bridge.connection.proxyMode = .inherited
+        bridge.launch(login: true, checkSavedLogin: false)
+        try require(workspace.sessions.count == beforeLoginTabs + 1 && !bridge.enabled && bridge.allowed.isEmpty, "Login requires or enables SSH access")
+        workspace.selected?.stop()
         print("PASS: Codex MCP stdio + authenticated IPC, per-tab consent/revocation, history/alternate screen, incremental output, monitor opt-in/stop/disconnect, limits and bilingual settings/chooser")
     }
 }

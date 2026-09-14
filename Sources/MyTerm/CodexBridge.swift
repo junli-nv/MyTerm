@@ -5,7 +5,7 @@ import MyTermCore
 
 final class CodexBridge: ObservableObject {
     @Published private(set) var enabled = false
-    @Published var allowed = Set<UUID>() { didSet { cache.clear(); historyPages.clear(); monitored.formIntersection(allowed) } }
+    @Published var allowed = Set<UUID>() { didSet { cache.clear(); historyPages.clear(); monitored.formIntersection(allowed); reconcileExecution() } }
     @Published private(set) var monitored = Set<UUID>()
     func stopMonitoring(_ id: UUID) { monitored.remove(id); cache.clear() }
     @Published var message = ""
@@ -18,6 +18,166 @@ final class CodexBridge: ObservableObject {
     @Published private(set) var registrationError = ""
     @Published private(set) var checkingRegistration = false
     @Published private(set) var registrationCheckedAt: Date?
+    @Published private(set) var executionGrants = [UUID: Date]()
+    @Published private(set) var executionRecords = [CodexExecutionRecord]()
+    @Published private(set) var launchGeneration = 0
+    private var approvedExecutionPlans = [UUID: UUID]()
+    private var executionAuthorizations = [UUID: UUID]()
+    private var executionContexts = [UUID: String]()
+    private var executionOwners = [UUID: UUID]()
+    @Published var executionAccessMessage = ""
+    @Published var launchExecutionMinutes = 60
+    @Published var launchExecutionCommands = 300
+    private var expiredExecution = Set<UUID>()
+    func executionIsExpired(_ id: UUID) -> Bool { expiredExecution.contains(id) }
+    private var executionLimits = [UUID: CodexExecutionLimits]()
+    func limitsForExecution(_ id: UUID) -> CodexExecutionLimits { executionLimits[id] ?? CodexExecutionLimits() }
+    func remainingExecutionCommands(_ id: UUID) -> Int { max(0, limitsForExecution(id).commands - (executionCounts[id] ?? 0)) }
+    private var executionCounts = [UUID: Int]()
+    private var executionTimer: Timer?
+    private var executionWindow: NSWindow?
+    func grantExecution(_ id: UUID, limits: CodexExecutionLimits? = nil) throws {
+        let selectedLimits = limits ?? limitsForExecution(id)
+        try selectedLimits.validate()
+        guard enabled, allowed.contains(id), let session = workspace?.sessions.first(where: { $0.id == id }), session.isRunning,
+              let context = session.connectionContext, FileManager.default.fileExists(atPath: context.controlPath) else {
+            throw ConfigurationError.invalid("SSH connection is not ready for execution")
+        }
+        guard executionGrants[id] == nil else { return }
+        expiredExecution.remove(id)
+        executionLimits[id] = selectedLimits
+        executionGrants[id] = Date().addingTimeInterval(Double(selectedLimits.minutes) * 60); executionCounts[id] = 0; executionContexts[id] = context.controlPath; executionAuthorizations[id] = UUID()
+        if executionTimer == nil {
+            executionTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+                self?.reconcileExecution(); self?.objectWillChange.send()
+            }
+        }
+    }
+    func renewExecution(_ id: UUID, owner: UUID? = nil) {
+        do {
+            guard enabled, let session = workspace?.sessions.first(where: { $0.id == id }), session.isRunning,
+                  let context = session.connectionContext, FileManager.default.fileExists(atPath: context.controlPath) else {
+                throw ConfigurationError.invalid("请先开启共享并连接关联的 SSH 会话。")
+            }
+            allowed.insert(id); revokeExecution(id); try grantExecution(id)
+            if let owner { executionOwners[id] = owner }
+            executionAccessMessage = ""
+        } catch { executionAccessMessage = error.localizedDescription }
+    }
+    func ownExecution(_ id: UUID, tab: UUID) { if executionGrants[id] != nil { executionOwners[id] = tab } }
+    func releaseExecution(_ id: UUID, tab: UUID) {
+        guard executionOwners[id] == tab else { return }
+        revokeExecution(id)
+    }
+    func showExecution() {
+        if executionWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 560), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 540, height: 360)
+            window.contentView = NSHostingView(rootView: CodexExecutionView(bridge: self)); window.center()
+            executionWindow = window
+        }
+        executionWindow?.title = L10n.text("Codex SSH 执行控制")
+        executionWindow?.makeKeyAndOrderFront(nil)
+    }
+    func revokeExecution(_ id: UUID) {
+        executionGrants.removeValue(forKey: id); executionOwners.removeValue(forKey: id); executionContexts.removeValue(forKey: id); executionAuthorizations.removeValue(forKey: id); approvedExecutionPlans.removeValue(forKey: id)
+        for record in executionRecords where record.sessionID == id { cancelExecution(record) }
+    }
+    func revokeAllExecution() {
+        for id in Array(executionGrants.keys) { revokeExecution(id) }
+    }
+    private func reconcileExecution() {
+        for (id, deadline) in executionGrants {
+            if deadline <= Date() { expiredExecution.insert(id) }
+            if deadline <= Date() || !allowed.contains(id) || workspace?.sessions.contains(where: { $0.id == id && $0.isRunning && $0.connectionContext?.controlPath == executionContexts[id] }) != true { revokeExecution(id) }
+        }
+    }
+    func cancelPlan(_ id: UUID) {
+        for record in executionRecords where record.sessionID == id && record.isPlan && record.state == "presented" { record.state = "cancelled" }
+        revokeExecution(id); objectWillChange.send()
+    }
+    func cancelExecution(_ record: CodexExecutionRecord) {
+        if record.isPlan && record.state == "presented" { cancelPlan(record.sessionID); return }
+        if record.state == "awaiting_approval" { record.state = "rejected" }
+        record.process?.cancel(); refreshExecutionLabels(); objectWillChange.send()
+    }
+    func approveExecution(_ record: CodexExecutionRecord) {
+        reconcileExecution()
+        guard record.state == "awaiting_approval", let deadline = executionGrants[record.sessionID],
+              let session = workspace?.sessions.first(where: { $0.id == record.sessionID }),
+              let context = session.connectionContext, let server = session.server else { cancelExecution(record); return }
+        if record.isPlan {
+            record.state = "approved"; approvedExecutionPlans[record.sessionID] = record.id
+            objectWillChange.send(); return
+        }
+        do {
+            record.process = try CodexCommandProcess(arguments: CodexExecutionPolicy.arguments(controlPath: context.controlPath, host: server.host, command: record.command), timeout: min(60, max(1, deadline.timeIntervalSinceNow)))
+            record.state = "running"
+        } catch { record.state = "failed"; record.error = error.localizedDescription }
+        refreshExecutionLabels(); objectWillChange.send()
+    }
+    private func refreshExecutionLabels() {
+        for tab in workspace?.sessions ?? [] {
+            guard let target = tab.codexTargetSessionID else { continue }
+            tab.label = executionRecords.contains(where: { $0.sessionID == target && !$0.isPlan && $0.state == "awaiting_approval" }) ? "Codex · " + L10n.text("命令待确认") : "Codex"
+        }
+    }
+    private func executionRequest(_ name: String, arguments: [String: Any], session: TerminalSession) throws -> [String: Any] {
+        reconcileExecution()
+        if name == "propose_plan" {
+            guard let plan = arguments["plan"] as? String, plan.utf8.count >= 10, plan.utf8.count <= 4096,
+                  !plan.contains("\0") else { throw ConfigurationError.invalid("Provide a plan of 10–4096 bytes: objective, steps and intended changes") }
+            guard !executionRecords.contains(where: { $0.sessionID == session.id && ["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) else { throw ConfigurationError.invalid("Finish or cancel the current pending/running action first") }
+            if executionRecords.count >= 50, let index = executionRecords.firstIndex(where: { !["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) { executionRecords.remove(at: index) }
+            guard executionRecords.count < 50 else { throw ConfigurationError.invalid("Execution history is full") }
+            approvedExecutionPlans.removeValue(forKey: session.id)
+            let record = CodexExecutionRecord(sessionID: session.id, label: session.label, command: plan)
+            record.isPlan = true; record.state = "presented"; record.authorization = executionAuthorizations[session.id] ?? UUID()
+            executionRecords.append(record)
+            return try record.snapshot()
+        }
+        if name == "execute_command" {
+            guard executionGrants[session.id] != nil else { throw ConfigurationError.invalid("Execution access is inactive or expired. Ask the user to click Re-authorize in the current Codex tab, then continue here; no new Codex tab is needed. Each command still requires approval.") }
+            let plan = arguments["plan_id"] as? String ?? ""
+            guard let reason = arguments["reason"] as? String, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reason.utf8.count <= 1024, !reason.contains("\0") else { throw ConfigurationError.invalid("Explain the next command's purpose in reason (at most 1024 bytes)") }
+            guard let command = arguments["command"] as? String else { throw ConfigurationError.invalid("Missing command") }
+            try CodexExecutionPolicy.validate(command)
+            guard remainingExecutionCommands(session.id) > 0 else { throw ConfigurationError.invalid("Execution command budget exhausted. Ask the user to click Renew authorization in this Codex tab, then resume when instructed. No new tab is needed; each command still requires approval.") }
+            guard !executionRecords.contains(where: { $0.sessionID == session.id && (["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state)) }) else { throw ConfigurationError.invalid("A command is already running or awaiting approval") }
+            if let previous = executionRecords.last(where: { $0.sessionID == session.id && !$0.isPlan && $0.authorization == executionAuthorizations[session.id] }) {
+                let output = try previous.snapshot()
+                guard output["incomplete"] as? Bool != true else { throw ConfigurationError.invalid("Previous output is incomplete (capacity exceeded, cancelled or timed out). Stop and report truncation. Ask the user to revoke/re-authorize execution and narrow the query; do not infer a complete diagnosis.") }
+                guard previous.deliveredOffset >= (output["total_bytes"] as? Int ?? 0) else { throw ConfigurationError.invalid("Read ALL previous command output with command_status and next_offset before requesting another command.") }
+            }
+            executionCounts[session.id, default: 0] += 1
+            let record = CodexExecutionRecord(sessionID: session.id, label: session.label, command: command)
+            // Retain a bounded audit history without evicting active jobs.
+            if executionRecords.count >= 50, let index = executionRecords.firstIndex(where: { !["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) { executionRecords.remove(at: index) }
+            guard executionRecords.count < 50 else { throw ConfigurationError.invalid("Execution history is full") }
+            record.authorization = executionAuthorizations[session.id]!
+            record.planID = plan; record.reason = reason
+            executionRecords.append(record)
+            refreshExecutionLabels()
+
+            return try deliverExecutionOutput(record, offset: 0)
+        }
+        guard let job = arguments["job_id"] as? String, let record = executionRecords.first(where: { $0.id.uuidString == job && $0.sessionID == session.id }) else { throw ConfigurationError.invalid("Unknown execution job") }
+        if name == "cancel_command" { cancelExecution(record) }
+        let raw = arguments["offset"] as? NSNumber
+        guard arguments["offset"] == nil || raw != nil else { throw ConfigurationError.invalid("Invalid output offset") }
+        guard raw == nil || (CFGetTypeID(raw!) != CFBooleanGetTypeID() && raw!.doubleValue.rounded() == raw!.doubleValue && (0...1048576).contains(raw!.intValue)) else { throw ConfigurationError.invalid("Invalid output offset") }
+        return try deliverExecutionOutput(record, offset: raw?.intValue ?? 0)
+    }
+    private func deliverExecutionOutput(_ record: CodexExecutionRecord, offset: Int) throws -> [String: Any] {
+        guard offset <= record.deliveredOffset else { throw ConfigurationError.invalid("Cannot skip output pages; use the last next_offset.") }
+        var result = try record.snapshot(offset: offset)
+        record.deliveredOffset = max(record.deliveredOffset, result["next_offset"] as? Int ?? 0)
+        let complete = !["running", "awaiting_approval"].contains(result["state"] as? String ?? "")
+            && result["truncated"] as? Bool != true && record.deliveredOffset >= (result["total_bytes"] as? Int ?? 0)
+        result["all_output_delivered"] = complete
+        result["delivered_bytes"] = record.deliveredOffset
+        return result
+    }
     private weak var workspace: Workspace?
     private var channel: AskpassChannel?
     private var directory: URL?
@@ -82,10 +242,12 @@ final class CodexBridge: ObservableObject {
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: staged.path)
             if FileManager.default.fileExists(atPath: descriptor.path) { try FileManager.default.removeItem(at: descriptor) }
             try FileManager.default.moveItem(at: staged, to: descriptor)
-            enabled = true; message = "Codex 只读共享已开启，请选择允许读取的 SSH 标签。"
+            enabled = true; message = "SSH 接入已开启，仅允许访问已授权的 SSH 会话。"
         } catch { stop(); message = error.localizedDescription }
     }
     func stop() {
+        revokeAllExecution(); executionTimer?.invalidate(); executionTimer = nil
+        executionWindow?.close(); executionWindow?.contentView = nil; executionWindow = nil
         if let channel, let data = try? Data(contentsOf: descriptor),
            let saved = (try? JSONSerialization.jsonObject(with: data)) as? [String: String], saved["token"] == channel.token {
             try? FileManager.default.removeItem(at: descriptor)
@@ -105,8 +267,9 @@ final class CodexBridge: ObservableObject {
         if name == "list_sessions" {
             return ["sessions": shared.prefix(32).map { ["id": $0.id.uuidString, "name": String($0.label.prefix(80)), "connected": $0.isRunning, "selected": workspace.selectedID == $0.id] as [String: Any] }, "truncated": shared.count > 32]
         }
-        guard ["read_output", "watch_output", "capture_history", "read_history_page"].contains(name), let id = arguments["session_id"] as? String,
+        guard ["read_output", "watch_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan"].contains(name), let id = arguments["session_id"] as? String,
               let session = shared.first(where: { $0.id.uuidString == id }) else { throw ConfigurationError.invalid("SSH tab is not shared or is closed") }
+        if ["execute_command", "command_status", "cancel_command", "propose_plan"].contains(name) { return try executionRequest(name, arguments: arguments, session: session) }
         if name == "read_history_page" {
             guard let cursor = arguments["cursor"] as? String else { throw ConfigurationError.invalid("Missing history cursor") }
             return try historyPages.page(session: id, cursor: cursor)
@@ -228,12 +391,12 @@ final class CodexBridge: ObservableObject {
             }
         } catch { message = error.localizedDescription }
     }
-    func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
+    func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
         if checkSavedLogin {
             if login { checkLogin(loginIfNeeded: true) }
             else {
                 checkLogin(loginIfNeeded: true) { [weak self] in
-                    self?.launch(sessionID: sessionID, monitor: monitor, checkSavedLogin: false)
+                    self?.launch(sessionID: sessionID, monitor: monitor, execute: execute, limits: limits, checkSavedLogin: false)
                 }
             }
             return
@@ -248,15 +411,25 @@ final class CodexBridge: ObservableObject {
             var environment = try saveConnection()
             let relay = try socksRelay()
             if let relay { environment = try relay.environment(base: environment) }
-            guard enabled else { throw ConfigurationError.invalid("请先开启 Codex 共享。") }
+            guard login || enabled else { throw ConfigurationError.invalid("请先开启 Codex 共享。") }
             let app = Bundle.main.executableURL!.path
             var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
             if !login, let sessionID {
-                arguments.append(try prepareSession(sessionID, monitor: monitor))
+                let prompt = try prepareSession(sessionID, monitor: monitor)
+                if execute {
+                    try (limits ?? CodexExecutionLimits()).validate()
+                    revokeExecution(sessionID); try grantExecution(sessionID, limits: limits)
+                }
+                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, first display the plan in this Codex terminal and record it with propose_plan; plans are informational and do not require approval. Always record the displayed plan with propose_plan so the user can cancel it. If the user cancels the plan or execution access is revoked, stop requesting commands and wait for new instructions. Plans never require execution access. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. All commands, including diagnostics, require the user's explicit approval using the inline controls in this Codex tab. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
+                arguments.append(executionPrompt)
             }
-            workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, onExit: login ? { status in
+            var openedTabID: UUID?
+            let openedTab = workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, executionBridge: login ? nil : self, targetSessionID: login ? nil : sessionID, onExit: login ? { status in
                 if status == 0 { afterLogin?() }
-            } : nil)
+            } : { [weak self] _ in if let sessionID, let openedTabID { self?.releaseExecution(sessionID, tab: openedTabID) } })
+            openedTabID = openedTab?.id
+            if execute, let sessionID, let openedTabID { ownExecution(sessionID, tab: openedTabID) }
+            if !login { launchGeneration += 1 }
             message = "Codex 已在本地标签中启动。代理配置仅作用于此 Codex 进程。"
         } catch { message = error.localizedDescription }
     }

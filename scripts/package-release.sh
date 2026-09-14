@@ -14,6 +14,7 @@ check_dir=$(mktemp -d "${TMPDIR:-/tmp}/myterm-release-check.XXXXXX")
 trap '/bin/rm -rf -- "$check_dir"' EXIT
 python_bin="${MYTERM_TEST_PYTHON:-/Users/junliz/.venvs/codex-py314/bin/python}"
 if [[ ! -x "$python_bin" ]]; then python_bin=python3; fi
+"$python_bin" scripts/codex-execution-check.py .build/release/MyTermChecks
 /bin/bash scripts/build-app.sh debug "$check_dir/MyTerm.app"
 "$python_bin" scripts/window-controls-check.py "$check_dir/MyTerm.app"
 mkdir -p "$release_dir"

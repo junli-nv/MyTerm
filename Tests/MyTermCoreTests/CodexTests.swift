@@ -2,6 +2,7 @@ import Foundation
 import MyTermCore
 
 func checkCodexIntegration() throws {
+    try checkCodexExecution()
     var connection = CodexConnection()
     let base = ["HTTP_PROXY": "http://old.invalid", "https_proxy": "http://old.invalid", "NO_PROXY": "*", "SHELL": "/bin/bash"]
     checkEqual(try connection.environment(base: base, password: ""), base)
@@ -97,6 +98,6 @@ func checkCodexIntegration() throws {
     let initReply = CodexMCP.response(["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": ["protocolVersion": "2025-06-18"]]) { _, _ in invoked = true; return [:] }
     checkEqual((initReply?["result"] as? [String: Any])?["protocolVersion"] as? String, "2025-06-18")
     checkEqual(invoked, false)
-    let unknown = CodexMCP.response(["jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": ["name": "execute_command"]]) { _, _ in invoked = true; return [:] }
+    let unknown = CodexMCP.response(["jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": ["name": "unknown_command"]]) { _, _ in invoked = true; return [:] }
     checkEqual(unknown?["error"] != nil, true); checkEqual(invoked, false)
 }

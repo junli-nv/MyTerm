@@ -41,8 +41,8 @@ public struct CodexConnection: Codable, Equatable {
         // TOML does not accept JSON\'s optional escaped slash (\\/). Keep slashes literal.
         // Quotes and backslashes remain escaped; no shell interpretation.
         let command = String(decoding: try JSONSerialization.data(withJSONObject: appExecutable, options: [.fragmentsAllowed, .withoutEscapingSlashes]), as: UTF8.self)
-        var arguments = ["-c", "mcp_servers.myterm.enabled=true", "-c", "mcp_servers.myterm.required=true", "-c", "mcp_servers.myterm.command=" + command, "-c", "mcp_servers.myterm.args=[\"--myterm-mcp\"]", "-c", "mcp_servers.myterm.tool_timeout_sec=60", "-c", "mcp_servers.myterm.enabled_tools=[\"list_sessions\",\"read_output\",\"watch_output\",\"capture_history\",\"read_history_page\"]", "--sandbox", "read-only", "--no-alt-screen"]
-        for tool in ["list_sessions", "read_output", "watch_output", "capture_history", "read_history_page"] {
+        var arguments = ["-c", "mcp_servers.myterm.enabled=true", "-c", "mcp_servers.myterm.required=true", "-c", "mcp_servers.myterm.command=" + command, "-c", "mcp_servers.myterm.args=[\"--myterm-mcp\"]", "-c", "mcp_servers.myterm.tool_timeout_sec=60", "-c", "mcp_servers.myterm.enabled_tools=[\"list_sessions\",\"read_output\",\"watch_output\",\"capture_history\",\"read_history_page\",\"execute_command\",\"command_status\",\"cancel_command\",\"propose_plan\"]", "--sandbox", "read-only", "--no-alt-screen"]
+        for tool in ["list_sessions", "read_output", "watch_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan"] {
             arguments += ["-c", "mcp_servers.myterm.tools.\(tool).approval_mode=\"approve\""]
         }
         return authenticationArguments + arguments
