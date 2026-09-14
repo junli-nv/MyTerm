@@ -7200,6 +7200,18 @@ open class Terminal {
         return result
     }
     
+    /// Bounded, on-demand text for a host's read-only integration. Uses semantic
+    /// wrapping and never traverses the entire scrollback or changes the viewport.
+    public func getHostSnapshot(screen: Bool, maximumRows: Int) -> (text: String, truncated: Bool) {
+        let b = screen ? displayBuffer : bufferFromKind(kind: .normal)
+        let limit = max(1, min(maximumRows, 10000))
+        let end = screen ? min(b.lines.count, b.yDisp + rows) : min(b.lines.count, b.yBase + b.y + 1)
+        let start = screen ? b.yDisp : max(0, end - limit)
+        let first = max(start, end - limit)
+        guard first < end else { return ("", false) }
+        return (getText(start: Position(col: 0, row: first), end: Position(col: cols, row: end - 1), buffer: b), screen ? first > b.yDisp : first > 0)
+    }
+
     /// Returns the text between the specified range
     ///
     public func getText (start: Position, end: Position) -> String

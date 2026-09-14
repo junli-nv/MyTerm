@@ -533,3 +533,101 @@
 "关联信息包含应用中的服务器、保存的会话、已打开标签和跳板机；不包含外部程序或 SSH 配置文件隐式引用。" = "References include servers, saved sessions, open tabs and jump hosts in MyTerm. References from other apps or implicit SSH configuration are not included.";
 
 "未发现应用内显式引用" = "No explicit references found in MyTerm";
+
+"Codex 接入" = "Codex integration";
+
+"Codex 接入…" = "Codex integration…";
+
+"按需读取已开放的 SSH 标签，无需保存日志。内容会交给 Codex 分析；此接口只读，不提供执行远端命令、密码或密钥访问。" = "Read shared SSH tabs on demand without saving logs. Selected output is provided to Codex for analysis. This interface is read-only and exposes no remote commands, passwords, or keys.";
+
+"开启本机 Codex 只读共享" = "Enable local read-only sharing with Codex";
+
+"每次启动默认关闭。只共享勾选的标签，关闭共享或标签后立即撤销；已发送给 Codex 的内容无法撤回。" = "Off at each app launch. Only checked tabs are shared. Turning sharing off or closing a tab revokes access; content already sent to Codex cannot be recalled.";
+
+"当前没有 SSH 标签。请先打开需要分析的会话。" = "No SSH tabs are open. Open a session to analyze first.";
+
+"最近读取：" = "Last read: ";
+
+"Codex CLI 与代理" = "Codex CLI and proxy";
+
+"Codex 可执行文件路径" = "Codex executable path";
+
+"代理方式" = "Proxy mode";
+
+"继承启动环境" = "Inherit environment";
+
+"代理用户名（可选）" = "Proxy username (optional)";
+
+"代理密码（留空沿用已保存密码）" = "Proxy password (blank keeps the saved password)";
+
+"测试代理 HTTPS 连接" = "Test proxy HTTPS connection";
+
+"清除代理密码" = "Clear proxy password";
+
+"代理仅用于 MyTerm 启动的 Codex，与 SSH 代理独立。自定义代理会替换该进程的代理环境变量，不主动回退直连。浏览器或外部 IDE 的代理需单独设置。" = "Applies only to Codex launched by MyTerm, independently of SSH. A custom proxy replaces proxy environment variables for that process; MyTerm never retries directly. Configure browser or external IDE proxies separately.";
+
+"保存连接设置" = "Save connection settings";
+
+"登录 Codex" = "Log in to Codex";
+
+"启动 Codex 标签" = "Open Codex tab";
+
+"连接设置已保存，下次启动 Codex 生效。" = "Connection settings saved; applied when Codex next starts.";
+
+"配置外部 Codex 的 MyTerm MCP" = "Configure MyTerm MCP for external Codex";
+
+"此按钮调用 codex mcp add，更新当前用户的 Codex 配置。重启 IDE／Codex 后，可请求读取开放标签；关闭本窗口不停止共享，请使用上方共享开关。" = "This runs codex mcp add to update your Codex configuration. Restart the IDE or Codex to read shared tabs. Closing this window does not stop sharing; use the sharing switch above.";
+
+"历史最多读取最近 1000 行，每次最多 8 KB。tmux／less 支持读取当前画面，屏幕重绘或历史截断时返回新的快照。" = "Read up to 1,000 recent history rows and 8 KB per request. Read the current tmux or less screen; redraws or truncation return a replacement snapshot.";
+
+"另一个 MyTerm 已开启 Codex 共享，请先关闭它的共享。" = "Another MyTerm instance is sharing with Codex. Turn off its sharing first.";
+
+"Codex 只读共享已开启，请选择允许读取的 SSH 标签。" = "Read-only sharing enabled. Select the SSH tabs Codex may read.";
+
+"已清除代理密码。" = "Proxy password cleared.";
+
+"请选择可执行的 Codex CLI 文件。" = "Select an executable Codex CLI file.";
+
+"请先开启 Codex 共享。" = "Enable Codex sharing first.";
+
+"Codex 已在本地标签中启动。代理配置仅作用于此 Codex 进程。" = "Codex started in a local tab. Proxy settings apply only to this Codex process.";
+
+"已配置 MyTerm MCP，请重启外部 Codex／IDE。外部 Codex 的代理仍需单独设置。" = "MyTerm MCP configured. Restart external Codex or the IDE. Its proxy must still be configured separately.";
+
+"请先选择 HTTP 或 SOCKS5 代理进行测试。" = "Select an HTTP or SOCKS5 proxy before testing.";
+
+"代理 HTTPS 连接成功；Codex 登录和模型请求请在 Codex 标签中验证。" = "Proxy HTTPS connection succeeded. Verify Codex login and model requests in the Codex tab.";
+
+"正在检查…" = "Checking…";
+
+"操作失败，请检查代理地址、认证或 Codex 路径。" = "Operation failed. Check the proxy address, authentication, or Codex path.";
+
+"无法启动检查进程。" = "Could not start the check process.";
+
+"请填写有效的 Codex 代理地址和端口。" = "Enter a valid Codex proxy host and port.";
+
+"Codex 代理地址无效。" = "Invalid Codex proxy URL.";
+
+"请选择一个仍然打开的 SSH 会话。" = "Select an SSH tab that is still open.";
+
+"选择 SSH 会话" = "Select SSH session";
+
+"启动后自动读取所选会话。确认启动即允许 Codex 读取该标签的输出。" = "Read the selected session on launch. Confirming allows Codex to read output from this tab.";
+
+"持续监控新输出" = "Continuously monitor new output";
+
+"已允许持续监控" = "Continuous monitoring allowed";
+
+"停止监控" = "Stop monitoring";
+
+"确认并启动" = "Confirm and launch";
+
+"持续监控会使用 Codex 模型额度。在接入设置中可停止监控；关闭共享或 SSH 标签也会停止。Codex 任务结束后需重新启动监控，不能作为无人值守告警服务。" = "Continuous monitoring uses Codex model quota. Stop it in integration settings or close sharing or the SSH tab. Restart monitoring if the Codex task ends; this is not an unattended alert service.";
+
+"历史读取行数" = "History rows to read";
+
+"历史总容量上限" = "Total history size limit";
+
+"默认最近 2000 行、最多 256 KB，分页读取。读取范围越大，使用的模型额度越多。" = "Defaults to the last 2,000 rows, up to 256 KB, read in pages. Larger history uses more model quota.";
+
+"历史按设定范围分页读取；单页大小不限制总读取量。只能读取终端缓冲区仍保留的内容，达到行数或容量上限时明确提示截断。" = "History is read in pages up to your configured limits. Page size does not limit the total. Only buffered history is available; reaching the row or size limit is reported as truncation.";

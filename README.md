@@ -2,9 +2,15 @@
 
 [GitHub 仓库](https://github.com/junli-nv/MyTerm) · [下载安装包](https://github.com/junli-nv/MyTerm/releases/latest) · [历史更新日志](CHANGELOG.md)
 
-当前版本 **1.5.2（Build 124）**。发布说明见 [RELEASE-NOTES-1.5.2.md](packaging/RELEASE-NOTES-1.5.2.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.5.2/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
+当前版本 **1.6.1（Build 126）**。发布说明见 [RELEASE-NOTES-1.6.1.md](packaging/RELEASE-NOTES-1.6.1.md)。执行 `bash scripts/package-release.sh` 生成优化构建、ZIP 发布包及 SHA-256 校验文件，再执行 `bash scripts/create-dmg.sh` 生成拖拽安装 DMG，输出到 `dist/releases/1.6.1/`。当前为 Apple Silicon 临时签名版本，尚未进行 Developer ID 签名与 Apple 公证。
 
 macOS 原生 SSH 工作台。SwiftUI / AppKit 管理界面，[SwiftTerm 1.20.0](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 提供终端，系统 OpenSSH 负责认证和连接。
+
+## Codex 接入
+
+新增按 SSH 标签授权的只读 MCP 接口，以及独立于 SSH 的 Codex HTTP／SOCKS5 代理设置。用法与边界见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。此功能包含在 1.6.1 安装包中。
+
+1.6.1 新增：启动时选择 SSH 标签，持续监控默认关闭；历史读取范围可配置并支持完整分页，MyTerm 只读工具使用独立免审批配置。
 
 ## 构建与启动
 

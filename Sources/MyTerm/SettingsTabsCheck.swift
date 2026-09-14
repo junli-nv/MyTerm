@@ -3,6 +3,7 @@ import MyTermCore
 
 enum SettingsTabsCheck {
     static func run() throws {
+        try CodexBridgeCheck.run()
         try HistorySettingsCheck.run()
         try CredentialSettingsCheck.run()
         try SSHKeySettingsCheck.run()

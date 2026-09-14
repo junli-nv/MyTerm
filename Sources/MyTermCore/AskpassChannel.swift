@@ -106,10 +106,10 @@ public final class AskpassChannel {
         lock.unlock(); listener.cancel()
     }
     deinit { stop() }
-    public static func answer(path: String, token: String, prompt: String, hint: String?) throws -> String? {
+    public static func answer(path: String, token: String, prompt: String, hint: String?, timeout: Int = 300) throws -> String? {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ConfigurationError.invalid("无法连接认证通道。") }
-        defer { Darwin.close(fd) }; SocketWire.configure(fd)
+        defer { Darwin.close(fd) }; SocketWire.configure(fd, seconds: timeout)
         var address = try SocketWire.address(path)
         let status = withUnsafePointer(to: &address) { pointer in pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
         guard status == 0 else { throw ConfigurationError.invalid("认证会话已关闭。") }

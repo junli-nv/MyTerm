@@ -5,6 +5,7 @@ import MyTermCore
 @main
 struct MyTermApp {
     static func main() {
+        if CommandLine.arguments.contains("--myterm-mcp") { CodexMCP.run(); return }
         let environment = ProcessInfo.processInfo.environment
         if let path = environment["MYTERM_ASKPASS_SOCKET"], let token = environment["MYTERM_ASKPASS_TOKEN"] {
             do {
@@ -23,6 +24,7 @@ struct MyTermApp {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var workspace: Workspace!
     private var window: NSWindow!
+    private let codexSettings = CodexSettingsController()
     private var languageObserver: NSObjectProtocol?
     private var tabKeyMonitor: Any?
     private var checkDirectory: URL?
@@ -127,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let app = submenu("MyTerm")
         app.addItem(withTitle: L10n.text("关于 MyTerm"), action: #selector(showAbout), keyEquivalent: "").target = self
+        app.addItem(withTitle: L10n.text("Codex 接入…"), action: #selector(showCodexSettings), keyEquivalent: "").target = self
         let settings = app.addItem(withTitle: L10n.text("设置…"), action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         app.addItem(.separator())
@@ -199,11 +202,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func exportOpenSSH() { workspace.exportOpenSSH() }
     @objc private func exportPreferences() { PreferencesBackupController.export(workspace: workspace) }
     @objc private func restorePreferences() { PreferencesBackupController.restore(workspace: workspace) }
+    @objc private func showCodexSettings() { codexSettings.present(workspace: workspace) }
     @objc private func showSettings() { MouseSettingsController.shared.present() }
     @objc private func addServer() { workspace.editor = Server() }
     @objc private func closeTab() { if let session = workspace.selected { workspace.close(session) } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) {
+        workspace?.codex.stop()
         workspace?.saveOnExit(); workspace?.stopAll()
         if let checkDirectory { try? FileManager.default.removeItem(at: checkDirectory) }
     }

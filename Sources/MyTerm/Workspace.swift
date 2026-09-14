@@ -4,6 +4,7 @@ import Combine
 import UniformTypeIdentifiers
 
 final class Workspace: ObservableObject {
+    lazy var codex = CodexBridge(workspace: self, persist: !ProcessInfo.processInfo.arguments.contains("--smoke-test"))
     @Published var groups: [SessionGroup] = []
     @Published var groupRecoveryRequired = false
     private let groupRepository: SessionGroupRepository
@@ -203,6 +204,10 @@ final class Workspace: ObservableObject {
         var updated = groups
         guard let index = updated.firstIndex(where: { $0.id == group.id }) else { return }
         updated[index].collapsed.toggle(); saveGroups(updated)
+    }
+
+    func openCodex(executable: String, arguments: [String], environment: [String: String], proxy: CodexSOCKSProxy? = nil) {
+        add(TerminalSession(label: "Codex", executable: executable, arguments: arguments, launchEnvironment: environment, launchProxy: proxy))
     }
 
     func newLocal(directory: String? = nil) {

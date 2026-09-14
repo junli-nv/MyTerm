@@ -31,13 +31,17 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     var onNormalExit: (() -> Void)?
     private let configuredServer: Server?
     var sourceServer: Server? { configuredServer ?? server }
+    private let launchEnvironment: [String: String]?
+    private var launchProxy: CodexSOCKSProxy?
     private var started = false
     private var stopped = false
     private var historySubscription: AnyCancellable?
     private var themeSubscription: AnyCancellable?
     private var authentication: SSHAuthentication?
 
-    init(label: String, executable: String, arguments: [String], server: Server? = nil, context: SSHLaunchContext? = nil, directory: String? = nil) {
+    init(label: String, executable: String, arguments: [String], server: Server? = nil, context: SSHLaunchContext? = nil, directory: String? = nil, launchEnvironment: [String: String]? = nil, launchProxy: CodexSOCKSProxy? = nil) {
+        self.launchProxy = launchProxy
+        self.launchEnvironment = launchEnvironment
         self.label = label
         self.executable = executable
         self.arguments = arguments
@@ -109,7 +113,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     }
 
     private func launch() {
-        var environment = ProcessInfo.processInfo.environment
+        var environment = launchEnvironment ?? ProcessInfo.processInfo.environment
         if let mode = server?.x11Forwarding, mode != .disabled {
             if environment["DISPLAY", default: ""].isEmpty {
                 let process = Process(), output = Pipe()
@@ -186,6 +190,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     }
 
     func stop() {
+        launchProxy = nil
         stopped = true
         canReconnect = false; terminal.reconnectHandler = nil
         authentication?.stop(); authentication = nil

@@ -1,6 +1,16 @@
 import Foundation
 import Darwin
 import MyTermCore
+
+if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-socks-proxy", let port = UInt16(CommandLine.arguments[2]) {
+    do {
+        let relay = try CodexSOCKSProxy(host: "127.0.0.1", port: port, username: "fixture", password: "synthetic-proxy-password")
+        var bytes = try JSONSerialization.data(withJSONObject: relay.environment(base: [:])); bytes.append(10)
+        FileHandle.standardOutput.write(bytes)
+        withExtendedLifetime(relay) { _ = readLine() }
+        exit(0)
+    } catch { fputs("Proxy fixture failed\n", stderr); exit(1) }
+}
 if CommandLine.arguments.dropFirst().first == "--password-integration", CommandLine.arguments.count == 5 {
     do { try realPasswordLogins(port: CommandLine.arguments[2], knownHosts: CommandLine.arguments[3], app: CommandLine.arguments[4]); exit(0) }
     catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
@@ -103,6 +113,7 @@ let checks: [(String, () throws -> Void)] = [
     ("Interactive shell closes and is reaped", ptyTests.testCloseReapsInteractiveShell),
     ("Compression, authentication, proxies, jumps and forwards", features.connectionOptions),
     ("SSH Include discovery and saved sessions", features.importAndSessions),
+    ("Codex read-only MCP, proxy isolation and snapshot cursors", checkCodexIntegration),
     ("Zmodem handshake detection across chunks", features.zmodemDetection),
     ("Real SFTP upload/download interruption and resume", features.sftpResume)
 ]
