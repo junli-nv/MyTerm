@@ -65,3 +65,17 @@ MyTerm 1.6 开始提供第一版 Codex 只读接入。
 1.6.1 由 MyTerm 启动 Codex 时，将 MyTerm MCP 标记为 required，并仅为 list_sessions、read_output、watch_output、capture_history、read_history_page 设置 approval_mode=approve。启动提示词要求直接调用 MCP，连接失败时报错停止，不使用 printf 管道回退。不会修改全局命令审批策略，也不会写入宽泛的 printf 免审批规则。已经运行的旧 Codex 标签需要重新启动；外部 IDE 的审批配置不受这组启动参数控制。
 
 配置依据：[OpenAI MCP 配置文档](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)。
+
+## 1.6.2：登录复用与退出诊断
+
+登录按钮先运行本地 `codex login status`，检测到已保存凭据时不重新发起设备码登录。登录、状态检查与 Codex 标签统一采用 Codex 的 file 凭据存储（默认 `~/.codex/auth.json`），不更改全局配置。状态检查只确认本地凭据存在，不验证服务端是否撤销；认证失效时仍需重新登录。
+
+Codex 标签退出时保留输出并显示退出码，不再沿用 Bash 的自动关标签行为；启用 `--no-alt-screen` 方便保留启动诊断。普通 Bash 与 SSH 的退出行为不变。
+
+账号切换或凭据被服务端撤销时，可点击“重新登录 Codex”主动发起设备码登录。普通启动无需点击此按钮。
+
+“启动 Codex 标签”也会先检查凭据；需要登录时暂存所选 SSH 任务，登录进程成功退出后自动继续分析。失败时保留诊断，取消或关闭登录标签不会继续启动。继续前会重新检查共享开关和 SSH 标签是否仍存在。
+
+## 1.6.3：注册状态与错误诊断
+
+外部 MCP 配置按钮下显示回读的注册状态、实际程序路径与最近检查时间。打开窗口和完成配置后自动刷新，也可手动刷新；注册成功不代表外部 IDE 已重启加载。Codex 非正常退出时根据保留的原始输出识别 MCP 路径、初始化、凭据、网络或配置错误，并显示对应处理建议；无法识别时保留退出码和原始输出，不猜测原因。

@@ -631,3 +631,55 @@
 "默认最近 2000 行、最多 256 KB，分页读取。读取范围越大，使用的模型额度越多。" = "Defaults to the last 2,000 rows, up to 256 KB, read in pages. Larger history uses more model quota.";
 
 "历史按设定范围分页读取；单页大小不限制总读取量。只能读取终端缓冲区仍保留的内容，达到行数或容量上限时明确提示截断。" = "History is read in pages up to your configured limits. Page size does not limit the total. Only buffered history is available; reaching the row or size limit is reported as truncation.";
+
+"检查登录状态" = "Check login status";
+
+"正在检查登录状态…" = "Checking login status…";
+
+"已保存 Codex 登录信息，可直接启动 Codex 标签，无需重复登录。" = "Saved Codex credentials found. Start a Codex tab without signing in again.";
+
+"未找到已保存的 Codex 登录信息，请点击登录 Codex。" = "No saved Codex credentials found. Click Sign in to Codex.";
+
+"无法检查 Codex 登录状态，请检查 CLI 路径后重试。" = "Could not check Codex login status. Check the CLI path and retry.";
+
+"登录信息由 Codex 保存在本机，重启或升级 MyTerm 后可继续使用。已登录时直接启动标签即可；此处检查本地凭据，不验证服务端是否已撤销登录。" = "Codex saves credentials locally for reuse after restarting or upgrading MyTerm. Start a tab directly when signed in. This checks local credentials, not whether the server has revoked them.";
+
+"Codex 已结束，输出已保留" = "Codex ended; output retained";
+
+"重新登录 Codex" = "Sign in to Codex again";
+
+"尚未检查外部 MCP 注册状态" = "External MCP registration has not been checked";
+
+"无法检查注册状态，请检查 Codex 路径" = "Cannot check registration. Check the Codex executable path.";
+
+"正在检查外部 MCP 注册状态…" = "Checking external MCP registration…";
+
+"无法读取外部 MCP 注册，请检查 Codex 配置" = "Cannot read external MCP registration. Check the Codex configuration.";
+
+"外部 MCP 已注册，但已禁用" = "External MCP is registered but disabled";
+
+"外部 MCP 已注册，路径正确" = "External MCP is registered with the correct path";
+
+"外部 MCP 注册路径或参数不匹配，请重新配置" = "External MCP path or arguments do not match. Configure it again.";
+
+"未注册或无法读取配置，请点击配置外部 MCP" = "Registration is missing or unreadable. Configure external MCP.";
+
+"正在注册外部 MCP…" = "Registering external MCP…";
+
+"刷新注册状态" = "Refresh registration";
+
+"最近检查：" = "Last checked: ";
+
+"Codex 找不到 MyTerm MCP 程序。请更新 MyTerm 后重新启动 Codex；外部 Codex 请重新配置 MyTerm MCP。" = "Codex cannot find the MyTerm MCP executable. Update MyTerm and restart Codex; reconfigure MyTerm MCP for external Codex.";
+
+"Codex 的 MCP 服务初始化失败。请查看上方服务名称和原始错误，并检查对应程序路径或服务配置。" = "A required Codex MCP server failed to initialize. Check the server name and original error above, then its executable path or configuration.";
+
+"Codex 登录凭据已失效或被拒绝，请在 Codex 接入中选择重新登录。" = "Codex credentials expired or were rejected. Choose Sign in to Codex again in integration settings.";
+
+"Codex 网络连接失败，请检查 Codex 专用代理、代理认证和网络连接；无需修改 SSH 代理。" = "Codex network connection failed. Check the Codex proxy, proxy authentication and network connection. SSH proxy settings are independent.";
+
+"Codex 配置解析失败，请依据上方原始错误修正配置字段或启动参数。" = "Codex could not parse its configuration. Use the original error above to correct the configuration field or launch argument.";
+
+"外部 MCP 注册失败：" = "External MCP registration failed:";
+
+"外部 MCP 注册失败，请查看上方原始错误，检查 Codex 路径及配置文件权限。" = "External MCP registration failed. See the original error above and check the Codex executable and configuration file permissions.";

@@ -28,9 +28,11 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     @Published var status = "准备启动"
     @Published var isRunning = false
     @Published private(set) var canReconnect = false
+    var onProcessExit: ((Int32?) -> Void)?
     var onNormalExit: (() -> Void)?
     private let configuredServer: Server?
     var sourceServer: Server? { configuredServer ?? server }
+    private let retainOnExit: Bool
     private let launchEnvironment: [String: String]?
     private var launchProxy: CodexSOCKSProxy?
     private var started = false
@@ -39,7 +41,8 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     private var themeSubscription: AnyCancellable?
     private var authentication: SSHAuthentication?
 
-    init(label: String, executable: String, arguments: [String], server: Server? = nil, context: SSHLaunchContext? = nil, directory: String? = nil, launchEnvironment: [String: String]? = nil, launchProxy: CodexSOCKSProxy? = nil) {
+    init(label: String, executable: String, arguments: [String], server: Server? = nil, context: SSHLaunchContext? = nil, directory: String? = nil, launchEnvironment: [String: String]? = nil, launchProxy: CodexSOCKSProxy? = nil, retainOnExit: Bool = false) {
+        self.retainOnExit = retainOnExit
         self.launchProxy = launchProxy
         self.launchEnvironment = launchEnvironment
         self.label = label
@@ -217,7 +220,11 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         self.directory = url.path
     }
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        DispatchQueue.main.async { [weak self] in self?.handleProcessTermination(exitCode: exitCode) }
+        if retainOnExit {
+            RunLoop.main.perform { [weak self] in self?.handleProcessTermination(exitCode: exitCode) }
+        } else {
+            DispatchQueue.main.async { [weak self] in self?.handleProcessTermination(exitCode: exitCode) }
+        }
     }
 
     // Process callbacks arrive off the UI queue; keep state changes and the
@@ -227,6 +234,26 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         isRunning = false
         authentication?.stop(); authentication = nil
         sftp?.stop(); sftp = nil
+        if retainOnExit {
+            let detail: String
+            if let code = exitCode {
+                detail = code & 0x7f == 0 ? "exit=\((code >> 8) & 0xff)" : "signal=\(code & 0x7f)"
+            } else { detail = "exit=unknown" }
+            status = L10n.text("Codex 已结束，输出已保留") + " (" + detail + ")"
+            if exitCode != 0 {
+                let emulator = terminal.getTerminal()
+                let recent = emulator.getHostSnapshot(screen: false, maximumRows: 200).text
+                    + (emulator.isCurrentBufferAlternate ? emulator.getHostSnapshot(screen: true, maximumRows: 200).text : "")
+                if let diagnosis = CodexFailureDiagnosis.message(for: recent) {
+                    status += " · " + L10n.text(diagnosis)
+                }
+            }
+            statusBarVisible = true
+            terminal.showConnectionFailure(status, reconnectHint: false)
+            let completion = onProcessExit; onProcessExit = nil
+            completion?(exitCode)
+            return
+        }
         guard executable == "/usr/bin/ssh" else {
             status = "会话已结束"
             if let status = exitCode, status & 0x7f == 0 { onNormalExit?() }

@@ -13,6 +13,11 @@ final class CodexBridge: ObservableObject {
     @Published var connection = CodexConnection()
     @Published var proxyPassword = ""
     @Published var busy = false
+    @Published private(set) var registrationStatus = "尚未检查外部 MCP 注册状态"
+    @Published private(set) var registrationPath = ""
+    @Published private(set) var registrationError = ""
+    @Published private(set) var checkingRegistration = false
+    @Published private(set) var registrationCheckedAt: Date?
     private weak var workspace: Workspace?
     private var channel: AskpassChannel?
     private var directory: URL?
@@ -186,7 +191,53 @@ final class CodexBridge: ObservableObject {
         if monitor { monitored.insert(id) }
         return CodexConnection.sessionPrompt(id: id, monitor: monitor, historyRows: historyRows, historyBytes: historyBytes)
     }
-    func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false) {
+    func checkLogin(loginIfNeeded: Bool = false, onReady: (() -> Void)? = nil) {
+        guard !busy else { return }
+        do {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: try executable())
+            process.arguments = CodexConnection.authenticationArguments + ["login", "status"]
+            process.environment = ProcessInfo.processInfo.environment
+            process.standardInput = FileHandle.nullDevice
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            busy = true; message = "正在检查登录状态…"
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                do {
+                    try process.run()
+                    let deadline = Date().addingTimeInterval(10)
+                    while process.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
+                    let timedOut = process.isRunning
+                    if timedOut { process.terminate() }
+                    let status: Int32 = timedOut ? -1 : process.terminationStatus
+                    RunLoop.main.perform {
+                        guard let self else { return }
+                        self.busy = false
+                        if status == 0 {
+                            self.message = "已保存 Codex 登录信息，可直接启动 Codex 标签，无需重复登录。"
+                            onReady?()
+                        } else if status == 1 && loginIfNeeded {
+                            self.launch(login: true, checkSavedLogin: false, afterLogin: onReady)
+                        } else {
+                            self.message = status == 1 ? "未找到已保存的 Codex 登录信息，请点击登录 Codex。" : "无法检查 Codex 登录状态，请检查 CLI 路径后重试。"
+                        }
+                    }
+                } catch {
+                    RunLoop.main.perform { self?.busy = false; self?.message = "无法检查 Codex 登录状态，请检查 CLI 路径后重试。" }
+                }
+            }
+        } catch { message = error.localizedDescription }
+    }
+    func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
+        if checkSavedLogin {
+            if login { checkLogin(loginIfNeeded: true) }
+            else {
+                checkLogin(loginIfNeeded: true) { [weak self] in
+                    self?.launch(sessionID: sessionID, monitor: monitor, checkSavedLogin: false)
+                }
+            }
+            return
+        }
         do {
             if !login {
                 guard let sessionID, workspace?.sessions.contains(where: { $0.id == sessionID && $0.server != nil }) == true else {
@@ -199,21 +250,70 @@ final class CodexBridge: ObservableObject {
             if let relay { environment = try relay.environment(base: environment) }
             guard enabled else { throw ConfigurationError.invalid("请先开启 Codex 共享。") }
             let app = Bundle.main.executableURL!.path
-            var arguments = login ? ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
+            var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
             if !login, let sessionID {
                 arguments.append(try prepareSession(sessionID, monitor: monitor))
             }
-            workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay)
+            workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, onExit: login ? { status in
+                if status == 0 { afterLogin?() }
+            } : nil)
             message = "Codex 已在本地标签中启动。代理配置仅作用于此 Codex 进程。"
         } catch { message = error.localizedDescription }
+    }
+    func refreshRegistration() {
+        guard !checkingRegistration else { return }
+        let path: String
+        do { path = try executable() }
+        catch { registrationStatus = "无法检查注册状态，请检查 Codex 路径"; registrationPath = ""; return }
+        checkingRegistration = true; registrationStatus = "正在检查外部 MCP 注册状态…"
+        let expected = Bundle.main.executableURL!.path
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-registration-\(UUID()).json")
+            defer { try? FileManager.default.removeItem(at: file) }
+            var status = "无法读取外部 MCP 注册，请检查 Codex 配置", command = ""
+            do {
+                guard FileManager.default.createFile(atPath: file.path, contents: nil, attributes: [.posixPermissions: 0o600]) else { throw ConfigurationError.invalid("Temporary file unavailable") }
+                let output = try FileHandle(forWritingTo: file)
+                defer { try? output.close() }
+                let process = Process(); process.executableURL = URL(fileURLWithPath: path)
+                process.arguments = ["mcp", "get", "myterm", "--json"]
+                process.standardInput = FileHandle.nullDevice; process.standardOutput = output; process.standardError = FileHandle.nullDevice
+                try process.run()
+                let deadline = Date().addingTimeInterval(10)
+                while process.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
+                if process.isRunning { process.terminate() }
+                else if process.terminationStatus == 0 {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+                    guard (attributes[.size] as? NSNumber)?.intValue ?? Int.max < 1048576 else { throw ConfigurationError.invalid("Response too large") }
+                    if let value = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any],
+                       let transport = value["transport"] as? [String: Any], let registered = transport["command"] as? String {
+                        command = registered
+                        let matches = URL(fileURLWithPath: registered).standardizedFileURL.resolvingSymlinksInPath().path == URL(fileURLWithPath: expected).standardizedFileURL.resolvingSymlinksInPath().path
+                        if value["enabled"] as? Bool == false { status = "外部 MCP 已注册，但已禁用" }
+                        else if matches && transport["args"] as? [String] == ["--myterm-mcp"] && FileManager.default.isExecutableFile(atPath: registered) { status = "外部 MCP 已注册，路径正确" }
+                        else { status = "外部 MCP 注册路径或参数不匹配，请重新配置" }
+                    }
+                } else { status = "未注册或无法读取配置，请点击配置外部 MCP" }
+            } catch { }
+            let resultStatus = status, resultPath = command
+            RunLoop.main.perform {
+                self?.registrationStatus = resultStatus; self?.registrationPath = resultPath
+                self?.registrationCheckedAt = Date(); self?.checkingRegistration = false
+            }
+        }
     }
     func configureExternal() {
         do {
             let path = try executable()
             let process = Process(); process.executableURL = URL(fileURLWithPath: path)
             process.arguments = ["mcp", "add", "myterm", "--", Bundle.main.executableURL!.path, "--myterm-mcp"]
-            run(process, success: "已配置 MyTerm MCP，请重启外部 Codex／IDE。外部 Codex 的代理仍需单独设置。")
-        } catch { message = error.localizedDescription }
+            registrationStatus = "正在注册外部 MCP…"; registrationError = ""
+            run(process, success: "已配置 MyTerm MCP，请重启外部 Codex／IDE。外部 Codex 的代理仍需单独设置。", completion: { [weak self] in self?.refreshRegistration() }, captureRegistrationError: true)
+        } catch {
+            message = error.localizedDescription
+            registrationError = error.localizedDescription
+            registrationStatus = "无法检查注册状态，请检查 Codex 路径"
+        }
     }
     private func socksRelay() throws -> CodexSOCKSProxy? {
         guard connection.proxyMode == .socks5 else { return nil }
@@ -233,19 +333,47 @@ final class CodexBridge: ObservableObject {
             run(process, success: "代理 HTTPS 连接成功；Codex 登录和模型请求请在 Codex 标签中验证。", retaining: relay)
         } catch { message = error.localizedDescription }
     }
-    private func run(_ process: Process, success: String, retaining: AnyObject? = nil) {
+    private func run(_ process: Process, success: String, retaining: AnyObject? = nil, completion: (() -> Void)? = nil, captureRegistrationError: Bool = false) {
         guard !busy else { return }; busy = true; message = "正在检查…"
         process.standardInput = FileHandle.nullDevice; process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             defer { withExtendedLifetime(retaining) {} }
+            let errorFile = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-command-\(UUID()).txt")
+            var errorHandle: FileHandle?
+            defer { try? errorHandle?.close(); try? FileManager.default.removeItem(at: errorFile) }
             do {
+                if captureRegistrationError {
+                    guard FileManager.default.createFile(atPath: errorFile.path, contents: nil, attributes: [.posixPermissions: 0o600]) else { throw ConfigurationError.invalid("Cannot create diagnostics file") }
+                    errorHandle = try FileHandle(forWritingTo: errorFile)
+                    process.standardError = errorHandle
+                }
                 try process.run()
                 let deadline = Date().addingTimeInterval(20)
                 while process.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
                 if process.isRunning { process.terminate() }
                 let successStatus = !process.isRunning && process.terminationStatus == 0
-                DispatchQueue.main.async { self?.busy = false; self?.message = successStatus ? success : "操作失败，请检查代理地址、认证或 Codex 路径。" }
-            } catch { DispatchQueue.main.async { self?.busy = false; self?.message = "无法启动检查进程。" } }
+                var details = ""
+                if captureRegistrationError && !successStatus {
+                    details = process.isRunning ? "timeout" : "exit=\(process.terminationStatus)"
+                    if let reader = try? FileHandle(forReadingFrom: errorFile) {
+                        let data = try? reader.read(upToCount: 8192); try? reader.close()
+                        if let data { details += "\n" + String(decoding: data, as: UTF8.self) }
+                    }
+                }
+                let diagnostic = details
+                RunLoop.main.perform {
+                    self?.busy = false; self?.message = successStatus ? success : (captureRegistrationError ? "外部 MCP 注册失败，请查看上方原始错误，检查 Codex 路径及配置文件权限。" : "操作失败，请检查代理地址、认证或 Codex 路径。")
+                    if captureRegistrationError { self?.registrationError = diagnostic }
+                    completion?()
+                }
+            } catch {
+                let diagnostic = error.localizedDescription
+                RunLoop.main.perform {
+                    self?.busy = false; self?.message = "无法启动检查进程。"
+                    if captureRegistrationError { self?.registrationError = diagnostic }
+                    completion?()
+                }
+            }
         }
     }
 }

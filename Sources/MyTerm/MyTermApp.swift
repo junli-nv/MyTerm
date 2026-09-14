@@ -5,6 +5,13 @@ import MyTermCore
 @main
 struct MyTermApp {
     static func main() {
+        if CommandLine.arguments.contains("--smoke-test"),
+           let index = CommandLine.arguments.firstIndex(of: "--codex-launch-arguments"),
+           CommandLine.arguments.indices.contains(index + 1),
+           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1]),
+           let data = try? JSONSerialization.data(withJSONObject: args) {
+            print(String(decoding: data, as: UTF8.self)); return
+        }
         if CommandLine.arguments.contains("--myterm-mcp") { CodexMCP.run(); return }
         let environment = ProcessInfo.processInfo.environment
         if let path = environment["MYTERM_ASKPASS_SOCKET"], let token = environment["MYTERM_ASKPASS_TOKEN"] {
@@ -36,11 +43,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let applicationIcon { NSApp.applicationIconImage = applicationIcon }
-        if ProcessInfo.processInfo.arguments.contains("--window-controls-check"), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
+        if (ProcessInfo.processInfo.arguments.contains("--window-controls-check") || ProcessInfo.processInfo.arguments.contains("--codex-login-check")), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             let directory = URL(fileURLWithPath: "/tmp/myterm-window-check-\(UUID())")
             checkDirectory = directory
             workspace = Workspace(applicationSupportDirectory: directory)
         } else { workspace = Workspace() }
+        if ProcessInfo.processInfo.arguments.contains("--codex-login-check"), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
+            CodexBridgeCheck.runLoginLifecycle()
+            return
+        }
         installMenus()
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
             self?.installMenus()

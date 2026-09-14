@@ -10,3 +10,11 @@ result = subprocess.run([str(app / 'Contents/MacOS/MyTerm'), '--smoke-test', '--
 print(result.stdout, end='')
 if result.returncode or 'PASS: window controls:' not in result.stdout:
     raise SystemExit(result.returncode or 1)
+
+login = subprocess.run([str(app / 'Contents/MacOS/MyTerm'), '--smoke-test', '--codex-login-check'],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=15)
+print(login.stdout, end='')
+if login.returncode or 'PASS: Codex real PTY' not in login.stdout:
+    raise SystemExit(login.returncode or 1)
+
+subprocess.run([sys.executable, str(pathlib.Path(__file__).with_name('codex-launch-check.py')), str(app)], check=True)

@@ -18,6 +18,63 @@ enum CodexBridgeCheck {
         let bridge = CodexBridge(workspace: workspace, descriptor: root.appendingPathComponent("bridge.json"), persist: false)
         defer { bridge.stop() }
         try require(!CodexChooserState().monitor && CodexChooserState().selected == nil, "Chooser defaults opt into monitoring or a session")
+        let ended = TerminalSession(label: "Codex fixture", executable: "/bin/false", arguments: [], retainOnExit: true)
+        var closed = false
+        ended.onNormalExit = { closed = true }
+        ended.terminal.feed(text: "synthetic startup error: required MCP servers failed to initialize: myterm: No such file or directory (os error 2)")
+        ended.handleProcessTermination(exitCode: 256)
+        try require(!closed && ended.status.contains("exit=1") && ended.statusBarVisible, "Codex failure closed its tab or hid exit status")
+        try require(ended.historySnapshot().text.contains("synthetic startup error"), "Codex error output disappeared")
+        try require(ended.status.contains("找不到 MyTerm MCP"), "Missing actionable MCP path diagnosis")
+        ended.handleProcessTermination(exitCode: 0)
+        try require(!closed && ended.status.contains("exit=0"), "Successful Codex exit closed tab")
+        let loginCLI = root.appendingPathComponent("fake-codex")
+        try "#!/bin/bash\nexit 0\n".write(to: loginCLI, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: loginCLI.path)
+        bridge.connection.executable = loginCLI.path
+        let sessionCount = workspace.sessions.count
+        bridge.launch(login: true)
+        let loginDeadline = Date().addingTimeInterval(3)
+        while bridge.busy && Date() < loginDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(!bridge.busy && workspace.sessions.count == sessionCount && bridge.message.hasPrefix("已保存 Codex"), "Saved login triggered another login tab")
+        var ready = 0
+        bridge.checkLogin(onReady: { ready += 1 })
+        let readyDeadline = Date().addingTimeInterval(3)
+        while bridge.busy && Date() < readyDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(ready == 1, "Saved login did not continue startup")
+        try "#!/bin/bash\nexit 1\n".write(to: loginCLI, atomically: true, encoding: .utf8)
+        var failureContinued = false
+        bridge.checkLogin(onReady: { failureContinued = true })
+        let failureDeadline = Date().addingTimeInterval(3)
+        while bridge.busy && Date() < failureDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(!failureContinued, "Missing credentials started analysis")
+        var completions = 0
+        ended.onProcessExit = { if $0 == 0 { completions += 1 } }
+        ended.handleProcessTermination(exitCode: 0)
+        ended.handleProcessTermination(exitCode: 0)
+        try require(completions == 1, "Login completion ran more than once")
+        let registration = try JSONSerialization.data(withJSONObject: ["enabled": true, "transport": ["command": Bundle.main.executableURL!.path, "args": ["--myterm-mcp"]]])
+        let fixture = root.appendingPathComponent("registration.json")
+        try registration.write(to: fixture)
+        try "#!/bin/bash\ncat \"$(dirname \"$0\")/registration.json\"\n".write(to: loginCLI, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: loginCLI.path)
+        bridge.refreshRegistration()
+        let registrationDeadline = Date().addingTimeInterval(3)
+        while bridge.checkingRegistration && Date() < registrationDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(bridge.registrationStatus == "外部 MCP 已注册，路径正确" && bridge.registrationPath == Bundle.main.executableURL!.path, "Registration status or path missing")
+        let badRegistration = try JSONSerialization.data(withJSONObject: ["enabled": true, "transport": ["command": "/missing/MyTerm", "args": ["--myterm-mcp"]]])
+        try badRegistration.write(to: fixture)
+        bridge.refreshRegistration()
+        let mismatchDeadline = Date().addingTimeInterval(3)
+        while bridge.checkingRegistration && Date() < mismatchDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(bridge.registrationStatus.contains("不匹配"), "Missing stale registration warning")
+        try registration.write(to: fixture)
+        try "#!/bin/bash\nif [[ \"$2\" == add ]]; then echo 'fixture registration denied' >&2; exit 7; fi\ncat \"$(dirname \"$0\")/registration.json\"\n".write(to: loginCLI, atomically: true, encoding: .utf8)
+        bridge.configureExternal()
+        let configureDeadline = Date().addingTimeInterval(3)
+        while (bridge.busy || bridge.checkingRegistration) && Date() < configureDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(bridge.registrationError.contains("exit=7") && bridge.registrationError.contains("fixture registration denied"), "Registration failure lost original error")
+        try require(bridge.registrationStatus == "外部 MCP 已注册，路径正确", "Registration did not refresh after attempt")
         bridge.start()
         try require(bridge.enabled, "Could not start isolated bridge")
         let other = CodexBridge(workspace: workspace, descriptor: root.appendingPathComponent("bridge.json"), persist: false)
@@ -131,5 +188,64 @@ enum CodexBridgeCheck {
         bridge.stop()
         try require(!FileManager.default.fileExists(atPath: root.appendingPathComponent("bridge.json").path) && bridge.allowed.isEmpty, "Disable did not revoke discovery")
         print("PASS: Codex MCP stdio + authenticated IPC, per-tab consent/revocation, history/alternate screen, incremental output, monitor opt-in/stop/disconnect, limits and bilingual settings/chooser")
+    }
+}
+
+
+extension CodexBridgeCheck {
+    // Run in a separate app process with a free main queue: SwiftTerm delivers
+    // PTY data/exit events on that queue, so a nested synchronous check cannot
+    // exercise this lifecycle faithfully.
+    static func runLoginLifecycle() {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-login-\(UUID())")
+        let workspace = Workspace(applicationSupportDirectory: root)
+        let bridge = CodexBridge(workspace: workspace, descriptor: root.appendingPathComponent("bridge.json"), persist: false)
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let executable = root.appendingPathComponent("fake-codex")
+            try """
+            #!/bin/bash
+            marker="$(dirname "$0")/signed-in"
+            case "$*" in
+              *"login status"*) test -f "$marker"; exit $? ;;
+              *"login --device-auth"*) touch "$marker"; echo "Synthetic login completed"; exit 0 ;;
+              *) echo "Synthetic analysis started"; exit 0 ;;
+            esac
+            """.write(to: executable, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+            bridge.connection.executable = executable.path
+            let ssh = TerminalSession(label: "Synthetic SSH", executable: "/bin/bash", arguments: [], server: Server(host: "fixture.invalid"))
+            workspace.sessions = [ssh]
+            bridge.start()
+            bridge.launch(sessionID: ssh.id)
+            var phase = 0
+            let deadline = Date().addingTimeInterval(8)
+            Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+                func finish(_ error: String? = nil) {
+                    timer.invalidate(); bridge.stop(); workspace.stopAll()
+                    try? FileManager.default.removeItem(at: root)
+                    if let error { fputs("FAIL: Codex login lifecycle: \(error)\n", stderr); exit(1) }
+                    print("PASS: Codex real PTY login-to-analysis continuation, selected SSH target, default monitoring off and retained exit results")
+                    NSApp.terminate(nil)
+                }
+                if Date() > deadline { finish("Timed out at phase \(phase)"); return }
+                switch phase {
+                case 0 where workspace.sessions.count == 2:
+                    guard workspace.sessions[1].arguments.contains("--device-auth") else { finish("Skipped required login"); return }
+                    phase = 1; workspace.sessions[1].start()
+                case 1 where workspace.sessions.count == 3:
+                    guard workspace.sessions[2].arguments.last?.contains(ssh.id.uuidString) == true,
+                          !bridge.monitored.contains(ssh.id) else { finish("Lost target or enabled monitoring"); return }
+                    phase = 2; workspace.sessions[2].start()
+                case 2 where workspace.sessions[2].status.contains("exit=0"):
+                    guard workspace.sessions[1].status.contains("exit=0"), workspace.sessions.count == 3 else { finish("Did not retain login result"); return }
+                    finish()
+                default: break
+                }
+            }
+        } catch {
+            bridge.stop(); workspace.stopAll(); try? FileManager.default.removeItem(at: root)
+            fputs("FAIL: Codex login lifecycle setup\n", stderr); exit(1)
+        }
     }
 }

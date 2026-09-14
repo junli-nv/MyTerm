@@ -62,8 +62,29 @@ struct CodexSettingsView: View {
                     Button("登录 Codex") { bridge.launch(login: true) }.disabled(!bridge.enabled)
                     Button("启动 Codex 标签") { chooser.presented = true }.disabled(!bridge.enabled)
                 }.disabled(bridge.busy)
+                HStack {
+                    Button("检查登录状态") { bridge.checkLogin() }
+                    Button("重新登录 Codex") { bridge.launch(login: true, checkSavedLogin: false) }.disabled(!bridge.enabled)
+                }.disabled(bridge.busy)
+                Text("登录信息由 Codex 保存在本机，重启或升级 MyTerm 后可继续使用。已登录时直接启动标签即可；此处检查本地凭据，不验证服务端是否已撤销登录。")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
-                Button("配置外部 Codex 的 MyTerm MCP", action: bridge.configureExternal).disabled(bridge.busy)
+                HStack {
+                    Button("配置外部 Codex 的 MyTerm MCP", action: bridge.configureExternal)
+                    Button("刷新注册状态", action: bridge.refreshRegistration)
+                    if bridge.checkingRegistration { ProgressView().controlSize(.small) }
+                }.disabled(bridge.busy || bridge.checkingRegistration)
+                Text(L10n.text(bridge.registrationStatus)).font(.callout.bold()).fixedSize(horizontal: false, vertical: true)
+                if !bridge.registrationError.isEmpty {
+                    Text("外部 MCP 注册失败：").foregroundStyle(.red)
+                    Text(bridge.registrationError).font(.caption.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                }
+                if !bridge.registrationPath.isEmpty {
+                    Text(bridge.registrationPath).font(.caption.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                }
+                if let checked = bridge.registrationCheckedAt {
+                    Text(L10n.text("最近检查：") + checked.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.secondary)
+                }
                 Text("此按钮调用 codex mcp add，更新当前用户的 Codex 配置。重启 IDE／Codex 后，可请求读取开放标签；关闭本窗口不停止共享，请使用上方共享开关。")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("历史按设定范围分页读取；单页大小不限制总读取量。只能读取终端缓冲区仍保留的内容，达到行数或容量上限时明确提示截断。")
@@ -74,6 +95,7 @@ struct CodexSettingsView: View {
         }.sheet(isPresented: $chooser.presented) {
             CodexSessionChooser(workspace: workspace, bridge: bridge)
         }.scrollIndicators(.visible).environment(\.locale, language.locale)
+            .onAppear { bridge.refreshRegistration() }
             .onDisappear { bridge.proxyPassword = "" }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in bridge.proxyPassword = "" }
     }

@@ -2,6 +2,11 @@ import Foundation
 import Darwin
 import MyTermCore
 
+if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-launch-arguments" {
+    let args = try CodexConnection.launchArguments(appExecutable: CommandLine.arguments[2])
+    print(String(decoding: try JSONSerialization.data(withJSONObject: args), as: UTF8.self))
+    exit(0)
+}
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-socks-proxy", let port = UInt16(CommandLine.arguments[2]) {
     do {
         let relay = try CodexSOCKSProxy(host: "127.0.0.1", port: port, username: "fixture", password: "synthetic-proxy-password")

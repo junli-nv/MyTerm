@@ -91,7 +91,7 @@ class MouseTerminalView: LocalProcessTerminalView {
         return handleReconnectKey(event)
     }
 
-    func showConnectionFailure(_ message: String) {
+    func showConnectionFailure(_ message: String, reconnectHint: Bool = true) {
         let emulator = getTerminal()
         let previous = emulator.isCurrentBufferAlternate
             ? String(decoding: emulator.getBufferAsData(kind: .alt), as: UTF8.self) : ""
@@ -112,7 +112,8 @@ class MouseTerminalView: LocalProcessTerminalView {
         if !snapshot.isEmpty {
             feed(text: "\r\n[\(L10n.text("断开前的全屏画面"))]\r\n" + snapshot.replacingOccurrences(of: "\n", with: "\r\n"))
         }
-        feed(text: "\r\n[\(printable(message)) · \(L10n.text("按 R/r 重新连接"))]\r\n")
+        let hint = reconnectHint ? " · " + L10n.text("按 R/r 重新连接") : ""
+        feed(text: "\r\n[\(printable(message))\(hint)]\r\n")
         scroll(toPosition: 1)
         needsDisplay = true
     }

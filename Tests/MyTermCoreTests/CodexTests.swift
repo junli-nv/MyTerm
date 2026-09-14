@@ -28,6 +28,7 @@ func checkCodexIntegration() throws {
     connection.host = "localhost"; connection.port = "65536"; checkThrows(try connection.proxyURL(password: ""))
     let args = try CodexConnection.launchArguments(appExecutable: "/tmp/My Term'quoted.app/Contents/MacOS/MyTerm")
     checkEqual(args.contains("read-only"), true)
+    checkEqual(Array(args.prefix(2)), CodexConnection.authenticationArguments)
     checkEqual(args.contains("mcp_servers.myterm.args=[\"--myterm-mcp\"]"), true)
     let id = UUID()
     let once = CodexConnection.sessionPrompt(id: id, monitor: false)
@@ -73,6 +74,17 @@ func checkCodexIntegration() throws {
     checkEqual((clipped["total_bytes"] as! Int) <= 4096, true)
     pages.clear()
     checkThrows(try pages.page(session: "ssh", cursor: captured["next_cursor"] as! String))
+    for path in ["/Applications/MyTerm.app/Contents/MacOS/MyTerm", "/tmp/My Term\"quoted\\路径/MyTerm"] {
+        let built = try CodexConnection.launchArguments(appExecutable: path)
+        let encoded = built.first(where: { $0.hasPrefix("mcp_servers.myterm.command=") })!
+        checkEqual(encoded.contains("\\/"), false)
+        let value = String(encoded.dropFirst("mcp_servers.myterm.command=".count))
+        checkEqual(try JSONSerialization.jsonObject(with: Data(value.utf8), options: [.fragmentsAllowed]) as? String, path)
+    }
+    checkEqual(CodexFailureDiagnosis.message(for: "required MCP servers failed to initialize: myterm: No such file or directory (os error 2)")?.contains("找不到 MyTerm MCP"), true)
+    checkEqual(CodexFailureDiagnosis.message(for: "401 Unauthorized")?.contains("登录凭据"), true)
+    checkEqual(CodexFailureDiagnosis.message(for: "error sending request")?.contains("专用代理"), true)
+    checkEqual(CodexFailureDiagnosis.message(for: "arbitrary failure"), nil)
     var cache = CodexSnapshotCache()
     let first = cache.read(scope: "one", text: "hello", cursor: nil)
     let second = cache.read(scope: "one", text: "hello world", cursor: first["cursor"] as? String)
