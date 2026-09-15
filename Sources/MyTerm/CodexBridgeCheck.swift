@@ -302,6 +302,24 @@ enum CodexBridgeCheck {
         bridge.releaseExecution(execSession.id, tab: tabB)
         try require(bridge.executionGrants[execSession.id] == nil, "Owning tab did not revoke execution on close")
         try deniedExecution()
+        bridge.pollExecution()
+        try require(!bridge.executionPollingActive, "Idle execution timer retained after revocation")
+        var idleRefreshes = 0
+        let idleSubscription = bridge.objectWillChange.sink { idleRefreshes += 1 }
+        let idleStart = Date()
+        for _ in 0..<1000 { bridge.pollExecution() }
+        try require(idleRefreshes == 0, "Unchanged execution history continuously invalidated UI")
+        print("PASS: 1000 unchanged execution polls: \(Date().timeIntervalSince(idleStart))s, zero UI invalidations")
+        idleSubscription.cancel()
+        bridge.renewExecution(execSession.id, owner: tabB)
+        try require(bridge.executionPollingActive, "Renewal did not restart expiry checks")
+        bridge.pollExecution()
+        var activeRefreshes = 0
+        let activeSubscription = bridge.objectWillChange.sink { activeRefreshes += 1 }
+        for _ in 0..<1000 { bridge.pollExecution() }
+        try require(activeRefreshes == 0, "Unchanged authorization continuously invalidated UI")
+        activeSubscription.cancel()
+        bridge.revokeExecution(execSession.id)
 
         print("PASS: Codex execution default-off, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
         let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)

@@ -11,3 +11,5 @@
 - For settings/localization changes, validate the complete settings window, not only an isolated page: switch languages repeatedly, preserve the selected page, and click all six visible tabs. Keep explicit tabs; do not reintroduce an adaptive overflow menu.
 
 - Configuration forms must remain scrollable at their minimum supported window size, with long labels and explanations wrapping rather than clipping. Keep the SSH editor as a resizable standalone window with maximize/restore and a visible vertical scrollbar. Validate expanded jump, proxy and forwarding sections in Chinese and English in Debug, Release and the installed bundle.
+
+- GitHub release retention: after publishing and verifying a new release, retain only v1.5.2 and the latest release. Delete other GitHub releases and their assets; preserve historical changelogs and source tags.

@@ -32,7 +32,7 @@ struct CodexExecutionView: View {
     var sessionID: UUID? = nil
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            LazyVStack(alignment: .leading, spacing: 14) {
                 Text("Codex SSH 执行控制").font(.title2.bold())
                 Text("独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。")
                     .fixedSize(horizontal: false, vertical: true)

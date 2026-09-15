@@ -70,6 +70,18 @@ public final class CodexCommandProcess {
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
         }
     }
+    public struct Progress: Equatable {
+        public let state: String
+        public let byteCount: Int
+        public let truncated: Bool
+        public let cancelled: Bool
+        public let exitCode: Int32?
+    }
+    /// Cheap status polling without decoding or copying retained command output.
+    public var progress: Progress {
+        lock.lock(); defer { lock.unlock() }
+        return Progress(state: state, byteCount: bytes.count, truncated: truncated, cancelled: cancelled, exitCode: exitCode)
+    }
     public func snapshot(offset: Int) throws -> [String: Any] {
         lock.lock(); defer { lock.unlock() }
         guard offset >= 0, offset <= bytes.count else { throw ConfigurationError.invalid("Invalid output offset") }

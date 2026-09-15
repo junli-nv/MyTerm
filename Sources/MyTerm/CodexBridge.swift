@@ -35,6 +35,27 @@ final class CodexBridge: ObservableObject {
     func remainingExecutionCommands(_ id: UUID) -> Int { max(0, limitsForExecution(id).commands - (executionCounts[id] ?? 0)) }
     private var executionCounts = [UUID: Int]()
     private var executionTimer: Timer?
+    private var executionProgress = [UUID: CodexCommandProcess.Progress]()
+    var executionPollingActive: Bool { executionTimer != nil }
+    func pollExecution() {
+        reconcileExecution()
+        var current = [UUID: CodexCommandProcess.Progress]()
+        for record in executionRecords {
+            if let process = record.process { current[record.id] = process.progress }
+        }
+        if current != executionProgress {
+            executionProgress = current
+            refreshExecutionLabels()
+            objectWillChange.send()
+        }
+        if executionGrants.isEmpty && !current.values.contains(where: { $0.state == "running" }) {
+            executionTimer?.invalidate(); executionTimer = nil
+        }
+        let live = Set(workspace?.sessions.map(\.id) ?? [])
+        executionLimits = executionLimits.filter { live.contains($0.key) }
+        executionCounts = executionCounts.filter { live.contains($0.key) }
+        expiredExecution.formIntersection(live)
+    }
     private var executionWindow: NSWindow?
     func grantExecution(_ id: UUID, limits: CodexExecutionLimits? = nil) throws {
         let selectedLimits = limits ?? limitsForExecution(id)
@@ -49,7 +70,8 @@ final class CodexBridge: ObservableObject {
         executionGrants[id] = Date().addingTimeInterval(Double(selectedLimits.minutes) * 60); executionCounts[id] = 0; executionContexts[id] = context.controlPath; executionAuthorizations[id] = UUID()
         if executionTimer == nil {
             executionTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-                self?.reconcileExecution(); self?.objectWillChange.send()
+                guard let self else { return }
+                self.pollExecution()
             }
         }
     }
@@ -119,7 +141,8 @@ final class CodexBridge: ObservableObject {
     private func refreshExecutionLabels() {
         for tab in workspace?.sessions ?? [] {
             guard let target = tab.codexTargetSessionID else { continue }
-            tab.label = executionRecords.contains(where: { $0.sessionID == target && !$0.isPlan && $0.state == "awaiting_approval" }) ? "Codex · " + L10n.text("命令待确认") : "Codex"
+            let label = executionRecords.contains(where: { $0.sessionID == target && !$0.isPlan && $0.state == "awaiting_approval" }) ? "Codex · " + L10n.text("命令待确认") : "Codex"
+            if tab.label != label { tab.label = label }
         }
     }
     private func executionRequest(_ name: String, arguments: [String: Any], session: TerminalSession) throws -> [String: Any] {
