@@ -10,6 +10,13 @@ enum ThemeColorCheck {
         let defaults = UserDefaults(suiteName: "MyTerm.ThemeColorCheck.\(UUID())")!
         defer { defaults.removeObject(forKey: "terminal.theme") }
         let preferences = ThemePreferences(defaults: defaults)
+        preferences.theme.fontSize = 5
+        let smallFont = ThemePreferences(defaults: defaults)
+        let smallTerminal = MouseTerminalView(frame: NSRect(x: 0, y: 0, width: 640, height: 400))
+        smallFont.apply(to: smallTerminal)
+        try require(smallFont.theme.fontSize == 5 && smallTerminal.font.pointSize == 5, "5pt font did not persist/apply")
+        preferences.theme.fontSize = 2
+        try require(ThemePreferences(defaults: defaults).theme.fontSize == 5, "Font lower bound was not clamped")
         let original = TerminalTheme()
         var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as! [String: Any]
         for key in ["cursorText", "selectionText", "ansi", "brightBold", "backgroundOpacity"] { old.removeValue(forKey: key) }

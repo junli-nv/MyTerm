@@ -11,3 +11,5 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 - `Terminal.getHostSnapshot(screen:maximumRows:)` exports at most 1,000 rows on demand for the read-only Codex bridge. Uses existing logical-wrap text extraction, normal history or the visible buffer, without changing terminal state or scanning all scrollback.
 
 - Codex 大范围历史分页：主程序快照接口允许最多 10,000 个显示行，按调用方上限冻结后分页传出；不改变渲染、PTY 或终端滚动历史设置。
+
+- Expose macOS `keyDown(with:)` and `resignFirstResponder()` as open so MyTerm can translate the single command key following the default tmux Ctrl+B prefix through the ASCII-capable keyboard layout, without changing normal IME composition.

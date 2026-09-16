@@ -53,7 +53,7 @@ final class ThemePreferences: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         var saved = defaults.data(forKey: "terminal.theme").flatMap { try? JSONDecoder().decode(TerminalTheme.self, from: $0) } ?? TerminalTheme()
-        saved.fontSize = saved.fontSize.isFinite ? min(36, max(9, saved.fontSize)) : 14
+        saved.fontSize = saved.fontSize.isFinite ? min(36, max(5, saved.fontSize)) : 14
         if NSFont(name: saved.fontName, size: saved.fontSize) == nil { saved.fontName = "Menlo-Regular" }
         theme = saved
         refreshFonts()
@@ -183,7 +183,7 @@ struct ThemeSettingsView: View {
             Text("默认列出全部已安装字体。终端表格与 tmux 推荐使用等宽字体，如 Menlo、Monaco、Courier；安装其他字体后点击刷新即可选择。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ThemeSettingRow(title: "字号") {
-                Stepper("\(preferences.theme.fontSize.formatted()) pt", value: $preferences.theme.fontSize, in: 9...36, step: 0.5)
+                Stepper("\(preferences.theme.fontSize.formatted()) pt", value: $preferences.theme.fontSize, in: 5...36, step: 0.5)
                     .fixedSize()
             }
             Text("Ctrl + 双指上滑放大，下滑缩小；每步 0.5 pt。").font(.caption).foregroundStyle(.secondary)

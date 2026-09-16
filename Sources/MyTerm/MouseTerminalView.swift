@@ -4,6 +4,21 @@ import MyTermCore
 import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
+    private var tmuxPrefixInput = TmuxPrefixInput()
+    override func resignFirstResponder() -> Bool {
+        tmuxPrefixInput.reset()
+        return super.resignFirstResponder()
+    }
+    override func keyDown(with event: NSEvent) {
+        if let text = tmuxPrefixInput.consume(event) {
+            selection.active = false
+            inputContext?.discardMarkedText()
+            unmarkText()
+            send(txt: text)
+            return
+        }
+        super.keyDown(with: event)
+    }
     var appliedANSI: [ThemeColor]?
     private var highlighting: TerminalOutputHighlighter?
     private var highlightSubscription: AnyCancellable?
@@ -54,7 +69,7 @@ class MouseTerminalView: LocalProcessTerminalView {
             guard let change else { return event }
             if change != 0 {
                 let preferences = ThemePreferences.shared
-                let size = min(36, max(9, preferences.theme.fontSize + change))
+                let size = min(36, max(5, preferences.theme.fontSize + change))
                 if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
             }
             return nil

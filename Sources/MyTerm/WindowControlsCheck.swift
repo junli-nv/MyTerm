@@ -19,6 +19,7 @@ final class WindowControlsCheck {
     static func run(window: NSWindow, workspace: Workspace) {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
+            try TmuxPrefixInputCheck.run()
             try TerminalCopyCheck.run()
             try SSHDisconnectCheck.run()
             try OutputHighlightCheck.run()

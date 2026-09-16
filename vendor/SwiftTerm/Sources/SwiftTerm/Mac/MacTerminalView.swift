@@ -1327,7 +1327,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         return response
     }
     
-    public override func resignFirstResponder() -> Bool {
+    open override func resignFirstResponder() -> Bool {
         let response = super.resignFirstResponder()
         if response {
             caretView.disableAnimations()
@@ -1571,7 +1571,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     // doCommand/noop: - but more research needs to take place to figure out the priority
     // of those keys.
     //
-    public override func keyDown(with event: NSEvent) {
+    open override func keyDown(with event: NSEvent) {
         selection.active = false
         let eventFlags = event.modifierFlags
 
