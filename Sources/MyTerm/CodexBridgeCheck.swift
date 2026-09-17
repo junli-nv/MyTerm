@@ -37,6 +37,26 @@ enum CodexBridgeCheck {
         let loginDeadline = Date().addingTimeInterval(3)
         while bridge.busy && Date() < loginDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
         try require(!bridge.busy && workspace.sessions.count == sessionCount && bridge.message.hasPrefix("已保存 Codex"), "Saved login triggered another login tab")
+        try require(bridge.loginStatus == "已登录（检测到本地登录凭据）" && !bridge.checkingLogin, "Login result missing dedicated status")
+        let savedLoginStatus = bridge.loginStatus
+        bridge.connection.proxyMode = .http; bridge.connection.host = "127.0.0.1"; bridge.connection.port = "1"
+        bridge.testProxy()
+        try require(bridge.testingProxy && bridge.proxyTestStatus.contains("正在测试"), "Proxy progress missing")
+        let proxyDeadline = Date().addingTimeInterval(4)
+        while bridge.busy && Date() < proxyDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(!bridge.testingProxy && bridge.proxyTestStatus.contains("失败") && bridge.loginStatus == savedLoginStatus, "Proxy failure missing or overwrote login state")
+        bridge.connection.proxyMode = .inherited
+        try require(bridge.configurationIssue == nil && bridge.loginAvailable == true, "Valid configuration dependency failed")
+        let correctExecutable = bridge.connection.executable
+        bridge.connection.executable = "/missing/codex"
+        try require(bridge.configurationIssue != nil && bridge.loginAvailable == nil, "Invalid executable did not invalidate dependency/login")
+        let blockedTabs = workspace.sessions.count
+        bridge.launch(sessionID: session.id, checkSavedLogin: false)
+        try require(workspace.sessions.count == blockedTabs, "Invalid configuration launched analysis")
+        bridge.connection.executable = correctExecutable
+        bridge.connection.proxyMode = .http; bridge.connection.port = "invalid"
+        try require(bridge.configurationIssue != nil, "Invalid proxy did not block startup")
+        bridge.connection.proxyMode = .inherited
         var ready = 0
         bridge.checkLogin(onReady: { ready += 1 })
         let readyDeadline = Date().addingTimeInterval(3)
@@ -48,6 +68,7 @@ enum CodexBridgeCheck {
         let failureDeadline = Date().addingTimeInterval(3)
         while bridge.busy && Date() < failureDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
         try require(!failureContinued, "Missing credentials started analysis")
+        try require(bridge.loginStatus.contains("未找到") && !bridge.checkingLogin && bridge.proxyTestStatus.contains("配置已修改"), "Signed-out result missing or overwrote proxy state")
         var completions = 0
         ended.onProcessExit = { if $0 == 0 { completions += 1 } }
         ended.handleProcessTermination(exitCode: 0)
@@ -178,11 +199,19 @@ enum CodexBridgeCheck {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             defer { window.close() }
-            let view = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: bridge))
+            let navigation = CodexSettingsNavigation()
+            let view = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: bridge, navigation: navigation))
             window.contentView = view; window.orderFront(nil)
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
             guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Missing Codex settings scrollbar") }
             try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Codex settings overflow horizontally or fail to scroll")
+            navigation.page = 1
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
+            try require(document.frame.width <= scroll.contentSize.width + 1, "SSH access page overflow")
+            language.selection = locale == .english ? .chinese : .english
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            try require(navigation.page == 1, "Language change reset Codex settings section")
+            language.selection = locale; navigation.page = 0
             let chooserSelection = CodexChooserState()
             let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection).environment(\.locale, language.locale))
             window.contentView = chooser
@@ -320,6 +349,45 @@ enum CodexBridgeCheck {
         try require(activeRefreshes == 0, "Unchanged authorization continuously invalidated UI")
         activeSubscription.cancel()
         bridge.revokeExecution(execSession.id)
+
+        try bridge.grantExecution(execSession.id, limits: CodexExecutionLimits(minutes: 60, commands: 10))
+        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Execution did not default to per-command approval")
+        func submitModeFixture() throws -> CodexExecutionRecord {
+            let modeResponse = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Approval mode regression"])
+            let modeMetadata = modeResponse["execution_authorization"] as? [String: Any]
+            try require(modeMetadata?["active"] as? Bool == true && modeMetadata?["approval_mode"] as? String == (bridge.alwaysAllowedExecution.contains(execSession.id) ? "session_always_allow" : "per_command"), "MCP did not report current UI authorization")
+            return bridge.executionRecords.last!
+        }
+        func finishModeFixture(_ record: CodexExecutionRecord) throws {
+            let deadline = Date().addingTimeInterval(3)
+            while record.process?.progress.state == "running" && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+            let result = try bridge.read("command_status", arguments: ["session_id": execSession.id.uuidString, "job_id": record.id.uuidString])
+            try require(result["all_output_delivered"] as? Bool == true, "Mode fixture did not finish/deliver output")
+        }
+        let once = try submitModeFixture()
+        try require(once.process == nil && once.state == "awaiting_approval", "Once mode automatically ran command")
+        bridge.approveExecution(once)
+        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Allow once enabled persistent permission")
+        try finishModeFixture(once)
+        bridge.setAlwaysAllowExecution(execSession.id, enabled: true)
+        try require(!bridge.alwaysAllowedExecution.contains(session.id), "Approval mode crossed SSH sessions")
+        let auto = try submitModeFixture()
+        try require(auto.process != nil, "Always allow did not start command")
+        bridge.setAlwaysAllowExecution(execSession.id, enabled: false)
+        try finishModeFixture(auto)
+        let pendingMode = try submitModeFixture()
+        try require(pendingMode.process == nil && pendingMode.state == "awaiting_approval", "Switching back failed to restore confirmation")
+        bridge.setAlwaysAllowExecution(execSession.id, enabled: true)
+        try require(pendingMode.process != nil, "Always allow did not approve currently pending command")
+        try finishModeFixture(pendingMode)
+        bridge.revokeExecution(execSession.id)
+        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Revocation retained Always allow")
+        bridge.setAlwaysAllowExecution(execSession.id, enabled: true)
+        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Mode switch granted execution without authorization")
+        bridge.renewExecution(execSession.id)
+        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Renewal inherited automatic execution")
+        bridge.revokeExecution(execSession.id)
+        print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 
         print("PASS: Codex execution default-off, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
         let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)

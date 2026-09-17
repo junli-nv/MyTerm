@@ -174,6 +174,34 @@ final class Workspace: ObservableObject {
             groups = updated
         }
     }
+    /// A drag onto an ungrouped peer creates one group atomically, after naming it.
+    /// Revalidate when saving because a modal dialog can process other UI events.
+    func canGroupServers(_ source: UUID, with target: UUID) -> Bool {
+        source != target && [source, target].allSatisfy { id in
+            servers.contains { $0.id == id } && !groups.contains { $0.serverIDs.contains(id) }
+        }
+    }
+    func createGroupFromServers(_ source: UUID, target: UUID, name: String) throws {
+        guard !groupRecoveryRequired, !groupsLoadFailed, canGroupServers(source, with: target) else {
+            throw ConfigurationError.invalid("会话已移动或删除，请取消后重新拖拽。")
+        }
+        let updated = groups + [SessionGroup(name: SessionGroup.normalizedName(name), serverIDs: [target, source])]
+        try groupRepository.save(updated)
+        groups = updated
+    }
+    @discardableResult
+    func promptGroupFromServers(_ source: UUID, target: UUID) -> Bool {
+        guard !groupRecoveryRequired, !groupsLoadFailed, canGroupServers(source, with: target) else { return false }
+        let dialog = GroupNameDialog(name: nil)
+        let names = [target, source].compactMap { id in servers.first { $0.id == id }?.displayName }
+        dialog.alert.informativeText = L10n.text("创建分组后将加入以下两个会话；取消不会更改分组。") + "\n" + names.joined(separator: "\n")
+        var saved = false
+        dialog.run { name in
+            try createGroupFromServers(source, target: target, name: name)
+            saved = true
+        }
+        return saved
+    }
     func moveServer(_ server: Server, to group: UUID?) {
         do { saveGroups(try SessionGroupRepository.moving(server.id, to: group, in: groups)) }
         catch { self.error = error.localizedDescription }

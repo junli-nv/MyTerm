@@ -7,6 +7,7 @@ final class WindowControlsCheck {
     private let window: NSWindow
     private let workspace: Workspace
     private var phase = 0
+    private var checkedTabDrag = false
     private var timer: Timer?
     private var baseline = NSRect.zero
     private var originalWindow = NSRect.zero
@@ -81,6 +82,17 @@ final class WindowControlsCheck {
         window.contentView?.layoutSubtreeIfNeeded()
         switch phase {
         case 0:
+            // Run provider checks from the timer, outside the main dispatch callback:
+            // a nested run loop cannot drain that queue while its caller is executing.
+            if !checkedTabDrag {
+                checkedTabDrag = true
+                do {
+                    try SessionTabDragCheck.run(workspace: workspace)
+                    try ServerTreeCheck.run()
+                }
+                catch { fail(error.localizedDescription) }
+                return // Let SwiftUI restore the selected terminal before inspecting geometry.
+            }
             guard fixture.isRunning, fixture.terminal.window != nil else { return }
             require(!fixture.statusBarVisible && !fixture.showSFTP && !workspace.sidebarVisible, "Panels must start hidden")
             baseline = terminalFrame()

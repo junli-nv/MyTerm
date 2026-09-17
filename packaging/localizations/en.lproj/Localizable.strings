@@ -796,3 +796,47 @@
 "外部 Codex／IDE（可选）" = "External Codex / IDE (optional)";
 "仅外部 Codex 或 IDE 需要注册 MCP；MyTerm 内的 Codex 标签会自动配置。外部客户端只能访问已授权的 SSH 会话。" = "Only external Codex or IDE clients need MCP registration. MyTerm configures its Codex tabs automatically. External clients can access only authorized SSH sessions.";
 "SSH 接入已开启，仅允许访问已授权的 SSH 会话。" = "SSH access enabled for authorized SSH sessions only.";
+
+"配置分类" = "Settings section";
+"Codex 配置" = "Codex configuration";
+"SSH 会话接入" = "SSH session access";
+"登录状态" = "Sign-in status";
+"代理测试状态" = "Proxy test status";
+"尚未检查登录状态" = "Sign-in status not checked";
+"尚未测试代理连接" = "Proxy connection not tested";
+"正在测试代理 HTTPS 连接…" = "Testing proxy HTTPS connection…";
+"已登录（检测到本地登录凭据）" = "Signed in (local credentials found)";
+"代理连接失败，请检查地址、端口、认证及网络后重试。" = "Proxy connection failed. Check address, port, authentication and network, then retry.";
+"登录检查失败：" = "Sign-in check failed: ";
+"代理测试失败：" = "Proxy test failed: ";
+"登录未完成，请查看 Codex 标签中的提示。" = "Sign-in did not complete. Check the Codex tab for details.";
+"请在 Codex 标签中完成登录。" = "Complete sign-in in the Codex tab.";
+
+"注册后重启外部 Codex／IDE 生效。需要停止 SSH 访问时，请在“SSH 会话接入”中关闭接入开关。" = "Restart external Codex / IDE after registration. To stop SSH access, turn off access in the SSH session access section.";
+
+"配置已修改，请重新检查登录状态。" = "Configuration changed. Check sign-in again.";
+"配置已修改，请重新测试代理。" = "Configuration changed. Test the proxy again.";
+"Codex 配置依赖" = "Codex prerequisites";
+"请先完成 Codex 配置。" = "Complete Codex configuration first.";
+"前往 Codex 配置" = "Open Codex configuration";
+"Codex 路径及代理格式有效；启动时会自动检查登录状态。" = "Codex path and proxy format are valid. Sign-in will be checked automatically at startup.";
+"未登录时先完成登录，再自动继续所选 SSH 分析。" = "If signed out, complete sign-in first; analysis of the selected SSH session then continues automatically.";
+"配置修改仅用于新启动的 Codex 标签；代理测试用于诊断，不是启动前的必选步骤。" = "Configuration changes apply to new Codex tabs. Proxy testing is diagnostic and is not required before starting.";
+
+"单次允许" = "Allow once";
+"始终允许" = "Always allow";
+"本会话始终允许" = "Always allow for this session";
+"每条命令确认" = "Confirm each command";
+"命令审批" = "Command approval";
+"仅作用于当前 SSH 会话的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。" = "Applies only to the current SSH authorization. Switching back does not stop a command already running. Authorization ending resets per-command approval.";
+"默认只读。授权后默认逐条确认，可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。" = "Read-only by default. After authorizing execution, confirm each command or switch to Always allow in the Codex tab. The channel does not share terminal directory or tmux state.";
+"到期或额度用尽后可在当前标签继续授权，重置额度并恢复逐条确认；如需持续允许，请再次选择。" = "Renew authorization in this tab after expiration or budget exhaustion. This resets the budget and restores per-command approval; select Always allow again if needed.";
+"选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认只读，执行需另行授权，审批方式可在会话中调整。" = "Select an open SSH session for Codex analysis. Local shells are excluded. Access is read-only by default; execution requires authorization and its approval mode can be changed in the session.";
+
+"复制会话 ID（Codex）" = "Copy Session ID (Codex)";
+
+"会话已移动或删除，请取消后重新拖拽。" = "The sessions moved or were deleted. Cancel and drag again.";
+
+"创建分组后将加入以下两个会话；取消不会更改分组。" = "The following two sessions will join the new group. Cancel leaves groups unchanged.";
+
+"拖入另一个未分组会话以创建分组；双击连接" = "Drop another ungrouped session here to create a group; double-click to connect";

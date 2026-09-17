@@ -22,9 +22,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.6.10</string>
+	<string>1.6.15</string>
 	<key>CFBundleVersion</key>
-	<string>135</string>
+	<string>140</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSHighResolutionCapable</key>
@@ -42,6 +42,16 @@
 			<string>MyTerm Saved Server</string>
 			<key>UTTypeIdentifier</key>
 			<string>local.myterm.saved-server</string>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>local.myterm.session-tab</string>
+			<key>UTTypeDescription</key>
+			<string>MyTerm Session Tab</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
 		</dict>
 	</array>
 </dict>

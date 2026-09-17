@@ -270,6 +270,7 @@ struct WorkspaceView: View {
                                         Label(session.label, systemImage: session.executable == "/usr/bin/ssh" ? "network" : "terminal")
                                             .font(.system(size: 12)).lineLimit(1).padding(.vertical, 5)
                                     }.buttonStyle(.plain)
+                                        .onDrag { SessionTabDrag(id: session.id).itemProvider }
                                     Button { workspace.close(session) } label: {
                                         Image(systemName: "xmark").font(.caption2)
                                     }.buttonStyle(.plain).help("关闭会话")
@@ -277,12 +278,17 @@ struct WorkspaceView: View {
                                     .background(workspace.selectedID == session.id ? Color.primary.opacity(0.1) : .clear,
                                                 in: RoundedRectangle(cornerRadius: 7))
                                     .contentShape(Rectangle())
+                                    .modifier(SessionTabDropTarget(workspace: workspace, sessionID: session.id))
                                     .contextMenu {
                                         Button("选中会话") { workspace.selectedID = session.id }
                                         Button("复制会话（新连接）") { workspace.duplicate(session) }
                                         SessionHistoryLoggingMenu(session: session, workspace: workspace)
                                         Button("更改标签名称…") { workspace.renameTab(session) }
                                         if session.sourceServer != nil {
+                                            Button("复制会话 ID（Codex）") {
+                                                NSPasteboard.general.clearContents()
+                                                NSPasteboard.general.setString(session.id.uuidString, forType: .string)
+                                            }
                                             Button("更改 SSH 配置…") { workspace.editConnection(session) }
                                         }
                                         if session.canReconnect {

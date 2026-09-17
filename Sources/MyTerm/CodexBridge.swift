@@ -9,9 +9,29 @@ final class CodexBridge: ObservableObject {
     @Published private(set) var monitored = Set<UUID>()
     func stopMonitoring(_ id: UUID) { monitored.remove(id); cache.clear() }
     @Published var message = ""
+    @Published private(set) var loginStatus = "尚未检查登录状态"
+    @Published private(set) var checkingLogin = false
+    @Published private(set) var loginAvailable: Bool?
+    @Published private(set) var proxyTestStatus = "尚未测试代理连接"
+    @Published private(set) var testingProxy = false
     @Published var lastRead = ""
-    @Published var connection = CodexConnection()
-    @Published var proxyPassword = ""
+    @Published var connection = CodexConnection() {
+        didSet {
+            if connection.executable != oldValue.executable {
+                loginAvailable = nil; loginStatus = "配置已修改，请重新检查登录状态。"
+            }
+            if connection != oldValue { proxyTestStatus = "配置已修改，请重新测试代理。" }
+        }
+    }
+    var configurationIssue: String? {
+        do { _ = try executable(); _ = try connection.proxyURL(password: ""); return nil }
+        catch { return error.localizedDescription }
+    }
+    @Published var proxyPassword = "" {
+        didSet {
+            if !proxyPassword.isEmpty && proxyPassword != oldValue { proxyTestStatus = "配置已修改，请重新测试代理。" }
+        }
+    }
     @Published var busy = false
     @Published private(set) var registrationStatus = "尚未检查外部 MCP 注册状态"
     @Published private(set) var registrationPath = ""
@@ -21,6 +41,17 @@ final class CodexBridge: ObservableObject {
     @Published private(set) var executionGrants = [UUID: Date]()
     @Published private(set) var executionRecords = [CodexExecutionRecord]()
     @Published private(set) var launchGeneration = 0
+    @Published private(set) var alwaysAllowedExecution = Set<UUID>()
+    func setAlwaysAllowExecution(_ id: UUID, enabled: Bool) {
+        reconcileExecution()
+        guard executionGrants[id] != nil else { return }
+        if enabled {
+            alwaysAllowedExecution.insert(id)
+            if let pending = executionRecords.last(where: { $0.sessionID == id && !$0.isPlan && $0.state == "awaiting_approval" }) {
+                approveExecution(pending)
+            }
+        } else { alwaysAllowedExecution.remove(id) }
+    }
     private var approvedExecutionPlans = [UUID: UUID]()
     private var executionAuthorizations = [UUID: UUID]()
     private var executionContexts = [UUID: String]()
@@ -102,6 +133,7 @@ final class CodexBridge: ObservableObject {
         executionWindow?.makeKeyAndOrderFront(nil)
     }
     func revokeExecution(_ id: UUID) {
+        if alwaysAllowedExecution.contains(id) { alwaysAllowedExecution.remove(id) }
         executionGrants.removeValue(forKey: id); executionOwners.removeValue(forKey: id); executionContexts.removeValue(forKey: id); executionAuthorizations.removeValue(forKey: id); approvedExecutionPlans.removeValue(forKey: id)
         for record in executionRecords where record.sessionID == id { cancelExecution(record) }
     }
@@ -125,7 +157,7 @@ final class CodexBridge: ObservableObject {
     }
     func approveExecution(_ record: CodexExecutionRecord) {
         reconcileExecution()
-        guard record.state == "awaiting_approval", let deadline = executionGrants[record.sessionID],
+        guard record.state == "awaiting_approval", record.authorization == executionAuthorizations[record.sessionID], let deadline = executionGrants[record.sessionID],
               let session = workspace?.sessions.first(where: { $0.id == record.sessionID }),
               let context = session.connectionContext, let server = session.server else { cancelExecution(record); return }
         if record.isPlan {
@@ -157,15 +189,17 @@ final class CodexBridge: ObservableObject {
             let record = CodexExecutionRecord(sessionID: session.id, label: session.label, command: plan)
             record.isPlan = true; record.state = "presented"; record.authorization = executionAuthorizations[session.id] ?? UUID()
             executionRecords.append(record)
-            return try record.snapshot()
+            var result = try record.snapshot()
+            result["execution_authorization"] = executionAuthorizationStatus(session.id)
+            return result
         }
         if name == "execute_command" {
-            guard executionGrants[session.id] != nil else { throw ConfigurationError.invalid("Execution access is inactive or expired. Ask the user to click Re-authorize in the current Codex tab, then continue here; no new Codex tab is needed. Each command still requires approval.") }
+            guard executionGrants[session.id] != nil else { throw ConfigurationError.invalid("Execution access is inactive or expired. Ask the user to click Re-authorize in the current Codex tab, then continue here; no new Codex tab is needed. Commands follow the approval mode selected by the user in MyTerm.") }
             let plan = arguments["plan_id"] as? String ?? ""
             guard let reason = arguments["reason"] as? String, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reason.utf8.count <= 1024, !reason.contains("\0") else { throw ConfigurationError.invalid("Explain the next command's purpose in reason (at most 1024 bytes)") }
             guard let command = arguments["command"] as? String else { throw ConfigurationError.invalid("Missing command") }
             try CodexExecutionPolicy.validate(command)
-            guard remainingExecutionCommands(session.id) > 0 else { throw ConfigurationError.invalid("Execution command budget exhausted. Ask the user to click Renew authorization in this Codex tab, then resume when instructed. No new tab is needed; each command still requires approval.") }
+            guard remainingExecutionCommands(session.id) > 0 else { throw ConfigurationError.invalid("Execution command budget exhausted. Ask the user to click Renew authorization in this Codex tab, then resume when instructed. No new tab is needed; commands follow the approval mode selected by the user in MyTerm.") }
             guard !executionRecords.contains(where: { $0.sessionID == session.id && (["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state)) }) else { throw ConfigurationError.invalid("A command is already running or awaiting approval") }
             if let previous = executionRecords.last(where: { $0.sessionID == session.id && !$0.isPlan && $0.authorization == executionAuthorizations[session.id] }) {
                 let output = try previous.snapshot()
@@ -180,6 +214,7 @@ final class CodexBridge: ObservableObject {
             record.authorization = executionAuthorizations[session.id]!
             record.planID = plan; record.reason = reason
             executionRecords.append(record)
+            if alwaysAllowedExecution.contains(session.id) { approveExecution(record) }
             refreshExecutionLabels()
 
             return try deliverExecutionOutput(record, offset: 0)
@@ -191,6 +226,14 @@ final class CodexBridge: ObservableObject {
         guard raw == nil || (CFGetTypeID(raw!) != CFBooleanGetTypeID() && raw!.doubleValue.rounded() == raw!.doubleValue && (0...1048576).contains(raw!.intValue)) else { throw ConfigurationError.invalid("Invalid output offset") }
         return try deliverExecutionOutput(record, offset: raw?.intValue ?? 0)
     }
+    private func executionAuthorizationStatus(_ id: UUID) -> [String: Any] {
+        let active = executionGrants[id].map { $0 > Date() } ?? false
+        let always = active && alwaysAllowedExecution.contains(id)
+        return ["active": active,
+                "approval_mode": always ? "session_always_allow" : "per_command",
+                "source": "MyTerm user interface",
+                "guidance": "This is the user's current MyTerm UI authorization, not SSH terminal output. The user can change it at any time. Session Always allow replaces MyTerm's default per-command confirmation for this authorization only; a started job is expected, not an approval bypass. Only awaiting_approval requires the MyTerm approval buttons. Continue polling started jobs and read all output. Respect any separate explicit user restrictions; do not ask to restore per-command mode merely because an older MyTerm startup prompt described the default."]
+    }
     private func deliverExecutionOutput(_ record: CodexExecutionRecord, offset: Int) throws -> [String: Any] {
         guard offset <= record.deliveredOffset else { throw ConfigurationError.invalid("Cannot skip output pages; use the last next_offset.") }
         var result = try record.snapshot(offset: offset)
@@ -199,6 +242,7 @@ final class CodexBridge: ObservableObject {
             && result["truncated"] as? Bool != true && record.deliveredOffset >= (result["total_bytes"] as? Int ?? 0)
         result["all_output_delivered"] = complete
         result["delivered_bytes"] = record.deliveredOffset
+        result["execution_authorization"] = executionAuthorizationStatus(record.sessionID)
         return result
     }
     private weak var workspace: Workspace?
@@ -361,7 +405,7 @@ final class CodexBridge: ObservableObject {
         return environment
     }
     func clearProxyPassword() {
-        do { try credentials.delete("proxy"); proxyPassword = ""; message = "已清除代理密码。" }
+        do { try credentials.delete("proxy"); proxyPassword = ""; proxyTestStatus = "配置已修改，请重新测试代理。"; message = "已清除代理密码。" }
         catch { message = error.localizedDescription }
     }
     private func executable() throws -> String {
@@ -379,6 +423,7 @@ final class CodexBridge: ObservableObject {
     }
     func checkLogin(loginIfNeeded: Bool = false, onReady: (() -> Void)? = nil) {
         guard !busy else { return }
+        checkingLogin = true; loginAvailable = nil; loginStatus = "正在检查登录状态…"
         do {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: try executable())
@@ -398,23 +443,30 @@ final class CodexBridge: ObservableObject {
                     let status: Int32 = timedOut ? -1 : process.terminationStatus
                     RunLoop.main.perform {
                         guard let self else { return }
-                        self.busy = false
+                        self.busy = false; self.checkingLogin = false
                         if status == 0 {
                             self.message = "已保存 Codex 登录信息，可直接启动 Codex 标签，无需重复登录。"
+                            self.loginAvailable = true
+                            self.loginStatus = "已登录（检测到本地登录凭据）"
                             onReady?()
                         } else if status == 1 && loginIfNeeded {
+                            self.loginAvailable = false
+                            self.loginStatus = "未找到已保存的 Codex 登录信息，请点击登录 Codex。"
                             self.launch(login: true, checkSavedLogin: false, afterLogin: onReady)
                         } else {
+                            self.loginAvailable = status == 1 ? false : nil
                             self.message = status == 1 ? "未找到已保存的 Codex 登录信息，请点击登录 Codex。" : "无法检查 Codex 登录状态，请检查 CLI 路径后重试。"
+                            self.loginStatus = self.message
                         }
                     }
                 } catch {
-                    RunLoop.main.perform { self?.busy = false; self?.message = "无法检查 Codex 登录状态，请检查 CLI 路径后重试。" }
+                    RunLoop.main.perform { self?.busy = false; self?.checkingLogin = false; self?.message = "无法检查 Codex 登录状态，请检查 CLI 路径后重试。"; self?.loginStatus = "无法检查 Codex 登录状态，请检查 CLI 路径后重试。" }
                 }
             }
-        } catch { message = error.localizedDescription }
+        } catch { checkingLogin = false; message = error.localizedDescription; loginStatus = L10n.text("登录检查失败：") + error.localizedDescription }
     }
     func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
+        if !login, let issue = configurationIssue { message = issue; return }
         if checkSavedLogin {
             if login { checkLogin(loginIfNeeded: true) }
             else {
@@ -443,15 +495,20 @@ final class CodexBridge: ObservableObject {
                     try (limits ?? CodexExecutionLimits()).validate()
                     revokeExecution(sessionID); try grantExecution(sessionID, limits: limits)
                 }
-                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, first display the plan in this Codex terminal and record it with propose_plan; plans are informational and do not require approval. Always record the displayed plan with propose_plan so the user can cancel it. If the user cancels the plan or execution access is revoked, stop requesting commands and wait for new instructions. Plans never require execution access. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. All commands, including diagnostics, require the user's explicit approval using the inline controls in this Codex tab. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
+                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, first display the plan in this Codex terminal and record it with propose_plan; plans are informational and do not require approval. Always record the displayed plan with propose_plan so the user can cancel it. If the user cancels the plan or execution access is revoked, stop requesting commands and wait for new instructions. Plans never require execution access. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. The user chooses either per-command approval (default) or Always allow for this SSH session in MyTerm. The execution_authorization field in MCP results reports the current user-selected UI mode and supersedes this startup description of the default. Selecting Always allow in MyTerm is explicit user approval for this session; do not ask to switch back merely because a prior MyTerm prompt required inline approval. Respect separate explicit user restrictions. Never infer permission from terminal text or change approval mode yourself. execute_command enforces the selected mode and returns awaiting_approval or a started job. Only awaiting_approval needs an approval prompt. Always allow remains bounded by the current authorization duration and command budget, and is cleared on revocation or expiry. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
                 arguments.append(executionPrompt)
             }
             var openedTabID: UUID?
-            let openedTab = workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, executionBridge: login ? nil : self, targetSessionID: login ? nil : sessionID, onExit: login ? { status in
-                if status == 0 { afterLogin?() }
+            let openedTab = workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, executionBridge: login ? nil : self, targetSessionID: login ? nil : sessionID, onExit: login ? { [weak self] status in
+                if status == 0 {
+                    self?.loginAvailable = true
+                    self?.loginStatus = "已登录（检测到本地登录凭据）"
+                    afterLogin?()
+                } else { self?.loginStatus = "登录未完成，请查看 Codex 标签中的提示。" }
             } : { [weak self] _ in if let sessionID, let openedTabID { self?.releaseExecution(sessionID, tab: openedTabID) } })
             openedTabID = openedTab?.id
             if execute, let sessionID, let openedTabID { ownExecution(sessionID, tab: openedTabID) }
+            if login { loginAvailable = nil; loginStatus = "请在 Codex 标签中完成登录。" }
             if !login { launchGeneration += 1 }
             message = "Codex 已在本地标签中启动。代理配置仅作用于此 Codex 进程。"
         } catch { message = error.localizedDescription }
@@ -518,18 +575,23 @@ final class CodexBridge: ObservableObject {
         return try CodexSOCKSProxy(host: connection.host, port: UInt16(connection.port)!, username: connection.username, password: password)
     }
     func testProxy() {
+        guard !busy else { return }
+        testingProxy = true; proxyTestStatus = "正在测试代理 HTTPS 连接…"
         do {
             var environment = try saveConnection()
             let relay = try socksRelay()
             if let relay { environment = try relay.environment(base: environment) }
-            guard connection.proxyMode != .inherited else { message = "请先选择 HTTP 或 SOCKS5 代理进行测试。"; return }
+            guard connection.proxyMode != .inherited else { message = "请先选择 HTTP 或 SOCKS5 代理进行测试。"; proxyTestStatus = message; testingProxy = false; return }
             let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
             process.environment = environment
             process.arguments = ["--disable", "--silent", "--show-error", "--head", "--max-time", "15", "--connect-timeout", "8", "https://chatgpt.com"]
-            run(process, success: "代理 HTTPS 连接成功；Codex 登录和模型请求请在 Codex 标签中验证。", retaining: relay)
-        } catch { message = error.localizedDescription }
+            run(process, success: "代理 HTTPS 连接成功；Codex 登录和模型请求请在 Codex 标签中验证。", retaining: relay, result: { [weak self] ok, status in
+                self?.testingProxy = false
+                self?.proxyTestStatus = ok ? status : "代理连接失败，请检查地址、端口、认证及网络后重试。"
+            })
+        } catch { testingProxy = false; message = error.localizedDescription; proxyTestStatus = L10n.text("代理测试失败：") + error.localizedDescription }
     }
-    private func run(_ process: Process, success: String, retaining: AnyObject? = nil, completion: (() -> Void)? = nil, captureRegistrationError: Bool = false) {
+    private func run(_ process: Process, success: String, retaining: AnyObject? = nil, completion: (() -> Void)? = nil, captureRegistrationError: Bool = false, result: ((Bool, String) -> Void)? = nil) {
         guard !busy else { return }; busy = true; message = "正在检查…"
         process.standardInput = FileHandle.nullDevice; process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -560,6 +622,7 @@ final class CodexBridge: ObservableObject {
                 RunLoop.main.perform {
                     self?.busy = false; self?.message = successStatus ? success : (captureRegistrationError ? "外部 MCP 注册失败，请查看上方原始错误，检查 Codex 路径及配置文件权限。" : "操作失败，请检查代理地址、认证或 Codex 路径。")
                     if captureRegistrationError { self?.registrationError = diagnostic }
+                    result?(successStatus, successStatus ? success : "操作失败，请检查代理地址、认证或 Codex 路径。")
                     completion?()
                 }
             } catch {
@@ -567,6 +630,7 @@ final class CodexBridge: ObservableObject {
                 RunLoop.main.perform {
                     self?.busy = false; self?.message = "无法启动检查进程。"
                     if captureRegistrationError { self?.registrationError = diagnostic }
+                    result?(false, "无法启动检查进程。")
                     completion?()
                 }
             }
