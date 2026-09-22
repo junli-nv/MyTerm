@@ -12,6 +12,6 @@
 
 - Configuration forms must remain scrollable at their minimum supported window size, with long labels and explanations wrapping rather than clipping. Keep the SSH editor as a resizable standalone window with maximize/restore and a visible vertical scrollbar. Validate expanded jump, proxy and forwarding sections in Chinese and English in Debug, Release and the installed bundle.
 
-- GitHub release retention: after publishing and verifying a new release, retain only v1.5.2 and the latest release. Delete other GitHub releases and their assets; preserve historical changelogs and source tags.
+- GitHub release retention: after publishing and verifying a new release, retain only the latest release. Delete all older GitHub releases and their assets, including v1.5.2; preserve historical changelogs and source tags.
 
 - Maintainability: keep UI gesture handling separate from session-order mutations, use descriptive names and bounded regression checks, and document behavioral invariants rather than duplicating implementation details. Prefer small focused files over expanding large views.

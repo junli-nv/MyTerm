@@ -145,19 +145,6 @@ final class FeatureTests {
         try third.download(target, to: destination) { done, _ in if downloadOffset == nil { downloadOffset = done } }
         checkGreaterThan(downloadOffset ?? 0, 0)
         checkEqual(try Data(contentsOf: destination), original)
-        let scpDestination = local.appendingPathComponent("scp-interrupted.bin")
-        checkThrows(try third.download(target, to: scpDestination, initialTransfer: { _, partial in
-            let handle = try FileHandle(forWritingTo: partial)
-            try handle.write(contentsOf: original.prefix(65536)); try handle.close()
-            throw ConfigurationError.invalid("Simulated SCP interruption")
-        }) { _, _ in })
-        let resumed = try client(); defer { resumed.close() }
-        var scpOffset: UInt64?
-        try resumed.download(target, to: scpDestination, initialTransfer: { _, _ in fail("SCP must not restart a partial download") }) {
-            done, _ in if scpOffset == nil { scpOffset = done }
-        }
-        checkEqual(scpOffset, 65536)
-        checkEqual(try Data(contentsOf: scpDestination), original)
         checkThrows(try third.list("/nonexistent-myterm-check-directory"))
         let mismatch = remote.appendingPathComponent("mismatch.bin").path
         checkThrows(try third.upload(source, to: mismatch) { done, _ in if done >= 65536 { third.cancel() } })
@@ -167,4 +154,52 @@ final class FeatureTests {
         checkThrows(try fourth.upload(source, to: mismatch) { _, _ in })
         checkFalse(FileManager.default.fileExists(atPath: mismatch))
     }
+    func sftpDirectories() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("myterm-sftp-tree-\(UUID())")
+        let remote = root.appendingPathComponent("remote"), source = root.appendingPathComponent("source")
+        let nested = source.appendingPathComponent("中文 folder/nested")
+        try fm.createDirectory(at: remote, withIntermediateDirectories: true)
+        try fm.createDirectory(at: nested, withIntermediateDirectories: true)
+        try fm.createDirectory(at: source.appendingPathComponent("empty"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+        let bytes = Data(repeating: 42, count: 250000)
+        try bytes.write(to: nested.appendingPathComponent("file.bin"))
+        try Data("hidden".utf8).write(to: source.appendingPathComponent(".hidden"))
+        func client() throws -> SFTPClient {
+            let client = SFTPClient(executable: "/usr/libexec/sftp-server", arguments: ["-d", remote.path])
+            try client.connect(); return client
+        }
+        let target = remote.appendingPathComponent("source").path
+        let first = try client()
+        checkThrows(try first.uploadItem(source, to: target) { _, done, total in if total > 100000 && done >= 65536 { first.cancel() } })
+        first.close()
+        let second = try client(); defer { second.close() }
+        var resumed = false
+        try second.uploadItem(source, to: target) { _, done, total in if total > 100000 && done > 0 && done < total { resumed = true } }
+        checkEqual(resumed, true)
+        try second.uploadItem(source, to: target) { _, _, _ in } // identical completed tree is safe to retry
+        let destination = root.appendingPathComponent("download")
+        checkThrows(try second.downloadItem(target, to: destination) { _, done, total in if total > 100000 && done >= 65536 { second.cancel() } })
+        second.close()
+        let third = try client(); defer { third.close() }
+        try third.downloadItem(target, to: destination) { _, _, _ in }
+        try third.downloadItem(target, to: destination) { _, _, _ in }
+        checkEqual(try Data(contentsOf: destination.appendingPathComponent("中文 folder/nested/file.bin")), bytes)
+        checkEqual(try Data(contentsOf: destination.appendingPathComponent(".hidden")), Data("hidden".utf8))
+        checkEqual(fm.fileExists(atPath: destination.appendingPathComponent("empty").path), true)
+        try Data("different".utf8).write(to: nested.appendingPathComponent("file.bin"))
+        checkThrows(try third.uploadItem(source, to: target) { _, _, _ in })
+        checkEqual(try Data(contentsOf: remote.appendingPathComponent("source/中文 folder/nested/file.bin")), bytes)
+        let link = root.appendingPathComponent("link")
+        try fm.createSymbolicLink(at: link, withDestinationURL: source)
+        checkThrows(try third.uploadItem(link, to: remote.appendingPathComponent("link").path) { _, _, _ in })
+        let remoteLink = remote.appendingPathComponent("link")
+        try fm.createSymbolicLink(at: remoteLink, withDestinationURL: source)
+        checkThrows(try third.downloadItem(remoteLink.path, to: root.appendingPathComponent("no-follow")) { _, _, _ in })
+        let localLink = root.appendingPathComponent("local-link")
+        try fm.createSymbolicLink(at: localLink, withDestinationURL: destination)
+        checkThrows(try third.downloadItem(target, to: localLink) { _, _, _ in })
+    }
+
 }

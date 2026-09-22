@@ -840,3 +840,31 @@
 "创建分组后将加入以下两个会话；取消不会更改分组。" = "The following two sessions will join the new group. Cancel leaves groups unchanged.";
 
 "拖入另一个未分组会话以创建分组；双击连接" = "Drop another ungrouped session here to create a group; double-click to connect";
+
+"大小" = "Size";
+
+"断开" = "Disconnect";
+
+"覆盖" = "Replace";
+
+"收回 SFTP 面板" = "Dock SFTP panel";
+
+"弹出 SFTP 窗口" = "Open SFTP window";
+
+"Command / Shift 多选；拖入文件上传，拖到 Finder 下载。" = "Command / Shift to select multiple files. Drop files here to upload; drag to Finder to download.";
+
+"SFTP 已断开，SSH 会话保持连接。" = "SFTP disconnected. The SSH session stays connected.";
+
+"请选择普通文件，批量上传的文件名不能重复。" = "Select regular files with unique names for batch upload.";
+
+"下载目录已有同名文件，是否覆盖？" = "The download folder contains files with the same names. Replace them?";
+
+"SFTP 已断开或正在执行其他操作，请重新拖拽。" = "SFTP disconnected or is performing another operation. Drag again.";
+
+"目标文件已存在，请选择其他名称。" = "The destination already exists. Choose another name.";
+
+"批量上传的文件或目录名称不能重复。" = "Files and folders in a batch must have unique names.";
+
+"下载目录已有同名项目，是否合并目录并覆盖不同的文件？" = "Items with these names already exist. Merge folders and replace files with different contents?";
+
+"目录层级或文件数量超出限制。" = "The directory depth or entry limit was exceeded.";

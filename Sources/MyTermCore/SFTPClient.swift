@@ -227,9 +227,37 @@ public final class SFTPClient {
             return try response.attributes()
         } catch let error as SFTPError where error.code == 2 { return nil }
     }
+    /// Inspect links themselves so recursive transfers never follow a remote symlink.
+    public func attributes(at path: String) throws -> RemoteEntry? { try exists(path) }
+    public func createDirectory(_ path: String) throws {
+        if let existing = try exists(path) {
+            guard existing.isDirectory, !existing.isLink else { throw SFTPError(code: 4, message: "目标不是普通目录：" + path) }
+            return
+        }
+        var payload = Wire(); payload.string(path); payload.put(0)
+        _ = try request(14, payload, expecting: 101)
+    }
+    /// Completed files may be skipped on a directory retry only after byte comparison.
+    public func contentsMatch(_ local: URL, remote: String) throws -> Bool {
+        guard let entry = try exists(remote), !entry.isDirectory, !entry.isLink,
+              let size = entry.size else { return false }
+        let source = try FileHandle(forReadingFrom: local); defer { try? source.close() }
+        guard try source.seekToEnd() == size else { return false }
+        try source.seek(toOffset: 0)
+        let handle = try open(remote, flags: 1); defer { try? closeHandle(handle) }
+        var offset: UInt64 = 0
+        while offset < size {
+            try checkCancelled()
+            guard let bytes = try readChunk(handle, offset: offset),
+                  try source.read(upToCount: bytes.count) == bytes else { return false }
+            offset += UInt64(bytes.count)
+        }
+        return true
+    }
+
     private struct ResumeInfo: Codable, Equatable { var source: String; var size: UInt64; var modified: UInt32?; var sha256: String?; var connection: String? = nil }
 
-    public func download(_ remote: String, to destination: URL, initialTransfer: ((String, URL) throws -> Void)? = nil, progress: (UInt64, UInt64) -> Void) throws {
+    public func download(_ remote: String, to destination: URL, progress: (UInt64, UInt64) -> Void) throws {
         let attributes = try stat(remote)
         guard !attributes.isDirectory, let size = attributes.size else { throw SFTPError(code: 4, message: "请选择普通文件下载。") }
         let identity = SHA256.hash(data: Data(resumeIdentity.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -251,11 +279,7 @@ public final class SFTPClient {
         var offset = try local.seekToEnd()
         guard offset <= size else { throw SFTPError(code: 4, message: "续传临时文件大于远端文件。") }
         progress(offset, size)
-        if offset == 0, let initialTransfer {
-            try checkCancelled(); try initialTransfer(remote, partial); try checkCancelled()
-            offset = try local.seekToEnd()
-            guard offset == size else { throw SFTPError(code: 4, message: "SCP 文件长度不完整，重新选择文件可通过 SFTP 续传。") }
-        }
+
         let handle = try open(remote, flags: 1); var closed = false
         defer { if !closed { try? closeHandle(handle) } }
         progress(offset, size)
@@ -272,7 +296,7 @@ public final class SFTPClient {
         try? fm.removeItem(at: metadata)
     }
 
-    public func upload(_ source: URL, to remote: String, initialTransfer: ((URL, String) throws -> Void)? = nil, progress: (UInt64, UInt64) -> Void) throws {
+    public func upload(_ source: URL, to remote: String, progress: (UInt64, UInt64) -> Void) throws {
         let original = try source.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey])
         guard original.isRegularFile == true else { throw SFTPError(code: 4, message: "请选择普通文件上传。") }
         guard try exists(remote) == nil else { throw SFTPError(code: 4, message: "远端已有同名文件，请指定不同名称；现有文件未被覆盖。") }
@@ -304,11 +328,7 @@ public final class SFTPClient {
         let handle = try open(partial, flags: existing == nil ? (2 | 8 | 32) : 2)
         var closed = false; defer { if !closed { try? closeHandle(handle) } }
         progress(offset, size)
-        if offset == 0, let initialTransfer {
-            try checkCancelled(); try initialTransfer(source, partial); try checkCancelled()
-            offset = try stat(partial).size ?? 0
-            guard offset == size else { throw SFTPError(code: 4, message: "SCP 文件长度不完整，重新选择文件可通过 SFTP 续传。") }
-        }
+
         try local.seek(toOffset: offset); progress(offset, size)
         while offset < size {
             try checkCancelled()

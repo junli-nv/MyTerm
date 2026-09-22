@@ -56,23 +56,7 @@ if CommandLine.arguments.dropFirst().first == "--sftp-ssh", CommandLine.argument
     let downloaded = URL(fileURLWithPath: target + ".download")
     try client.download(target, to: downloaded) { _, _ in }
     guard try Data(contentsOf: source) == Data(contentsOf: downloaded) else { exit(1) }
-    let scp = SCPTransfer(server: server, controlPath: CommandLine.arguments[4], configPath: CommandLine.arguments[3])
-    let scpRemote = target + "-scp"
-    var uploadSamples = 0, downloadSamples = 0
-    try client.upload(source, to: scpRemote, initialTransfer: { local, remote in
-        try scp.transfer(local: local, remote: remote, upload: true) {
-            if (try? client.stat(remote).size) != nil { uploadSamples += 1 }
-        }
-    }) { _, _ in }
-    let scpDownload = downloaded.appendingPathExtension("scp")
-    try client.download(scpRemote, to: scpDownload, initialTransfer: { remote, local in
-        try scp.transfer(local: local, remote: remote, upload: false) {
-            if (try? local.resourceValues(forKeys: [.fileSizeKey]).fileSize) != nil { downloadSamples += 1 }
-        }
-    }) { _, _ in }
-    guard uploadSamples > 0, downloadSamples > 0 else { exit(1) }
-    guard try Data(contentsOf: source) == Data(contentsOf: scpDownload) else { exit(1) }
-    print("PASS: actual SCP upload/download with SFTP staging and finalization")
+
     print("PASS: SFTP over authenticated multiplexed SSH"); exit(0)
 }
 
@@ -133,6 +117,7 @@ let checks: [(String, () throws -> Void)] = [
     ("SSH Include discovery and saved sessions", features.importAndSessions),
     ("Codex read-only MCP, proxy isolation and snapshot cursors", checkCodexIntegration),
     ("Zmodem handshake detection across chunks", features.zmodemDetection),
+    ("Recursive SFTP directories, resume, conflicts and symlinks", features.sftpDirectories),
     ("Real SFTP upload/download interruption and resume", features.sftpResume)
 ]
 for (name, check) in checks {

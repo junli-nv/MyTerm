@@ -89,6 +89,7 @@ final class WindowControlsCheck {
                 do {
                     try SessionTabDragCheck.run(workspace: workspace)
                     try ServerTreeCheck.run()
+                    try SFTPInteractionCheck.run()
                 }
                 catch { fail(error.localizedDescription) }
                 return // Let SwiftUI restore the selected terminal before inspecting geometry.

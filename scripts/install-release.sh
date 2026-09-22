@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/myterm-processes.sh
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' packaging/Info.plist)
 architecture=$(/usr/bin/uname -m)
 release_dir="$PWD/dist/releases/$version"
@@ -27,10 +28,10 @@ mounted=1
 "$python_bin" scripts/verify-app-copy.py "$release_dir/MyTerm.app" "$stage/mounted/MyTerm.app"
 /usr/bin/osascript -e 'tell application "MyTerm" to quit'
 for ((attempt=0; attempt<50; attempt++)); do
-    if ! /usr/bin/pgrep -x MyTerm >/dev/null; then break; fi
+    if ! myterm_gui_running; then break; fi
     sleep 0.2
 done
-if /usr/bin/pgrep -x MyTerm >/dev/null; then echo 'MyTerm did not quit; installation stopped.' >&2; exit 1; fi
+if myterm_gui_running; then echo 'MyTerm did not quit; installation stopped.' >&2; exit 1; fi
 if [[ -d "$target" ]]; then /usr/bin/ditto "$target" "$stage/previous.app"; fi
 replacing=1
 /bin/rm -rf -- "$target"

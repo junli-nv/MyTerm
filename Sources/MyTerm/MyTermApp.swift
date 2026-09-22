@@ -313,7 +313,7 @@ struct WorkspaceView: View {
                     }
                     }
                     Group {
-                        if let session = workspace.selected, session.sftp != nil {
+                        if let session = workspace.selected {
                             TerminalSFTPButton(session: session)
                         } else {
                             Color.clear.accessibilityHidden(true)
@@ -430,12 +430,21 @@ struct TerminalStatusBarButton: View {
     }
 }
 
+/// Observe the session here: its SFTP model arrives after asynchronous SSH setup.
+/// Keep the shortcut present even while the model is being prepared or reconnected.
 struct TerminalSFTPButton: View {
     @ObservedObject var session: TerminalSession
     var body: some View {
-        TabBarButton(symbol: "sidebar.right", tooltip: "展开 / 收起 SFTP 文件面板", identifier: "tabbar.sftp", selected: session.showSFTP) {
-            session.showSFTP.toggle()
-        }.frame(width: 28, height: 28).contentShape(Rectangle())
+        if session.sourceServer != nil {
+            TabBarButton(symbol: "sidebar.right", tooltip: "展开 / 收起 SFTP 文件面板", identifier: "tabbar.sftp", selected: session.showSFTP) {
+                if let model = session.sftp, model.detached {
+                    session.showSFTP = true
+                    model.showWindow()
+                } else { session.showSFTP.toggle() }
+            }.frame(width: 28, height: 28).contentShape(Rectangle())
+        } else {
+            Color.clear.accessibilityHidden(true)
+        }
     }
 }
 
@@ -447,7 +456,7 @@ struct TerminalPane: View {
             HSplitView {
                 TerminalSurface(session: session).frame(minWidth: 300)
                 if session.showSFTP, let sftp = session.sftp {
-                    SFTPPanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
+                    SFTPInlinePanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
                 }
             }
             if let bridge = session.codexExecutionBridge, let target = session.codexTargetSessionID {
