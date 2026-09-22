@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6).
+
 # MyTerm 1.6（Build 125）
 
 - 新增 Codex 只读 MCP 接入，可读取授权 SSH 标签的近期输出、当前屏幕和选中文本，无需保存或下载日志。共享默认关闭，每次启动需重新授权。

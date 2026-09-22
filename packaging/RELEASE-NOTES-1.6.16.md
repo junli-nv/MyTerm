@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.16)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.16).
+
 ## MyTerm 1.6.16（Build 141）
 
 - 安装脚本区分 GUI 和外部 Codex/IDE 持有的 MCP 辅助进程，修复辅助进程导致的“应用未退出”误报；不再要求结束外部适配器。

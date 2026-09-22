@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.7)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.7).
+
 ## MyTerm 1.6.7（Build 132）
 
 - 修复只读状态无法提交排查计划的问题；可在当前 Codex 标签重新授权，无需重新创建标签。

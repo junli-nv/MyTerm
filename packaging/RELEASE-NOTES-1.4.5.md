@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.4.5)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.4.5).
+
 # MyTerm 1.4.5
 
 - 默认关闭自动会话日志，需在设置 → 终端行为明确开启；保留已有历史及手动导出。

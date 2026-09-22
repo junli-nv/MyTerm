@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.4.10)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.4.10).
+
 # MyTerm 1.4.10
 
 - 默认复制合并自动折行，保留真实换行；修正重绘后残留的折行标记，避免独立短行被误拼接。

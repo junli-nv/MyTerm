@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.9)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.9).
+
 ## MyTerm 1.6.9（Build 134）
 
 - 修复 Codex 执行控制每半秒无条件刷新整个界面的问题：只有命令状态或输出变化时才更新，降低历史记录积累后的布局开销。

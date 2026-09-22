@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.6)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.6).
+
 # MyTerm 1.6.6（Build 131）
 
 - 排查计划直接展示，不再要求确认计划。可在同一 Codex 标签点击“取消计划并停止执行”，拒绝待执行命令并撤销执行授权。

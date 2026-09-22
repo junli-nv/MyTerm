@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.8)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.8).
+
 ## MyTerm 1.6.8（Build 133）
 
 - 启动 Codex 标签时可手工设置执行授权时长（1–1440 分钟）和命令额度（1–10000 条），默认 60 分钟、300 条。

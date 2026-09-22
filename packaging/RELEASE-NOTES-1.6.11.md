@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.11)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.11).
+
 ## MyTerm 1.6.11（Build 136）
 
 - SSH 启动依赖有效的 Codex 路径与代理格式；错误时给出返回配置入口。登录自动检查并可完成后继续分析，代理测试不作为硬性前提。配置修改使相关旧检查结果失效，已运行标签保持不变。

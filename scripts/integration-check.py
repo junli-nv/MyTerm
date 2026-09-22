@@ -20,10 +20,10 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_APP = Path(os.environ.get('MYTERM_TEST_APP', str(ROOT / 'dist/MyTerm.app')))
-CHECKS = ROOT / '.build/arm64-apple-macosx/debug/MyTermChecks'
-if not CHECKS.exists():
-    candidates = list((ROOT / '.build').glob('*/debug/MyTermChecks'))
-    CHECKS = candidates[0]
+CONFIGURATION = os.environ.get('MYTERM_TEST_CONFIGURATION', 'debug')
+if CONFIGURATION not in ('debug', 'release'):
+    raise ValueError('Invalid build configuration')
+CHECKS = ROOT / '.build' / CONFIGURATION / 'MyTermChecks'
 
 def run(args, **kwargs):
     return subprocess.check_output(args, timeout=30, **kwargs)
@@ -33,7 +33,7 @@ def console_escape_check(root, arguments, wrapped):
     helper.write_text("import os, tty\ntty.setraw(0)\nos.write(1,b'CONSOLE_READY')\ndata=b''\nwhile len(data)<3: data+=os.read(0,3-len(data))\nos.write(1,b'RECEIVED:'+data.hex().encode())\nassert data==b'~.\\r', data\nassert os.read(0,1)==b'q'\nos.write(1,b'CONSOLE_DONE')\n")
     command = ['/usr/bin/ssh', '-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ClearAllForwardings=yes'] + arguments + [shlex.join([sys.executable, str(helper)])]
     if wrapped:
-        command = [str(ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz'), '--dragfile'] + command
+        command = [str(TEST_APP / 'Contents/MacOS/trzsz'), '--dragfile'] + command
     master, slave = pty.openpty()
     process = subprocess.Popen(command, stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
     os.close(slave)
@@ -251,7 +251,7 @@ Host *
                 with open(logpath, 'wb') as log:
                     ssh_command = ['/usr/bin/ssh', '-N'] + launch['arguments']
                     if os.environ.get('MYTERM_TRZSZ_CHECK') == '1':
-                        ssh_command = [str(ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz'), '--dragfile'] + ssh_command
+                        ssh_command = [str(TEST_APP / 'Contents/MacOS/trzsz'), '--dragfile'] + ssh_command
                     master = subprocess.Popen(ssh_command, stdin=subprocess.PIPE if os.environ.get('MYTERM_TRZSZ_CHECK') == '1' else subprocess.DEVNULL, stdout=log, stderr=log)
                     try:
                         for _ in range(200):
@@ -268,7 +268,7 @@ Host *
                         print(f'PASS: {mode}: SSH, compression, L/R/D forwarding, multiplexed SFTP', flush=True)
                         if mode == 'direct':
                             console_escape_check(root, launch['arguments'], False)
-                            if (ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz').is_file():
+                            if (TEST_APP / 'Contents/MacOS/trzsz').is_file():
                                 console_escape_check(root, launch['arguments'], True)
                         if mode == 'direct' and os.environ.get('MYTERM_TMUX_CHECK') == '1':
                             tmux = shutil.which('tmux')

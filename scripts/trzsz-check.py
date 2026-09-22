@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Real bundled trzsz over PTYs and tmux; chooser responses are isolated test fixtures."""
-import fcntl, os, pathlib, pty, select, shlex, shutil, signal, struct, subprocess, tempfile, termios, time
+import fcntl, os, platform, pathlib, pty, select, shlex, shutil, signal, struct, subprocess, tempfile, termios, time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-HELPER = ROOT / 'dist/MyTerm.app/Contents/MacOS/trzsz'
-TOOLS = ROOT / 'vendor/trzsz/1.2.0/arm64'
+APP = pathlib.Path(os.environ.get('MYTERM_TEST_APP', str(ROOT / 'dist/MyTerm.app')))
+HELPER = APP / 'Contents/MacOS/trzsz'
+TOOLS = ROOT / 'vendor/trzsz/1.2.0' / platform.machine()
 TMUX = shutil.which('tmux')
 assert TMUX and HELPER.exists()
 # Do not let test downloads follow a user's configured save directory.

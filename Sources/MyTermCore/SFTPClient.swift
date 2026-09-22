@@ -240,7 +240,12 @@ public final class SFTPClient {
     /// Completed files may be skipped on a directory retry only after byte comparison.
     public func contentsMatch(_ local: URL, remote: String) throws -> Bool {
         guard let entry = try exists(remote), !entry.isDirectory, !entry.isLink,
+              entry.permissions.map({ $0 & 0o170000 == 0o100000 }) ?? true,
               let size = entry.size else { return false }
+        let localType = try local.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard localType.isRegularFile == true, localType.isSymbolicLink != true else {
+            throw SFTPError(code: 4, message: "不支持此文件类型：" + local.path)
+        }
         let source = try FileHandle(forReadingFrom: local); defer { try? source.close() }
         guard try source.seekToEnd() == size else { return false }
         try source.seek(toOffset: 0)
@@ -265,6 +270,12 @@ public final class SFTPClient {
         let partial = destination.deletingLastPathComponent().appendingPathComponent(".\(destination.lastPathComponent).myterm-part")
         let metadata = partial.appendingPathExtension("json")
         let fm = FileManager.default
+        for file in [partial, metadata] {
+            let type = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard type?.isSymbolicLink != true, type == nil || type?.isRegularFile == true else {
+                throw SFTPError(code: 4, message: "不支持此文件类型：" + file.path)
+            }
+        }
         if fm.fileExists(atPath: partial.path) || fm.fileExists(atPath: metadata.path) {
             guard let saved = try? JSONDecoder().decode(ResumeInfo.self, from: Data(contentsOf: metadata)), saved == info,
                   fm.fileExists(atPath: partial.path),
@@ -311,6 +322,13 @@ public final class SFTPClient {
         var offset: UInt64 = 0
         let existing = try exists(partial)
         let existingMetadata = try exists(metadata)
+        for (path, entry) in [(partial, existing), (metadata, existingMetadata)] {
+            guard let entry else { continue }
+            guard !entry.isLink, !entry.isDirectory,
+                  entry.permissions.map({ $0 & 0o170000 == 0o100000 }) ?? true else {
+                throw SFTPError(code: 4, message: "不支持此文件类型：" + path)
+            }
+        }
         if existing != nil || existingMetadata != nil {
             let metaHandle = try open(metadata, flags: 1); defer { try? closeHandle(metaHandle) }
             guard let data = try readChunk(metaHandle, offset: 0),

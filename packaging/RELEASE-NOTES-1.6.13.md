@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.13)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.13).
+
 ## MyTerm 1.6.13（Build 138）
 
 - MCP 计划、命令提交及状态查询返回当前 UI 授权模式，明确本会话始终允许可替代旧启动提示中的默认逐条确认；保留用户独立提出的限制。

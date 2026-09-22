@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import MyTermCore
 
 final class FeatureTests {
@@ -200,6 +201,31 @@ final class FeatureTests {
         let localLink = root.appendingPathComponent("local-link")
         try fm.createSymbolicLink(at: localLink, withDestinationURL: destination)
         checkThrows(try third.downloadItem(target, to: localLink) { _, _, _ in })
+        let empty = root.appendingPathComponent("empty-file")
+        try Data().write(to: empty)
+        let remoteFIFO = remote.appendingPathComponent("fifo")
+        checkEqual(mkfifo(remoteFIFO.path, 0o600), 0)
+        let specialStarted = Date()
+        checkThrows(try third.uploadItem(empty, to: remoteFIFO.path) { _, _, _ in })
+        let localFIFO = root.appendingPathComponent("local-fifo")
+        checkEqual(mkfifo(localFIFO.path, 0o600), 0)
+        checkThrows(try third.downloadItem(target + "/.hidden", to: localFIFO) { _, _, _ in })
+        let partial = root.appendingPathComponent(".partial.myterm-part")
+        checkEqual(mkfifo(partial.path, 0o600), 0)
+        checkThrows(try third.downloadItem(target + "/.hidden", to: root.appendingPathComponent("partial")) { _, _, _ in })
+        let remotePartial = remote.appendingPathComponent("partial.myterm-part")
+        checkEqual(mkfifo(remotePartial.path, 0o600), 0)
+        checkThrows(try third.uploadItem(empty, to: remote.appendingPathComponent("partial").path) { _, _, _ in })
+        let localMetadata = root.appendingPathComponent(".metadata.myterm-part.json")
+        checkEqual(mkfifo(localMetadata.path, 0o600), 0)
+        checkThrows(try third.downloadItem(target + "/.hidden", to: root.appendingPathComponent("metadata")) { _, _, _ in })
+        let remoteMetadata = remote.appendingPathComponent("metadata.myterm-part.json")
+        checkEqual(mkfifo(remoteMetadata.path, 0o600), 0)
+        checkThrows(try third.uploadItem(empty, to: remote.appendingPathComponent("metadata").path) { _, _, _ in })
+        checkEqual(Date().timeIntervalSince(specialStarted) < 5, true)
+        // Rejection must not poison the connection or replace existing special files.
+        checkEqual(try third.attributes(at: remoteFIFO.path)?.permissions.map { $0 & 0o170000 }, 0o010000)
+        checkEqual(try third.list(target).isEmpty, false)
     }
 
 }

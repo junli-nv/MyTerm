@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.3)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.3).
+
 # MyTerm 1.6.3（Build 128）
 
 - 修复 Codex MCP 启动路径错误：Foundation 的 JSON 编码将路径斜杠转义为 TOML 不接受的形式，导致 required MCP 初始化报 No such file or directory，Codex 随后以 exit=1 退出。

@@ -53,10 +53,19 @@ enum SFTPInteractionCheck {
         window.isReleasedWhenClosed = false; window.contentView = host; window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1)); host.layoutSubtreeIfNeeded()
+        host.layoutSubtreeIfNeeded()
         guard let table = descendants(host).compactMap({ $0 as? SFTPTableView }).first,
               let coordinator = table.delegate as? SFTPFileTable.Coordinator else {
             throw ConfigurationError.invalid("SFTP native table missing")
+        }
+        // SwiftUI publication and AppKit activation are asynchronous. Wait for
+        // observable readiness instead of assuming a 100 ms delay is sufficient.
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        try wait {
+            host.layoutSubtreeIfNeeded()
+            return window.isKeyWindow && coordinator.entries == model.entries
+                && table.numberOfRows == files.count && table.visibleRect.height > table.rowHeight
         }
         func click(_ row: Int, flags: NSEvent.ModifierFlags = []) {
             let rect = table.rect(ofRow: row)

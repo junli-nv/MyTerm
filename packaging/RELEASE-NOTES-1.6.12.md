@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.12)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.12).
+
 ## MyTerm 1.6.12（Build 137）
 
 - Codex SSH 执行支持“每条命令确认”和“本会话始终允许”，可在当前标签或执行控制窗口随时切换；默认仍为逐条确认。

@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.14)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.14).
+
 ## MyTerm 1.6.14（Build 139）
 
 - 支持拖动 SSH、本地 Shell 和 Codex 标签的标题调整顺序；向左拖到目标标签前，向右拖到目标标签后，松开鼠标时完成移动。

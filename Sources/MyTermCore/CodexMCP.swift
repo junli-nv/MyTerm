@@ -1,7 +1,7 @@
 import Foundation
 import Darwin
 
-/// A small read-only MCP stdio adapter. Terminal data stays in the running app;
+/// A bounded MCP stdio adapter; reads and separately authorized execution stay in the running app.
 /// the existing authenticated, same-user Unix channel carries bounded requests.
 public enum CodexMCP {
     public static var descriptorURL: URL {

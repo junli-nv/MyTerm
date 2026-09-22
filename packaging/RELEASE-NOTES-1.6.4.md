@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.4)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.4).
+
 # MyTerm 1.6.4（Build 129）
 
 - 新增按 SSH 标签明确授权的 Codex 命令执行，默认仍为只读。复用已认证 SSH 连接上的独立非交互通道，与 Codex 代理隔离，不共享终端目录、环境变量或 tmux 状态。

@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.5)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.5).
+
 # MyTerm 1.5（Build 122）
 
 - SSH 密码管理支持自定义名称，更新密码后保留名称，偏好设置备份包含密码名称。

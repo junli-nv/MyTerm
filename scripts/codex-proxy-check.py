@@ -104,7 +104,7 @@ for scheme in ('http', 'socks5h'):
                     assert exact(client, 18) == b'SSH_PROXY_FIXTURE!'
                     client.sendall(b'SSH_PROXY_OK')
             ssh_worker = threading.Thread(target=ssh_proxy, daemon=True); ssh_worker.start()
-            helper = next((Path(__file__).resolve().parents[1] / '.build').glob('*/debug/MyTermProxy'))
+            helper = next((Path(__file__).resolve().parents[1] / '.build').glob('*/' + os.environ.get('MYTERM_TEST_CONFIGURATION', 'debug') + '/MyTermProxy'))
             result = subprocess.run([str(helper), 'http', '127.0.0.1', str(ssh_listener.getsockname()[1]), 'ssh-fixture.invalid', '22'],
                                     input=b'SSH_PROXY_FIXTURE!', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=environment, timeout=5)
             ssh_worker.join(4)

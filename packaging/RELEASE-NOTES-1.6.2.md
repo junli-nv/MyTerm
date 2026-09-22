@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.2)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.2).
+
 # MyTerm 1.6.2（Build 127）
 
 - 启动 Codex 分析前检查已有登录；需要认证时，登录成功后自动继续原先选定的 SSH 分析任务。

@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.4.12)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.4.12).
+
 # MyTerm 1.4.12
 
 - SSH 断开后保留普通历史及全屏程序最后画面，恢复显示模式并显示 R/r 重连提示。

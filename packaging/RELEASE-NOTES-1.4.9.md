@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.4.9)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.4.9).
+
 # MyTerm 1.4.9
 
 - 修正 1.4.8 在全屏终端复制时强制插入屏幕换行的行为，默认恢复自动折行合并。

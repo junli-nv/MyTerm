@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.6.15)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.6.15).
+
 ## MyTerm 1.6.15（Build 140）
 
 - SSH 侧栏采用文件夹树展示，子会话缩进并显示层级引导线；分组及未分组可展开、折叠，搜索时自动展示匹配子项。

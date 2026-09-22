@@ -49,10 +49,19 @@ public final class CodexCommandProcess {
         process.standardOutput = pipe; process.standardError = pipe
         try process.run()
         DispatchQueue.global().async { [self] in
-            while let data = try? pipe.fileHandleForReading.read(upToCount: 16384), !data.isEmpty {
+            var buffer = [UInt8](repeating: 0, count: 16384)
+            while true {
+                // Return the available bytes promptly, without Foundation waiting
+                // to fill the requested chunk while a command is still running.
+                let count = Darwin.read(pipe.fileHandleForReading.fileDescriptor, &buffer, buffer.count)
+                if count < 0 && errno == EINTR { continue }
+                if count <= 0 {
+                    if count < 0 { lock.lock(); truncated = true; lock.unlock() }
+                    break
+                }
                 lock.lock()
                 let room = max(0, 1048576 - bytes.count)
-                bytes.append(data.prefix(room)); truncated = truncated || data.count > room
+                bytes.append(contentsOf: buffer.prefix(min(room, count))); truncated = truncated || count > room
                 lock.unlock()
             }
             process.waitUntilExit()
@@ -85,16 +94,7 @@ public final class CodexCommandProcess {
     public func snapshot(offset: Int) throws -> [String: Any] {
         lock.lock(); defer { lock.unlock() }
         guard offset >= 0, offset <= bytes.count else { throw ConfigurationError.invalid("Invalid output offset") }
-        var end = min(bytes.count, offset + 2048)
-        // Keep UTF-8 codepoints together where possible; invalid remote bytes are replaced.
-        if end < bytes.count { while end > offset && bytes[end] & 0xc0 == 0x80 { end -= 1 } }
-        if state == "running", end == bytes.count, end > offset {
-            var lead = end - 1
-            while lead > offset && bytes[lead] & 0xc0 == 0x80 { lead -= 1 }
-            let first = bytes[lead]
-            let length = first & 0xf8 == 0xf0 ? 4 : first & 0xf0 == 0xe0 ? 3 : first & 0xe0 == 0xc0 ? 2 : 1
-            if end - lead < length { end = lead }
-        }
+        let end = CommandOutputPage.end(in: bytes, from: offset, limit: 2048, running: state == "running")
         return ["state": state, "output": String(decoding: bytes[offset..<end], as: UTF8.self),
                 "next_offset": end, "total_bytes": bytes.count, "truncated": truncated,
                 "incomplete": truncated || cancelled,

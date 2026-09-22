@@ -1,3 +1,6 @@
+> 历史版本说明：内容仅适用于此版本。当前用法见 [中文指南](../README.md)；[本版本英文摘要](../CHANGELOG.en.md#version-1.4.8)。
+> Historical release notes: details apply only to this version. See the [current English guide](../README.en.md) and [English summary](../CHANGELOG.en.md#version-1.4.8).
+
 # MyTerm 1.4.8
 
 - 全屏程序（含 tmux/less）复制默认保留屏幕行，避免重绘造成的折行标记将多行合并。
