@@ -37,6 +37,25 @@ final class HistoryModel: ObservableObject {
         permissionLock.unlock()
         if changed { queue.async { self.lastDigest[id] = nil } }
     }
+    /// Enqueue after the final snapshot. Queued saves/deletions retain their
+    /// permissions and tombstones until they finish; closed UUIDs then disappear.
+    func forgetSession(_ id: UUID) {
+        queue.async { [self] in
+            lastDigest[id] = nil
+            known.remove(id)
+            excluded.remove(id)
+            permissionLock.lock()
+            overrides[id] = nil
+            permissionLock.unlock()
+        }
+    }
+
+    var retainedSessionMetadataCount: Int {
+        queue.sync {
+            permissionLock.lock(); defer { permissionLock.unlock() }
+            return known.union(excluded).union(lastDigest.keys).union(overrides.keys).count
+        }
+    }
     private func mayWrite(_ id: UUID) -> Bool {
         permissionLock.lock(); defer { permissionLock.unlock() }
         return validPolicy && (overrides[id] ?? .inherit).resolves(global: globalEnabled)
@@ -114,7 +133,7 @@ final class HistoryModel: ObservableObject {
     func deleteSelected() {
         guard let id = selectedID else { return }
         queue.async { [self] in
-            excluded.insert(id) // Do not recreate an explicitly deleted open session.
+            if known.contains(id) { excluded.insert(id) } // Open sessions must not recreate deleted logs.
             do {
                 try repository.delete(id); lastDigest[id] = nil
                 DispatchQueue.main.async { self.refresh() }
@@ -132,7 +151,7 @@ final class HistoryModel: ObservableObject {
         queue.async { [self] in
             do {
                 let deleted = try repository.clean(before: cutoff)
-                excluded.formUnion(deleted)
+                excluded.formUnion(deleted.intersection(known))
                 if !olderOnly { excluded.formUnion(known) }
                 lastDigest.removeAll()
                 DispatchQueue.main.async { self.refresh() }

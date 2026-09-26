@@ -2,6 +2,8 @@
 
 [简体中文](README.md) · English
 
+Author: Junli Zhang · [GitHub](https://github.com/junli-nv)
+
 [Repository](https://github.com/junli-nv/MyTerm) · [Download](https://github.com/junli-nv/MyTerm/releases/latest) · [Release history](CHANGELOG.en.md)
 
 A native macOS SSH workspace built with SwiftUI/AppKit, SwiftTerm and system OpenSSH. It supports local Bash, SSH tabs, session groups, file transfers and Codex integration authorized per SSH session.
@@ -119,9 +121,11 @@ Configured ProxyJump chains retain their routing. When manually SSHing onward fr
 
 ## Codex integration
 
-Open **MyTerm → Codex Integration**. **Codex Configuration** contains CLI path, login, independent proxy tests and external MCP registration. **SSH Session Access** controls session selection, history scope, monitoring and execution authorization.
+Codex tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
 
-Start a Codex tab and select an open SSH session. Access is read-only by default and continuous monitoring is off until explicitly selected; monitoring can consume model quota. History supports configurable scopes and pagination, but cannot recover text already removed from the terminal buffer. Disk logging is not required.
+Open **MyTerm → Codex Integration**. **Codex Configuration** contains CLI path, login, independent proxy tests and external MCP registration. **SSH Session Access** controls session selection, history scope and execution authorization.
+
+Start a Codex tab and select an open SSH session. Access is read-only by default. Output is read on demand, without automatic background monitoring. Authorized multi-step command troubleshooting and explicitly requested periodic checks with a defined interval/count remain available. History supports configurable scopes and pagination, but cannot recover text already removed from the terminal buffer. Disk logging is not required.
 
 SSH execution requires separate authorization with an adjustable duration and command budget; renew in the same tab when exhausted. Commands require individual approval by default. Switch to **Always allow for this session**, or back to per-command approval, at any time. Revocation/expiry clears persistent permission. Plans can be expanded, hidden or cancelled. MyTerm executes commands through an independent channel and requires complete output delivery before the next command; that channel does not share the terminal's working directory, environment or tmux state.
 
@@ -167,6 +171,8 @@ New PTYs use `xterm-256color` and clear inherited TMUX, TMUX_PANE, LINES and COL
 Layout updates are coalesced, zero sizes ignored and dimensions measured in AppKit logical points. Lock Size in the bottom bar holds terminal dimensions while resizing or toggling panels; smaller windows can scroll the terminal region. Disable it to resume automatic sizing. Font changes still affect rows/columns; the setting does not control other remote tmux clients or conferencing capture behavior.
 
 ## History and logs
+
+Scrollback has a separate global memory budget: **256 MiB** by default, shared equally across all terminal tabs, including retained exited tabs. Set **Settings → Terminal Behavior → History memory budget** to 16–16,384 MiB, or **0** to use only the line limit. Capacity is estimated from row width and character storage cost and also respects the per-session line limit. This is not a hard limit on process memory; visible screens, images and UI are excluded. Opening more tabs, widening windows or lowering the budget may discard oldest scrollback permanently. Existing disk logs are unaffected, and disabling logging does not disable in-memory scrollback.
 
 **Disk logging is off by default.** Configure the global default under Terminal Behavior, or choose inherit/always save/do not save in an SSH configuration or tab menu.
 

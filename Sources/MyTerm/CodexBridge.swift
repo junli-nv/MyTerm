@@ -5,9 +5,13 @@ import MyTermCore
 
 final class CodexBridge: ObservableObject {
     @Published private(set) var enabled = false
-    @Published var allowed = Set<UUID>() { didSet { cache.clear(); historyPages.clear(); monitored.formIntersection(allowed); reconcileExecution() } }
-    @Published private(set) var monitored = Set<UUID>()
-    func stopMonitoring(_ id: UUID) { monitored.remove(id); cache.clear() }
+    @Published var allowed = Set<UUID>() {
+        didSet {
+            // Adding a second association must not invalidate the first one's cursor.
+            if !oldValue.isSubset(of: allowed) { cache.clear(); historyPages.clear() }
+            reconcileExecution()
+        }
+    }
     @Published var message = ""
     @Published private(set) var loginStatus = "尚未检查登录状态"
     @Published private(set) var checkingLogin = false
@@ -341,13 +345,10 @@ final class CodexBridge: ObservableObject {
             guard let cursor = arguments["cursor"] as? String else { throw ConfigurationError.invalid("Missing history cursor") }
             return try historyPages.page(session: id, cursor: cursor)
         }
-        if name == "watch_output", !monitored.contains(session.id) || !session.isRunning {
-            monitored.remove(session.id)
-            return ["stopped": true, "connected": session.isRunning, "session_id": id, "text": ""]
+        if name == "watch_output" {
+            return ["stopped": true, "session_id": id, "text": "", "notice": "Continuous monitoring was removed. Do not retry or replace it with a polling loop."]
         }
-        let requestedMode = arguments["view"] as? String ?? (name == "watch_output" ? "auto" : "history")
-        let mode = requestedMode == "auto" && name == "watch_output"
-            ? (session.terminal.getTerminal().isCurrentBufferAlternate ? "screen" : "history") : requestedMode
+        let mode = arguments["view"] as? String ?? "history"
         guard ["history", "screen", "selection"].contains(mode) else { throw ConfigurationError.invalid("Invalid view") }
         func integer(_ key: String, fallback: Int, range: ClosedRange<Int>) throws -> Int {
             guard let raw = arguments[key] else { return fallback }
@@ -413,13 +414,15 @@ final class CodexBridge: ObservableObject {
         guard path.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: path) else { throw ConfigurationError.invalid("请选择可执行的 Codex CLI 文件。") }
         return path
     }
-    func prepareSession(_ id: UUID, monitor: Bool = false) throws -> String {
+    func prepareSession(_ id: UUID, includeHistory: Bool = false) throws -> String {
         guard enabled, workspace?.sessions.contains(where: { $0.id == id && $0.server != nil }) == true else {
             throw ConfigurationError.invalid("请选择一个仍然打开的 SSH 会话。")
         }
         allowed.insert(id)
-        if monitor { monitored.insert(id) }
-        return CodexConnection.sessionPrompt(id: id, monitor: monitor, historyRows: historyRows, historyBytes: historyBytes)
+        // Freeze a local baseline without sending pre-association output to Codex.
+        let view = workspace?.sessions.first(where: { $0.id == id })?.terminal.getTerminal().isCurrentBufferAlternate == true ? "screen" : "history"
+        let baseline = includeHistory ? nil : try read("read_output", arguments: ["session_id": id.uuidString, "view": view, "max_lines": 200, "max_bytes": 8192])["cursor"] as? String
+        return CodexConnection.sessionPrompt(id: id, historyRows: historyRows, historyBytes: historyBytes, includeHistory: includeHistory, startingCursor: baseline, startingView: view)
     }
     func checkLogin(loginIfNeeded: Bool = false, onReady: (() -> Void)? = nil) {
         guard !busy else { return }
@@ -465,13 +468,13 @@ final class CodexBridge: ObservableObject {
             }
         } catch { checkingLogin = false; message = error.localizedDescription; loginStatus = L10n.text("登录检查失败：") + error.localizedDescription }
     }
-    func launch(login: Bool = false, sessionID: UUID? = nil, monitor: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
+    func launch(login: Bool = false, sessionID: UUID? = nil, includeHistory: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
         if !login, let issue = configurationIssue { message = issue; return }
         if checkSavedLogin {
             if login { checkLogin(loginIfNeeded: true) }
             else {
                 checkLogin(loginIfNeeded: true) { [weak self] in
-                    self?.launch(sessionID: sessionID, monitor: monitor, execute: execute, limits: limits, checkSavedLogin: false)
+                    self?.launch(sessionID: sessionID, includeHistory: includeHistory, execute: execute, limits: limits, checkSavedLogin: false)
                 }
             }
             return
@@ -490,7 +493,7 @@ final class CodexBridge: ObservableObject {
             let app = Bundle.main.executableURL!.path
             var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
             if !login, let sessionID {
-                let prompt = try prepareSession(sessionID, monitor: monitor)
+                let prompt = try prepareSession(sessionID, includeHistory: includeHistory)
                 if execute {
                     try (limits ?? CodexExecutionLimits()).validate()
                     revokeExecution(sessionID); try grantExecution(sessionID, limits: limits)

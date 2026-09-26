@@ -32,27 +32,21 @@ func checkCodexIntegration() throws {
     checkEqual(Array(args.prefix(2)), CodexConnection.authenticationArguments)
     checkEqual(args.contains("mcp_servers.myterm.args=[\"--myterm-mcp\"]"), true)
     let id = UUID()
-    let once = CodexConnection.sessionPrompt(id: id, monitor: false)
+    let once = CodexConnection.sessionPrompt(id: id)
     checkEqual(once.contains(id.uuidString), true)
     checkEqual(once.contains("Continuously monitor"), false)
-    checkEqual(CodexConnection.sessionPrompt(id: id, monitor: true).contains("stopped=true"), true)
-    var clock: TimeInterval = 0, probes = 0
-    let waited = try CodexMCP.watch(arguments: ["session_id": id.uuidString, "cursor": "initial"], call: { name, args in
-        checkEqual(name, "watch_output")
-        checkEqual(args["cursor"] as? String, probes == 0 ? "initial" : "next")
-        probes += 1
-        return ["unchanged": probes < 3, "cursor": "next", "text": probes < 3 ? "" : "new output"]
-    }, pause: { clock += $0 }, now: { clock })
-    checkEqual(probes, 3); checkEqual(clock, 4)
-    checkEqual(waited["text"] as? String, "new output")
-    probes = 0; clock = 0
-    _ = try CodexMCP.watch(arguments: [:], call: { _, _ in probes += 1; return ["unchanged": true, "cursor": "idle"] }, pause: { clock += $0 }, now: { clock })
-    checkEqual(clock, 20); checkEqual(probes, 11)
-    probes = 0
-    _ = try CodexMCP.watch(arguments: [:], call: { _, _ in probes += 1; return ["stopped": true, "unchanged": true] }, pause: { _ in fatalError("Stopped monitor waited") })
-    checkEqual(probes, 1)
+    checkEqual(once.contains("First call capture_history"), false)
+    checkEqual(once.contains("wait for my task"), true)
+    checkEqual(once.contains("all_output_delivered=true"), true)
+    checkEqual(CodexConnection.sessionPrompt(id: id, includeHistory: true).contains("First call capture_history"), true)
+    checkEqual(CodexMCP.tools.contains { $0["name"] as? String == "watch_output" }, false)
+    let retired = CodexMCP.response(["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": "watch_output"]]) { _, _ in
+        fail("Removed monitor contacted the application")
+    }
+    let retiredText = ((retired?["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String ?? ""
+    checkEqual(retiredText.contains("\"stopped\":true"), true)
     checkEqual(args.contains("mcp_servers.myterm.required=true"), true)
-    for tool in ["list_sessions", "read_output", "watch_output", "capture_history", "read_history_page"] {
+    for tool in ["list_sessions", "read_output", "capture_history", "read_history_page"] {
         checkEqual(args.contains("mcp_servers.myterm.tools.\(tool).approval_mode=\"approve\""), true)
     }
     checkEqual(args.contains("never"), false)

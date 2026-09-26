@@ -192,6 +192,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Load the bundled artwork directly, avoiding a stale Launch Services icon.
         var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
         if let applicationIcon { options[.applicationIcon] = applicationIcon }
+        let credits = NSMutableAttributedString(string: "Junli Zhang\n", attributes: [.font: NSFont.systemFont(ofSize: 13)])
+        credits.append(NSAttributedString(string: "github.com/junli-nv", attributes: [
+            .link: URL(string: "https://github.com/junli-nv")!,
+            .font: NSFont.systemFont(ofSize: 12)
+        ]))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        credits.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: credits.length))
+        options[.credits] = credits
         NSApp.orderFrontStandardAboutPanel(options: options)
     }
     @objc private func newTerminal() { workspace.newLocal() }

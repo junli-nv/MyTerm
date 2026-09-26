@@ -868,3 +868,13 @@
 "下载目录已有同名项目，是否合并目录并覆盖不同的文件？" = "Items with these names already exist. Merge folders and replace files with different contents?";
 
 "目录层级或文件数量超出限制。" = "The directory depth or entry limit was exceeded.";
+
+/* Scrollback memory budget */
+"历史内存预算（MiB）" = "History memory budget (MiB)";
+"默认 256 MiB，在所有终端标签间均分；0 表示仅限制行数。按字符行内存估算，不是应用总内存上限，不含当前屏幕、图片和界面。预算不足时丢弃最旧回看内容；新建标签、加宽窗口或降低预算可能触发清理，不影响已有磁盘日志。" = "Default: 256 MiB shared equally across terminal tabs; 0 uses only the line limit. Estimates character-row memory, not total app memory; visible screens, images and UI are excluded. Oldest scrollback is discarded when capacity is exceeded. Opening tabs, widening windows or reducing the budget may trim history; existing disk logs are unaffected.";
+"历史内存预算须为 0 或 16–16,384 MiB。" = "History memory budget must be 0 or 16–16,384 MiB.";
+"接入时读取已有输出" = "Read existing output when connecting";
+"默认关闭：接入后等待你的任务，从后续命令开始分析。需要回溯排查时再开启；不影响执行命令的完整输出读取。" = "Off by default: wait for your task and analyze subsequent commands. Enable for historical analysis; complete output from executed commands remains available.";
+"启动时选择 SSH 会话、是否回溯已有输出和执行授权。确认后开启接入，成功创建分析标签后关闭本窗口；可再次打开此入口创建其他分析标签。" = "Choose an SSH session, optional history review and execution authorization at launch. Access starts on confirmation and this window closes after the analysis tab opens; reopen it to create another tab.";
+"这是所有 Codex 客户端的 SSH 接入总开关，开启不会自动授权会话；关闭会立即撤销全部读取及执行权限。退出应用后默认关闭。" = "This is the SSH access switch for all Codex clients. Enabling it does not authorize sessions automatically; disabling it revokes all read and execution permissions. It is off after restarting MyTerm.";
+"确认启动即允许 Codex 按任务需要读取所选 SSH 标签。默认不回溯已有输出。" = "Confirming allows Codex to read the selected SSH tab as needed for your task. Earlier output is not read by default.";

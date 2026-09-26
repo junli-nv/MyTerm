@@ -4,6 +4,12 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.0"></a>
+
+## MyTerm 3.0
+
+Drain and release exited PTYs, clean closed-session history metadata, add a configurable shared scrollback memory budget, and make initial Codex history analysis opt-in, and remove continuous monitoring. See [release notes](packaging/RELEASE-NOTES-3.0.md).
+
 <a id="version-2.0"></a>
 
 ## MyTerm 2.0

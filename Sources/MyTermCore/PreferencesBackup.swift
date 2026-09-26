@@ -7,7 +7,7 @@ public struct PreferencesBackup: Codable {
     public var files: [String: Data]
     public var preferences: Data
     public init(files: [String: Data], preferences: Data) { self.files = files; self.preferences = preferences }
-    public static let preferenceKeys = ["terminal.history", "terminal.theme", "terminal.outputHighlight", "mouse.rightClickPastes", "mouse.copyOnSelection", "terminal.disableBell", "layout.sidebarHidden", "interface.language", "AppleLanguages"]
+    public static let preferenceKeys = ["terminal.history", "terminal.historyMemoryMiB", "terminal.theme", "terminal.outputHighlight", "mouse.rightClickPastes", "mouse.copyOnSelection", "terminal.disableBell", "layout.sidebarHidden", "interface.language", "AppleLanguages"]
     private struct Envelope: Codable { var version: Int; var salt: Data; var sealed: Data }
     private static func key(_ passphrase: String, salt: Data) throws -> SymmetricKey {
         guard !passphrase.isEmpty, passphrase.utf8.count <= 4096, salt.count == 16 else { throw ConfigurationError.invalid("备份口令或盐值无效。") }

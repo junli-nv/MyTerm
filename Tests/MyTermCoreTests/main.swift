@@ -113,6 +113,8 @@ let checks: [(String, () throws -> Void)] = [
     ("Configuration round trip and corruption", serverTests.testRepositoryRoundTripAndCorruption),
     ("Bash PTY input, Unicode, size and exit", ptyTests.testBashPTYInputOutputSizeAndExit),
     ("Interactive shell closes and is reaped", ptyTests.testCloseReapsInteractiveShell),
+    ("Retained PTYs close after drain, EOF-before-exit and 100 cycles", ptyTests.testRetainedExitResources),
+    ("Child ignoring HUP and TERM is closed and reaped", ptyTests.testUncooperativeChildCleanup),
     ("Compression, authentication, proxies, jumps and forwards", features.connectionOptions),
     ("SSH Include discovery and saved sessions", features.importAndSessions),
     ("Codex read-only MCP, proxy isolation and snapshot cursors", checkCodexIntegration),

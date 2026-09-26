@@ -39,8 +39,9 @@ The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. 
 | tmux, copying, IME, font zoom, reconnect | Window checks and real SSH/tmux, including less replay, streaming selection and R/r |
 | Themes, colors, opacity, fonts, six settings tabs, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
 | Password/key management, references, deletion approval, backup | Core encryption/tampering/format tests and bilingual credential UI checks |
-| History opt-in, limits, compression, cleanup, export | Core history policy and window checks |
-| Codex reads, pagination, monitoring, execution approval/renewal/revocation | Core protocol and window MCP/private socket checks; real SSH independent execution channel |
+| History opt-in, limits, compression, cleanup, export, memory budget and metadata release | Core/history window checks; 200 metadata cleanup cycles, shared budgets, width changes and opt-out |
+| PTY lifecycle | 100 retained exited objects, 2 MiB final output, EOF before exit, restart and HUP/TERM-ignoring child cleanup |
+| Codex reads, pagination, retired-monitor compatibility, execution approval/renewal/revocation | Core protocol and window MCP/private socket checks; real SSH independent execution channel |
 | Codex login continuation, MCP paths, proxy isolation | Simulated PTY login, real CLI argument parsing, HTTP/SOCKS5 synthetic HTTPS targets |
 | X11 forwarding | `x11-check.py`: production SSH arguments, temporary sshd, real XQuartz windows and exit cleanup |
 | Release/install consistency | `package-release.sh`, `create-dmg.sh`, `install-release.sh`: multiple app forms, window checks, signatures and complete bundle comparison |

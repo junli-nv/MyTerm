@@ -9,7 +9,7 @@ This guide describes MyTerm's implementation. See the [release history](../CHANG
 1. Open an SSH tab, then **MyTerm → Codex Integration**.
 2. Under **Codex Configuration**, set the CLI path and optional independent HTTP/SOCKS5 proxy, including proxy authentication if needed. Login, proxy testing and external MCP registration show separate status results.
 3. Log in or start directly. MyTerm checks local credentials; when login is needed, complete device-code login before the previously selected task continues. Explicit re-login is for account changes or invalid credentials.
-4. Under **SSH Session Access → Start Codex Tab**, select an open SSH session, history scope and optional monitoring/execution permissions. Successful startup closes the configuration window; cancelling does not start a tab.
+4. Under **SSH Session Access → Start Codex Tab**, select an open SSH session and optional history review and execution permissions. History limits appear when **Read existing output when connecting** is enabled. Successful startup closes the configuration window; cancelling does not start a tab.
 5. Enter your troubleshooting goal in the Codex tab. Its startup prompt already contains the selected session ID.
 
 An invalid CLI path or proxy format prevents startup and offers a return to configuration. Login checks inspect local credentials, not server-side revocation. Proxy tests check HTTPS transport, not model access, and are not a mandatory prerequisite. Changes affect new tabs; changing the CLI path invalidates login status, and connection changes invalidate proxy-test status.
@@ -24,17 +24,19 @@ Closing the configuration window does not stop sharing. Disable sharing, revoke 
 
 Use **Copy Session ID (Codex)** in an SSH tab's context menu to copy its live UUID. It is not a saved-server ID: separate tabs for the same host have different IDs, and reopening creates a new ID. Copying it grants no permission. External Codex can use `list_sessions` to discover authorized tabs.
 
-## History and monitoring
+## On-demand history and output
+
+Codex tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
 
 History choices are 500/1000/2000/5000/10000 lines and 64 KiB/256 KiB/1 MiB, defaulting to 2000 lines and 256 KiB. Either limit can truncate the result. `capture_history` freezes a snapshot; read every `read_history_page` until `next_cursor=null` to avoid gaps while output continues. Pages are at most 4000 bytes. Up to four snapshots of at most 1 MiB each are retained and cleared on revocation.
 
 Reading does not require disk logs or change terminal dimensions, cursor or transfer data. It accesses existing buffers, selection and current full-screen content, not evicted history or files never displayed remotely. Model context and quota still apply.
 
-**Continuous monitoring is off by default and selected separately on each launch.** When enabled, the Codex task repeatedly calls `watch_output`: the helper waits up to 20 seconds, checking every 2 seconds, and may return `unchanged` at timeout. `view=auto` switches between normal history and the full-screen view. Redraws or `reset=true` require replacing the snapshot, not appending it.
-
-Stopping monitoring, disconnecting or revoking permission stops further monitored reads. Monitoring may consume quota even with no new output. Permission to monitor does not prove the model is still active; this is not an unattended alert service.
+Continuous monitoring has been removed. Codex reads output on demand and retrieves complete results after authorized commands; it must not poll an idle terminal in a background loop. `watch_output` is no longer advertised. Calls from older clients return `stopped=true` immediately, without reading terminal data or waiting.
 
 ## SSH execution and plans
+
+Removing background monitoring does **not** disable autonomous multi-step troubleshooting. After you give a task and authorize SSH execution, Codex can run commands, collect every output page, and choose the next check. Per-command approval and session-wide Always allow remain available. Explicit periodic-check tasks can also run within authorization, with an agreed interval and duration/count. This differs from automatically sampling an idle terminal with no task.
 
 Execution is disabled by default. Explicitly enable it at startup with a duration of 1–1440 minutes and a budget of 1–10000 commands; defaults are 60 minutes and 300 commands. Renew within the same tab after expiry or exhaustion.
 
@@ -56,7 +58,6 @@ Each command is limited to 60 seconds and 1 MiB of retained output. Read `comman
 | --- | --- |
 | `list_sessions` | List up to 32 shared SSH tabs |
 | `read_output` | Read history, screen or selection; default 200 lines, maximum 1000 lines/8192 bytes |
-| `watch_output` | Wait for changes with separate monitoring permission and the same per-response limits |
 | `capture_history` / `read_history_page` | Freeze a larger history range and read all pages |
 | `propose_plan` | Present a cancellable plan without granting execution permission |
 | `execute_command` | Submit a command under MyTerm's current authorization/approval mode |

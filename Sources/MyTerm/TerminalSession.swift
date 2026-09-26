@@ -39,7 +39,6 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     private var launchProxy: CodexSOCKSProxy?
     private var started = false
     private var stopped = false
-    private var historySubscription: AnyCancellable?
     private var themeSubscription: AnyCancellable?
     private var authentication: SSHAuthentication?
 
@@ -59,13 +58,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         super.init()
         terminal.processDelegate = self
         terminal.configureOutputHighlighting(isSSH: executable == "/usr/bin/ssh")
-        let historyPolicy = HistoryPreferences.shared.policy
-        terminal.getTerminal().changeScrollback((try? historyPolicy.validate()) != nil ? historyPolicy.maximumLines : 50_000)
-        historySubscription = HistoryPreferences.shared.$policy.dropFirst().sink { [weak self] policy in
-            guard (try? policy.validate()) != nil else { return }
-            guard let terminal = self?.terminal.getTerminal(), terminal.options.scrollback != policy.maximumLines else { return }
-            terminal.changeScrollback(policy.maximumLines)
-        }
+        HistoryMemoryBudget.shared.register(terminal, id: id)
         if server != nil {
             terminal.zmodem = ZmodemBridge(terminal: terminal)
             terminal.registerForDraggedTypes([.fileURL])
@@ -203,7 +196,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         sftp?.stop()
         terminal.zmodem?.cancel()
         guard started else { return }
-        if terminal.process.running {
+        if terminal.process.shellPid > 0 {
             let pid = terminal.process.shellPid
             // Interactive Bash ignores SIGTERM. Hang up its terminal session first.
             let foreground = tcgetpgrp(terminal.process.childfd)
@@ -215,7 +208,11 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         isRunning = false
     }
 
-    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+    deinit { HistoryMemoryBudget.shared.remove(id) }
+
+    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {
+        HistoryMemoryBudget.shared.resized(id, columns: newCols)
+    }
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
         guard server == nil, let directory, let url = URL(string: directory), url.isFileURL,

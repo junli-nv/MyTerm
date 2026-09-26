@@ -46,6 +46,31 @@ enum HistorySettingsCheck {
         let export = root.appendingPathComponent("manual.txt")
         try HistoryRepository.export(snapshot, to: export)
         try require(try String(contentsOf: export, encoding: .utf8) == snapshot, "Manual export requires logging")
+        model.forgetSession(record.id); model.forgetSession(sibling.id)
+        try require(model.retainedSessionMetadataCount == 0, "Closed sessions retained history metadata")
+        for _ in 0..<200 {
+            let id = UUID()
+            model.setLoggingMode(.disabled, for: id)
+            model.save([SessionHistory(id: id, label: "closed", started: Date(), text: "data")], wait: true)
+            model.forgetSession(id)
+        }
+        try require(model.retainedSessionMetadataCount == 0, "Repeated closed sessions accumulated metadata")
+        let originalBudget = preferences.memoryBudgetMiB
+        defer { preferences.memoryBudgetMiB = originalBudget }
+        preferences.policy.maximumLines = 50_000
+        preferences.memoryBudgetMiB = 16
+        let firstLimit = terminal.terminal.getTerminal().options.scrollback
+        try require(firstLimit < 50_000, "Memory budget did not cap history")
+        var extra: TerminalSession? = TerminalSession(label: "budget sibling", executable: "/bin/bash", arguments: [])
+        try require(terminal.terminal.getTerminal().options.scrollback < firstLimit, "New tab did not share memory budget")
+        let narrowerLimit = extra!.terminal.getTerminal().options.scrollback
+        extra!.sizeChanged(source: extra!.terminal, newCols: 1000, newRows: 24)
+        try require(extra!.terminal.getTerminal().options.scrollback < narrowerLimit, "Wide rows did not reduce capacity")
+        extra = nil
+        try require(terminal.terminal.getTerminal().options.scrollback == firstLimit, "Closed tab retained memory budget share")
+        preferences.memoryBudgetMiB = 0
+        try require(terminal.terminal.getTerminal().options.scrollback == 50_000, "Disabled budget did not restore line limit")
         print("PASS: history default off, live opt-in/out, scrollback settings and manual export")
+        print("PASS: history metadata cleanup across 200 closures and shared memory budget, resize and opt-out")
     }
 }

@@ -4,6 +4,14 @@ import MyTermCore
 
 final class HistoryPreferences: ObservableObject {
     static let shared = HistoryPreferences()
+    static func validMemoryBudget(_ value: Int) -> Bool { value == 0 || (16...16384).contains(value) }
+    @Published var memoryBudgetMiB: Int = 256 {
+        didSet {
+            guard Self.validMemoryBudget(memoryBudgetMiB),
+                  !ProcessInfo.processInfo.arguments.contains("--smoke-test") else { return }
+            UserDefaults.standard.set(memoryBudgetMiB, forKey: "terminal.historyMemoryMiB")
+        }
+    }
     @Published var policy: HistoryPolicy {
         didSet {
             guard !ProcessInfo.processInfo.arguments.contains("--smoke-test") else { return }
@@ -19,6 +27,9 @@ final class HistoryPreferences: ObservableObject {
     }
     init() {
         if !ProcessInfo.processInfo.arguments.contains("--smoke-test"),
+           let stored = UserDefaults.standard.object(forKey: "terminal.historyMemoryMiB") as? Int,
+           Self.validMemoryBudget(stored) { memoryBudgetMiB = stored }
+        if !ProcessInfo.processInfo.arguments.contains("--smoke-test"),
            let data = UserDefaults.standard.data(forKey: "terminal.history"),
            let value = try? JSONDecoder().decode(HistoryPolicy.self, from: data), (try? value.validate()) != nil {
             policy = value
@@ -28,6 +39,7 @@ final class HistoryPreferences: ObservableObject {
 
 final class HistorySettingsDraft: ObservableObject {
     @Published var policy = HistoryPreferences.shared.policy
+    @Published var memoryBudgetMiB = HistoryPreferences.shared.memoryBudgetMiB
 }
 
 struct HistorySettingsView: View {
@@ -43,6 +55,15 @@ struct HistorySettingsView: View {
             ThemeSettingRow(title: "单会话最大行数") {
                 TextField("100–1,000,000", value: $draft.policy.maximumLines, format: .number.grouping(.never))
             }
+            ThemeSettingRow(title: "历史内存预算（MiB）") {
+                TextField("0 / 16–16,384", value: $draft.memoryBudgetMiB, format: .number.grouping(.never))
+            }
+            Text("默认 256 MiB，在所有终端标签间均分；0 表示仅限制行数。按字符行内存估算，不是应用总内存上限，不含当前屏幕、图片和界面。预算不足时丢弃最旧回看内容；新建标签、加宽窗口或降低预算可能触发清理，不影响已有磁盘日志。")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if !HistoryPreferences.validMemoryBudget(draft.memoryBudgetMiB) {
+                Text("历史内存预算须为 0 或 16–16,384 MiB。")
+                    .font(.caption).foregroundStyle(.red)
+            }
             ThemeSettingRow(title: "单文件上限（MiB）") {
                 TextField("1–1,024", value: $draft.policy.fileMiB, format: .number.grouping(.never))
             }
@@ -57,7 +78,8 @@ struct HistorySettingsView: View {
                 var value = draft.policy
                 value.enabled = preferences.policy.enabled; value.compressed = preferences.policy.compressed
                 preferences.policy = value
-            }.disabled((try? draft.policy.validate()) == nil)
+                preferences.memoryBudgetMiB = draft.memoryBudgetMiB
+            }.disabled((try? draft.policy.validate()) == nil || !HistoryPreferences.validMemoryBudget(draft.memoryBudgetMiB))
             Text("点击应用后调整限制。文件与总容量按压缩后大小计算；超限保留最新内容或清理最久未更新的记录。旧记录可在历史窗口清理。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }

@@ -36,5 +36,5 @@ with tempfile.TemporaryDirectory(prefix="myterm-codex-launch-") as directory:
                                 capture_output=True, text=True, timeout=10, check=True)
         replies = [json.loads(line) for line in result.stdout.splitlines()]
         assert replies[0]["result"]["serverInfo"]["name"] == "MyTerm"
-        assert {t["name"] for t in replies[1]["result"]["tools"]} == {"list_sessions", "read_output", "watch_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan"}
+        assert {t["name"] for t in replies[1]["result"]["tools"]} == {"list_sessions", "read_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan"}
 print("PASS: production arguments parsed by real Codex; executable path round trip and MCP startup (including spaces, quotes and Unicode)")

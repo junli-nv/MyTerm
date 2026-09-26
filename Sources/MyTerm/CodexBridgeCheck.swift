@@ -17,7 +17,7 @@ enum CodexBridgeCheck {
         defer { workspace.stopAll() }
         let bridge = CodexBridge(workspace: workspace, descriptor: root.appendingPathComponent("bridge.json"), persist: false)
         defer { bridge.stop() }
-        try require(!CodexChooserState().monitor && CodexChooserState().selected == nil, "Chooser defaults opt into monitoring or a session")
+        try require(!CodexChooserState().includeHistory && CodexChooserState().selected == nil, "Chooser defaults opt into monitoring or a session")
         let ended = TerminalSession(label: "Codex fixture", executable: "/bin/false", arguments: [], retainOnExit: true)
         var closed = false
         ended.onNormalExit = { closed = true }
@@ -106,13 +106,18 @@ enum CodexBridgeCheck {
         other.start()
         try require(!other.enabled && bridge.enabled, "Second app replaced the live bridge")
         try require((try bridge.read("list_sessions", arguments: [:])["sessions"] as? [[String: Any]])?.isEmpty == true, "Sharing enabled without per-tab consent")
-        _ = try bridge.prepareSession(session.id)
-        try require(bridge.monitored.isEmpty, "Default launch enabled monitoring")
+        let startup = try bridge.prepareSession(session.id)
+        try require(!startup.contains("First call capture_history") && startup.contains("wait for my task"), "Default startup requested old SSH history")
+        guard let cursorStart = startup.range(of: "initial cursor="),
+              let cursorEnd = startup[cursorStart.upperBound...].firstIndex(of: ",") else {
+            throw ConfigurationError.invalid("Missing association baseline")
+        }
+        let startupCursor = String(startup[cursorStart.upperBound..<cursorEnd])
+        let baselineRead = try bridge.read("read_output", arguments: ["session_id": session.id.uuidString, "cursor": startupCursor])
+        try require(baselineRead["text"] as? String == "" && baselineRead["reset"] as? Bool == false, "Association baseline returned old output")
         session.isRunning = true
         let idle = try bridge.read("watch_output", arguments: ["session_id": session.id.uuidString])
         try require(idle["stopped"] as? Bool == true, "Monitoring worked without opt-in")
-        _ = try bridge.prepareSession(session.id, monitor: true)
-        try require(bridge.monitored.contains(session.id), "Explicit monitor opt-in failed")
         session.terminal.feed(text: "first\r\nSSH fixture ready")
         let first = try bridge.read("read_output", arguments: ["session_id": session.id.uuidString])
         try require((first["text"] as? String)?.contains("SSH fixture ready") == true, "Missing terminal history")
@@ -123,15 +128,11 @@ enum CodexBridgeCheck {
         let screen = try bridge.read("read_output", arguments: ["session_id": session.id.uuidString, "view": "screen"])
         try require((screen["text"] as? String)?.contains("less current screen") == true, "Alternate screen missing")
         try require((try bridge.read("read_output", arguments: ["session_id": session.id.uuidString])["text"] as? String)?.contains("SSH fixture ready") == true, "Normal history lost in alternate screen")
-        let watched = try bridge.read("watch_output", arguments: ["session_id": session.id.uuidString])
-        try require(watched["view"] as? String == "screen" && (watched["text"] as? String)?.contains("less current screen") == true, "Monitor failed to follow alternate screen")
-        bridge.stopMonitoring(session.id)
-        try require((try bridge.read("watch_output", arguments: ["session_id": session.id.uuidString]))["stopped"] as? Bool == true, "Stop monitoring did not stop reads")
-        _ = try bridge.prepareSession(session.id, monitor: true)
+        let retiredWatch = try bridge.read("watch_output", arguments: ["session_id": session.id.uuidString])
+        try require(retiredWatch["stopped"] as? Bool == true && retiredWatch["text"] as? String == "", "Retired monitor returned output")
         session.isRunning = false
         try require((try bridge.read("watch_output", arguments: ["session_id": session.id.uuidString]))["stopped"] as? Bool == true, "Disconnect did not stop monitor")
         session.isRunning = true
-        _ = try bridge.prepareSession(session.id, monitor: true)
         session.terminal.feed(text: "\u{1b}[?1049l")
         let viewport = session.terminal.getTerminal().buffer.yDisp
         session.terminal.feed(text: String(repeating: "中文 long line\r\n", count: 600))
@@ -188,7 +189,6 @@ enum CodexBridgeCheck {
         try require((objects[4]["result"] as? [String: Any])?["isError"] as? Bool == false, "MCP watch tool failed")
         try require(!String(decoding: responses, as: UTF8.self).contains("Hidden SSH"), "Private tab leaked")
         bridge.allowed.remove(session.id)
-        try require(bridge.monitored.isEmpty, "Revocation retained monitor permission")
         do { _ = try bridge.read("read_output", arguments: ["session_id": session.id.uuidString]); throw ConfigurationError.invalid("Revocation failed") }
         catch { try require(error.localizedDescription != "Revocation failed", "Revoked tab readable") }
         let language = LanguagePreferences.shared, original = LanguagePreferences.shared.selection
@@ -218,6 +218,7 @@ enum CodexBridgeCheck {
             window.setContentSize(NSSize(width: 558, height: 558))
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
             chooserSelection.execute = true
+            chooserSelection.includeHistory = true // Exercise the longest form, including optional history limits.
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
             guard let chooserScroll = descendants(chooser).compactMap({ $0 as? NSScrollView }).first, let chooserDoc = chooserScroll.documentView else { throw ConfigurationError.invalid("Session chooser missing scrollable list") }
             try require(chooserDoc.frame.width <= chooserScroll.contentSize.width + 1 && chooserDoc.frame.height > chooserScroll.contentSize.height, "Expanded authorization limits do not fit/scroll")
@@ -409,7 +410,7 @@ enum CodexBridgeCheck {
         bridge.launch(login: true, checkSavedLogin: false)
         try require(workspace.sessions.count == beforeLoginTabs + 1 && !bridge.enabled && bridge.allowed.isEmpty, "Login requires or enables SSH access")
         workspace.selected?.stop()
-        print("PASS: Codex MCP stdio + authenticated IPC, per-tab consent/revocation, history/alternate screen, incremental output, monitor opt-in/stop/disconnect, limits and bilingual settings/chooser")
+        print("PASS: Codex MCP stdio + authenticated IPC, per-tab consent/revocation, history/alternate screen, incremental output, retired monitoring compatibility, limits and bilingual settings/chooser")
     }
 }
 
@@ -447,7 +448,7 @@ extension CodexBridgeCheck {
                     timer.invalidate(); bridge.stop(); workspace.stopAll()
                     try? FileManager.default.removeItem(at: root)
                     if let error { fputs("FAIL: Codex login lifecycle: \(error)\n", stderr); exit(1) }
-                    print("PASS: Codex real PTY login-to-analysis continuation, selected SSH target, default monitoring off and retained exit results")
+                    print("PASS: Codex real PTY login-to-analysis continuation, selected SSH target, default history off and retained exit results")
                     NSApp.terminate(nil)
                 }
                 if Date() > deadline { finish("Timed out at phase \(phase)"); return }
@@ -456,8 +457,7 @@ extension CodexBridgeCheck {
                     guard workspace.sessions[1].arguments.contains("--device-auth") else { finish("Skipped required login"); return }
                     phase = 1; workspace.sessions[1].start()
                 case 1 where workspace.sessions.count == 3:
-                    guard workspace.sessions[2].arguments.last?.contains(ssh.id.uuidString) == true,
-                          !bridge.monitored.contains(ssh.id) else { finish("Lost target or enabled monitoring"); return }
+                    guard workspace.sessions[2].arguments.last?.contains(ssh.id.uuidString) == true else { finish("Lost target"); return }
                     phase = 2; workspace.sessions[2].start()
                 case 2 where workspace.sessions[2].status.contains("exit=0"):
                     guard workspace.sessions[1].status.contains("exit=0"), workspace.sessions.count == 3 else { finish("Did not retain login result"); return }

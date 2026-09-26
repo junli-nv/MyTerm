@@ -301,6 +301,7 @@ final class Workspace: ObservableObject {
     func close(_ session: TerminalSession) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
         archiveHistory([session])
+        history.forgetSession(session.id)
         session.stop()
         sessions.remove(at: index)
         if selectedID == session.id {

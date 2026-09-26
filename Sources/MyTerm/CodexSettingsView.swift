@@ -144,14 +144,14 @@ struct CodexSettingsView: View {
                         .disabled(bridge.busy || bridge.configurationIssue != nil || !workspace.sessions.contains(where: { $0.server != nil }))
                     Button("执行记录与控制") { bridge.showExecution() }
                 }
-                Text("启动时统一选择 SSH 会话、读取范围、持续监控和执行授权。确认后开启接入，成功创建分析标签后关闭本窗口；可再次打开此入口创建其他分析标签。")
+                Text("启动时选择 SSH 会话、是否回溯已有输出和执行授权。确认后开启接入，成功创建分析标签后关闭本窗口；可再次打开此入口创建其他分析标签。")
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
                 if !workspace.sessions.contains(where: { $0.server != nil }) { Text("当前没有 SSH 标签。请先打开需要分析的会话。").font(.caption) }
                 if !bridge.lastRead.isEmpty { Text(L10n.text("最近读取：") + bridge.lastRead).font(.caption) }
                 Divider()
                 Text("SSH 接入状态").font(.headline)
                 Toggle("允许 Codex 访问已授权的 SSH 会话", isOn: Binding(get: { bridge.enabled }, set: { $0 ? bridge.start() : bridge.stop() }))
-                Text("这是所有 Codex 客户端的 SSH 接入总开关，开启不会自动授权会话；关闭会立即撤销全部读取、监控及执行权限。退出应用后默认关闭。")
+                Text("这是所有 Codex 客户端的 SSH 接入总开关，开启不会自动授权会话；关闭会立即撤销全部读取及执行权限。退出应用后默认关闭。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
                 Text("历史按设定范围分页读取；单页大小不限制总读取量。只能读取终端缓冲区仍保留的内容，达到行数或容量上限时明确提示截断。")
@@ -174,7 +174,7 @@ struct CodexSessionChooser: View {
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 14) {
             Text("选择 SSH 会话").font(.title2.bold())
-            Text("启动后自动读取所选会话。确认启动即允许 Codex 读取该标签的输出。")
+            Text("确认启动即允许 Codex 按任务需要读取所选 SSH 标签。默认不回溯已有输出。")
                 .fixedSize(horizontal: false, vertical: true)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
@@ -192,7 +192,10 @@ struct CodexSessionChooser: View {
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.scrollIndicators(.visible).frame(minHeight: 100, maxHeight: 220)
-            CodexHistoryLimits(bridge: bridge)
+            Toggle("接入时读取已有输出", isOn: $selection.includeHistory)
+            Text("默认关闭：接入后等待你的任务，从后续命令开始分析。需要回溯排查时再开启；不影响执行命令的完整输出读取。")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if selection.includeHistory { CodexHistoryLimits(bridge: bridge) }
             Toggle("允许执行 SSH 命令", isOn: $selection.execute)
             if selection.execute {
                 HStack {
@@ -210,29 +213,26 @@ struct CodexSessionChooser: View {
             }
             Text("默认只读。授权后默认逐条确认，可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。")
                 .font(.caption).fixedSize(horizontal: false, vertical: true)
-            Toggle("持续监控新输出", isOn: $selection.monitor)
-            Text("持续监控会使用 Codex 模型额度。在接入设置中可停止监控；关闭共享或 SSH 标签也会停止。Codex 任务结束后需重新启动监控，不能作为无人值守告警服务。")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("确认并启动") {
                     guard bridge.configurationIssue == nil else { bridge.message = bridge.configurationIssue ?? ""; return }
                     if !bridge.enabled { bridge.start() }
-                    bridge.launch(sessionID: selection.selected, monitor: selection.monitor, execute: selection.execute, limits: MyTermCore.CodexExecutionLimits(minutes: bridge.launchExecutionMinutes, commands: bridge.launchExecutionCommands))
+                    bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory, execute: selection.execute, limits: MyTermCore.CodexExecutionLimits(minutes: bridge.launchExecutionMinutes, commands: bridge.launchExecutionCommands))
                 }.keyboardShortcut(.defaultAction)
                     .disabled(bridge.busy || !workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }))
             }
         }.padding(24) }.scrollIndicators(.visible).frame(width: 510, height: 540)
             .onReceive(bridge.$launchGeneration.dropFirst()) { _ in dismiss() }
-            .onAppear { selection.selected = nil; selection.monitor = false; selection.execute = false }
+            .onAppear { selection.selected = nil; selection.includeHistory = false; selection.execute = false }
     }
 }
 
 final class CodexChooserState: ObservableObject {
     @Published var presented = false
     @Published var selected: UUID?
-    @Published var monitor = false
+    @Published var includeHistory = false
     @Published var execute = false
 }
 

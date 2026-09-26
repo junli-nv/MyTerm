@@ -39,8 +39,9 @@ python3 scripts/check-all.py /tmp/myterm-check/Release/MyTerm.app --configuratio
 | tmux、复制、输入法、字体缩放、断线重连 | 窗口检查及真实 SSH/tmux；包含 less 回放、持续输出选区、R/r |
 | 主题、颜色、透明度、字体、六个设置页、中英文 | 完整窗口检查，含反复切换语言、小窗口与滚动 |
 | 密码/密钥管理、关联、删除确认、备份 | 核心加密/篡改/格式测试及双语凭据界面检查 |
-| 历史开关、容量、压缩、清理、导出 | 核心历史策略与窗口检查 |
-| Codex 读取、分页、监控、执行审批/续期/撤权 | 核心协议及窗口 MCP/私有 socket 检查、真实 SSH 独立执行通道 |
+| 历史开关、容量、压缩、清理、导出、内存预算与元数据释放 | 核心历史策略与窗口检查；200 次会话元数据清理、标签均分预算/宽度变化/关闭预算 |
+| PTY 生命周期 | 100 次保留退出对象、2 MiB 末尾输出、EOF 先于退出、重启与忽略 HUP/TERM 子进程清理 |
+| Codex 读取、分页、已移除监控的兼容响应、执行审批/续期/撤权 | 核心协议及窗口 MCP/私有 socket 检查、真实 SSH 独立执行通道 |
 | Codex 登录衔接、MCP 路径与代理隔离 | PTY 登录模拟、真实 CLI 参数解析、HTTP/SOCKS5 合成 HTTPS 目标 |
 | X11 转发 | `x11-check.py`：生产 SSH 参数、临时 sshd、真实 XQuartz 窗口及退出清理 |
 | 发布/安装一致性 | `package-release.sh`、`create-dmg.sh`、`install-release.sh`：多形态窗口检查、签名、完整包比较 |
