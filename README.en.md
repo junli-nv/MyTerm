@@ -129,6 +129,20 @@ Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompt
 
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
 
+### Keep MyTerm's copy and paste behavior
+
+When running `codex` in a local terminal, if Codex takes over text selection, requires an extra key to copy, or its full-screen interface affects terminal scrollback, set these options in the Codex configuration file, `~/.codex/config.toml`:
+
+```toml
+[tui]
+raw_output_mode = true
+alternate_screen = "never"
+```
+
+`raw_output_mode` uses a scrollback mode designed for native terminal selection; `alternate_screen` disables the alternate full-screen buffer so output uses the terminal's own scrollback. Together with MyTerm's selection-copy and right-click paste options in **Settings → Terminal Behavior**, these settings let you keep the familiar gestures. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for option details.
+
+If a `[tui]` section already exists, add or update these two keys within it rather than declaring the section again; preserve other settings such as your theme. If you use a custom `CODEX_HOME`, edit `config.toml` in that directory. Save, exit the current Codex session, and run `codex` again; MyTerm does not need to restart. These are Codex display settings: they do not guarantee an exact recreation of an older interface or change MyTerm's SSH execution authorization.
+
 ## Terminal display and interaction
 
 **Settings → Language** supports Chinese, English and system language, applied immediately. Settings use fixed tabs.

@@ -131,6 +131,20 @@ Codex 的 HTTP / SOCKS5 代理与 SSH 代理独立。内置标签启动时携带
 
 详细用法、权限与读取限制见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。
 
+### 保留 MyTerm 的复制粘贴习惯
+
+在本地终端运行 `codex` 时，如果 Codex 自己接管文本选择、要求额外按键复制，或全屏界面影响终端滚动历史，可在 Codex 配置 `~/.codex/config.toml` 中设置：
+
+```toml
+[tui]
+raw_output_mode = true
+alternate_screen = "never"
+```
+
+`raw_output_mode` 使用便于终端原生选择的滚动输出模式；`alternate_screen` 禁用备用全屏，让输出使用终端自身的滚动历史。配合 MyTerm **设置 → 终端行为** 中的“选中文本后自动复制”和“右键直接粘贴”，可保留原有操作习惯。选项含义见 [Codex 官方配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)。
+
+若已有 `[tui]` 段，请在原段内添加或修改这两个键，不要重复声明该段，保留主题等其他配置。使用自定义 `CODEX_HOME` 时，应修改该目录中的 `config.toml`。保存后退出当前 Codex，再运行 `codex`；无需重启 MyTerm。这些是 Codex 的显示设置，不保证完全还原旧版界面，也不改变 MyTerm 的 SSH 执行授权。
+
 ## 终端显示与操作
 
 **设置 → 语言** 支持中文、英文与跟随系统，切换立即生效。设置窗口使用固定标签页。
