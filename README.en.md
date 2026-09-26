@@ -131,17 +131,16 @@ See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions,
 
 ### Codex display, copy and paste
 
-For a clearer distinction between the input area, questions and replies, keep Codex's standard interface settings in `~/.codex/config.toml`:
+To keep formatted questions and replies while using MyTerm's direct drag-to-copy behavior, choose **Scrollback** in Codex's TUI mode picker, then exit and restart Codex. This corresponds to `fullscreen_transcript = false` in `~/.codex/config.toml`; it is separate from raw output mode (`raw_output_mode`):
 
 ```toml
 [tui]
-raw_output_mode = false
-alternate_screen = "auto"
+fullscreen_transcript = false
 ```
 
-When Codex captures mouse events, it handles ordinary drag selection. In MyTerm, hold **Shift** while dragging and keep it held until you release the mouse to select locally. With selection-copy enabled, MyTerm copies the selection automatically. With right-click paste enabled, right-click still pastes; Shift+right-click opens the menu.
+In the ordinary conversation view of Codex CLI 0.157.1, Scrollback does not enable mouse reporting. With MyTerm selection-copy enabled, simply drag to select and release the mouse to copy—**no Shift needed**. Right-click still pastes when that option is enabled. In Fullscreen mode or another view that captures the mouse, hold Shift while dragging and until you release the mouse to select locally. Shift+right-click opens the menu.
 
-Combining `raw_output_mode = true` with `alternate_screen = "never"` is an optional mode favoring native scrollback and selection. It does not restore an older interface and may make questions and replies harder to distinguish, so it is not the default recommendation. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for option details.
+No additional `raw_output_mode` or `alternate_screen` setting is required: their defaults are `false` and `"auto"`, respectively. If you previously set `raw_output_mode = true` or `alternate_screen = "never"`, remove those overrides or restore the default values. Scrollback does not require raw output mode, which may make questions and replies harder to distinguish. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for defaults and option details.
 
 If a `[tui]` section already exists, update it rather than declaring it again; preserve other settings such as your theme. If you use a custom `CODEX_HOME`, edit `config.toml` in that directory. Save, exit the current Codex session, and run `codex` again; MyTerm does not need to restart. Launch arguments for MyTerm's built-in Codex tabs can override display settings; these options do not change SSH execution authorization.
 

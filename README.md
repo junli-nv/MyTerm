@@ -133,17 +133,16 @@ Codex 的 HTTP / SOCKS5 代理与 SSH 代理独立。内置标签启动时携带
 
 ### Codex 显示与复制粘贴
 
-希望清楚区分输入区域、提问和回复时，建议保留 Codex 的标准界面设置。在 `~/.codex/config.toml` 中配置：
+希望保留问答排版，同时使用 MyTerm 的直接拖选复制时，在 Codex 的 TUI 模式选项中选择 **Scrollback**，退出后重新启动 Codex。该选项对应 `~/.codex/config.toml` 中的 `fullscreen_transcript = false`，与原始输出模式 `raw_output_mode` 不同：
 
 ```toml
 [tui]
-raw_output_mode = false
-alternate_screen = "auto"
+fullscreen_transcript = false
 ```
 
-Codex 接管鼠标时，普通拖选由 Codex 处理。在 MyTerm 中，按住 **Shift** 拖选并在松开鼠标前保持 Shift，可使用终端本地选择；启用“选中文本后自动复制”后会自动复制。启用“右键直接粘贴”后，右键仍直接粘贴；`Shift + 右键` 显示菜单。
+在 Codex CLI 0.157.1 的普通会话界面中，Scrollback 不开启鼠标报告：启用 MyTerm 的“选中文本后自动复制”后，直接拖选并松开鼠标即可复制，**无需 Shift**；启用“右键直接粘贴”后，右键仍直接粘贴。若使用 Fullscreen 模式或其他接管鼠标的界面，可按住 Shift 拖选，并保持到松开鼠标，以使用本地选择。`Shift + 右键` 显示菜单。
 
-`raw_output_mode = true` 配合 `alternate_screen = "never"` 是偏向原生滚动与选择的可选模式，不等于恢复旧版界面，可能削弱提问和回复的视觉区分，因此不作为默认推荐。选项含义见 [Codex 官方配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)。
+无需额外配置 `raw_output_mode` 或 `alternate_screen`：它们的默认值分别为 `false` 和 `"auto"`。若此前设置了 `raw_output_mode = true` 或 `alternate_screen = "never"`，请删除这些覆盖项或恢复默认值。Scrollback 不需要开启原始输出模式；原始输出模式可能削弱提问和回复的视觉区分。默认值与选项含义见 [Codex 官方配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)。
 
 若已有 `[tui]` 段，请在原段内修改，不要重复声明，保留主题等其他配置。使用自定义 `CODEX_HOME` 时，应修改该目录中的 `config.toml`。保存后退出当前 Codex，再运行 `codex`；无需重启 MyTerm。MyTerm 内置 Codex 标签的启动参数可覆盖显示设置；这些选项不改变 SSH 执行授权。
 
