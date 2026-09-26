@@ -129,19 +129,21 @@ Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompt
 
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
 
-### Keep MyTerm's copy and paste behavior
+### Codex display, copy and paste
 
-When running `codex` in a local terminal, if Codex takes over text selection, requires an extra key to copy, or its full-screen interface affects terminal scrollback, set these options in the Codex configuration file, `~/.codex/config.toml`:
+For a clearer distinction between the input area, questions and replies, keep Codex's standard interface settings in `~/.codex/config.toml`:
 
 ```toml
 [tui]
-raw_output_mode = true
-alternate_screen = "never"
+raw_output_mode = false
+alternate_screen = "auto"
 ```
 
-`raw_output_mode` uses a scrollback mode designed for native terminal selection; `alternate_screen` disables the alternate full-screen buffer so output uses the terminal's own scrollback. Together with MyTerm's selection-copy and right-click paste options in **Settings → Terminal Behavior**, these settings let you keep the familiar gestures. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for option details.
+When Codex captures mouse events, it handles ordinary drag selection. In MyTerm, hold **Shift** while dragging and keep it held until you release the mouse to select locally. With selection-copy enabled, MyTerm copies the selection automatically. With right-click paste enabled, right-click still pastes; Shift+right-click opens the menu.
 
-If a `[tui]` section already exists, add or update these two keys within it rather than declaring the section again; preserve other settings such as your theme. If you use a custom `CODEX_HOME`, edit `config.toml` in that directory. Save, exit the current Codex session, and run `codex` again; MyTerm does not need to restart. These are Codex display settings: they do not guarantee an exact recreation of an older interface or change MyTerm's SSH execution authorization.
+Combining `raw_output_mode = true` with `alternate_screen = "never"` is an optional mode favoring native scrollback and selection. It does not restore an older interface and may make questions and replies harder to distinguish, so it is not the default recommendation. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for option details.
+
+If a `[tui]` section already exists, update it rather than declaring it again; preserve other settings such as your theme. If you use a custom `CODEX_HOME`, edit `config.toml` in that directory. Save, exit the current Codex session, and run `codex` again; MyTerm does not need to restart. Launch arguments for MyTerm's built-in Codex tabs can override display settings; these options do not change SSH execution authorization.
 
 ## Terminal display and interaction
 
