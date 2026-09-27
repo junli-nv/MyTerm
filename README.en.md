@@ -150,7 +150,7 @@ If a `[tui]` section already exists, update it rather than declaring it again; p
 
 ## Terminal display and interaction
 
-**Settings → Language** supports Chinese, English and system language, applied immediately. Settings use fixed tabs.
+**Settings → Language** supports Chinese, English and system language, applied immediately, including system commands such as AutoFill and Center in the Edit and Window menus, without restarting. Settings use fixed tabs.
 
 **Theme & Font** provides system/dark/light appearance, presets, installed-font search, a monospace filter, custom names and **5–36 pt** sizes. Refresh after installing fonts. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored. With terminal focus, use `⌘+` (or `⌘=`) to enlarge and `⌘-` to shrink in 0.5 pt steps; like trackpad zoom, these update the global terminal font setting.
 

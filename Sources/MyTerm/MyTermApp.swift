@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var workspace: Workspace!
     private var window: NSWindow!
     private let codexSettings = CodexSettingsController()
+    private let systemMenuLocalizer = SystemMenuLocalizer()
     private var languageObserver: NSObjectProtocol?
     private var tabKeyMonitor: Any?
     private var checkDirectory: URL?
@@ -184,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sidebar.keyEquivalentModifierMask = [.command, .control]; sidebar.target = self
         windows.addItem(withTitle: L10n.text("最小化"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windows.addItem(withTitle: L10n.text("缩放"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        systemMenuLocalizer.attach(edit: edit, window: windows)
         NSApp.windowsMenu = windows
         NSApp.mainMenu = menu
     }
