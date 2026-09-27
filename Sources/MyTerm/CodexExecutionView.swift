@@ -5,8 +5,6 @@ import MyTermCore
 final class CodexExecutionRecord: Identifiable {
     let id = UUID(), sessionID: UUID, label: String, command: String
     let created = Date()
-    var isPlan = false
-    var planID = ""
     var reason = ""
     var deliveredOffset = 0
     var authorization = UUID()
@@ -20,7 +18,6 @@ final class CodexExecutionRecord: Identifiable {
         var value = try process?.snapshot(offset: offset) ?? ["state": state, "output": error, "next_offset": 0, "total_bytes": 0]
         value["job_id"] = id.uuidString; value["session_id"] = sessionID.uuidString
         value["command"] = command
-        value["plan_id"] = isPlan ? id.uuidString : planID
         value["reason"] = reason
         return value
     }
@@ -46,7 +43,6 @@ struct CodexExecutionView: View {
                 ForEach(bridge.executionRecords.filter { sessionID == nil || $0.sessionID == sessionID }.reversed()) { record in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(record.label).font(.headline)
-                        if record.isPlan { Text("执行前计划").font(.headline) }
                         if !record.reason.isEmpty { Text(record.reason).fixedSize(horizontal: false, vertical: true) }
                         Text(record.command).font(.body.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                         let result = try? record.snapshot()
@@ -57,7 +53,7 @@ struct CodexExecutionView: View {
                         if let exit = result?["exit_code"] as? Int { Text("exit=\(exit)") }
                         if record.state == "awaiting_approval" {
                             HStack {
-                                Button(L10n.text(record.isPlan ? "确认此计划" : "允许执行此命令")) { bridge.approveExecution(record) }
+                                Button("允许执行此命令") { bridge.approveExecution(record) }
                                 Button("拒绝") { bridge.cancelExecution(record) }
                             }
                         } else if result?["state"] as? String == "running" {
@@ -105,16 +101,13 @@ struct CodexInlineExecutionView: View {
             if !bridge.executionAccessMessage.isEmpty {
                 Text(L10n.text(bridge.executionAccessMessage)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
-            if let pending = records.last(where: { !$0.isPlan && $0.state == "awaiting_approval" }) {
+            if let pending = records.last(where: { $0.state == "awaiting_approval" }) {
                 HStack(spacing: 8) {
                     Label("命令待确认", systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
                     Spacer(minLength: 0)
                     Button("单次允许") { bridge.approveExecution(pending) }.help(L10n.text("允许执行此命令")).fixedSize()
                     Button("始终允许") { bridge.setAlwaysAllowExecution(sessionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
                     Button("拒绝") { bridge.cancelExecution(pending) }.fixedSize()
-                    if records.contains(where: { $0.isPlan && $0.state == "presented" }) {
-                        Button("取消计划") { bridge.cancelPlan(sessionID) }.help(L10n.text("取消计划并停止执行")).fixedSize()
-                    }
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
@@ -123,19 +116,6 @@ struct CodexInlineExecutionView: View {
                         Text(pending.command).font(.callout.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.scrollIndicators(.visible).frame(height: 80)
-            } else if let plan = records.last, plan.isPlan && !presentation.showHistory {
-                HStack {
-                    Text(L10n.text(plan.state == "cancelled" ? "计划已取消" : "执行前计划"))
-                    Spacer()
-                    Button(presentation.showPlan ? "收起计划" : "展开计划") { presentation.showPlan.toggle() }.fixedSize()
-                    if plan.state == "presented" {
-                        Button("取消计划") { bridge.cancelPlan(sessionID) }.help(L10n.text("取消计划并停止执行")).fixedSize()
-                    }
-                }
-                if presentation.showPlan {
-                ScrollView { Text(plan.command).textSelection(.enabled).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }
-                    .scrollIndicators(.visible).frame(height: 80)
-                }
             } else if presentation.showHistory {
                 CodexExecutionView(bridge: bridge, sessionID: sessionID).frame(height: 200)
             }
@@ -145,7 +125,6 @@ struct CodexInlineExecutionView: View {
 
 final class CodexInlinePresentation: ObservableObject {
     @Published var showHistory = false
-    @Published var showPlan = true
 }
 
 struct CodexExecutionApprovalMode: View {

@@ -118,11 +118,11 @@ struct CodexSettingsView: View {
                 if let checked = bridge.registrationCheckedAt {
                     Text(L10n.text("最近检查：") + checked.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.secondary)
                 }
-                Text("注册后重启外部 Codex／IDE 生效。需要停止 SSH 访问时，请在“SSH 会话接入”中关闭接入开关。")
+                Text("注册后重启外部 Codex／IDE 生效。关闭关联的 Codex 标签或 SSH 标签即可结束相应访问。")
                     .font(.caption).foregroundStyle(.secondary)
     }
     @ViewBuilder private var sshConfiguration: some View {
-        Text("选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认只读，执行需另行授权，审批方式可在会话中调整。")
+        Text("选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行并逐条确认，也可选择只读。审批方式可在会话中调整。")
             .fixedSize(horizontal: false, vertical: true)
                 Text("Codex 配置依赖").font(.headline)
                 if let issue = bridge.configurationIssue {
@@ -142,17 +142,11 @@ struct CodexSettingsView: View {
                 HStack {
                     Button("启动 Codex 标签") { chooser.presented = true }
                         .disabled(bridge.busy || bridge.configurationIssue != nil || !workspace.sessions.contains(where: { $0.server != nil }))
-                    Button("执行记录与控制") { bridge.showExecution() }
                 }
                 Text("启动时选择 SSH 会话、是否回溯已有输出和执行授权。确认后开启接入，成功创建分析标签后关闭本窗口；可再次打开此入口创建其他分析标签。")
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
                 if !workspace.sessions.contains(where: { $0.server != nil }) { Text("当前没有 SSH 标签。请先打开需要分析的会话。").font(.caption) }
                 if !bridge.lastRead.isEmpty { Text(L10n.text("最近读取：") + bridge.lastRead).font(.caption) }
-                Divider()
-                Text("SSH 接入状态").font(.headline)
-                Toggle("允许 Codex 访问已授权的 SSH 会话", isOn: Binding(get: { bridge.enabled }, set: { $0 ? bridge.start() : bridge.stop() }))
-                Text("这是所有 Codex 客户端的 SSH 接入总开关，开启不会自动授权会话；关闭会立即撤销全部读取及执行权限。退出应用后默认关闭。")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
                 Text("历史按设定范围分页读取；单页大小不限制总读取量。只能读取终端缓冲区仍保留的内容，达到行数或容量上限时明确提示截断。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -163,6 +157,7 @@ import MyTermCore
 
 
 struct CodexSessionChooser: View {
+    @ObservedObject private var language = LanguagePreferences.shared
     @ObservedObject var workspace: Workspace
     @ObservedObject var bridge: CodexBridge
     @Environment(\.dismiss) private var dismiss
@@ -211,7 +206,7 @@ struct CodexSessionChooser: View {
                 Text("到期或额度用尽后可在当前标签继续授权，重置额度并恢复逐条确认；如需持续允许，请再次选择。")
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
             }
-            Text("默认只读。授权后默认逐条确认，可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。")
+            Text("默认启用命令执行，执行前逐条确认；取消勾选可保持只读。可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。")
                 .font(.caption).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -224,8 +219,9 @@ struct CodexSessionChooser: View {
                     .disabled(bridge.busy || !workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }))
             }
         }.padding(24) }.scrollIndicators(.visible).frame(width: 510, height: 540)
+            .environment(\.locale, language.locale)
             .onReceive(bridge.$launchGeneration.dropFirst()) { _ in dismiss() }
-            .onAppear { selection.selected = nil; selection.includeHistory = false; selection.execute = false }
+            .onAppear { selection.selected = nil; selection.includeHistory = false; selection.execute = true }
     }
 }
 
@@ -233,7 +229,7 @@ final class CodexChooserState: ObservableObject {
     @Published var presented = false
     @Published var selected: UUID?
     @Published var includeHistory = false
-    @Published var execute = false
+    @Published var execute = true
 }
 
 struct CodexHistoryLimits: View {

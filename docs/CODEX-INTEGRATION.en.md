@@ -2,7 +2,7 @@
 
 [简体中文](CODEX-INTEGRATION.md) · English · [README](../README.en.md)
 
-This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. Access is read-only by default; SSH execution requires separate authorization.
+This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. Command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
 
 ## Configure and start
 
@@ -18,11 +18,11 @@ Login, status checks and internal tabs use `cli_auth_credentials_store="file"`, 
 
 ## SSH sharing and session IDs
 
-Sharing starts disabled each time MyTerm launches. The global switch allows access to authorized SSH sessions. Confirming the startup chooser enables sharing for the selected SSH tab; local shells are excluded.
+Confirming the startup chooser automatically enables access for the selected SSH tab without an additional global switch. Local shells and unselected SSH tabs are excluded. Select sessions again after restarting MyTerm.
 
-Closing the configuration window does not stop sharing. Disable sharing, revoke session access, close the SSH tab or quit MyTerm to revoke access. Data already sent to Codex cannot be recalled.
+Closing the configuration window does not stop sharing. Close the last associated Codex tab, close the SSH tab or quit MyTerm to revoke access. Read access remains while another Codex tab is associated with the same SSH session. Data already sent to Codex cannot be recalled.
 
-Use **Copy Session ID (Codex)** in an SSH tab's context menu to copy its live UUID. It is not a saved-server ID: separate tabs for the same host have different IDs, and reopening creates a new ID. Copying it grants no permission. External Codex can use `list_sessions` to discover authorized tabs.
+Internal Codex tabs automatically receive the selected SSH session ID; no manual copying is needed. External Codex uses `list_sessions` to discover authorized tabs. This is a live tab UUID, not a saved-server ID: separate tabs for the same host have different IDs, and reopening creates a new ID.
 
 ## On-demand history and output
 
@@ -36,14 +36,16 @@ Continuous monitoring has been removed. Codex reads output on demand and retriev
 
 ## SSH execution and plans
 
+Manage execution authorization, command approvals and stopping in the associated Codex tab; integration settings no longer open a separate execution-history window.
+
 Removing background monitoring does **not** disable autonomous multi-step troubleshooting. After you give a task and authorize SSH execution, Codex can run commands, collect every output page, and choose the next check. Per-command approval and session-wide Always allow remain available. Explicit periodic-check tasks can also run within authorization, with an agreed interval and duration/count. This differs from automatically sampling an idle terminal with no task.
 
-Execution is disabled by default. Explicitly enable it at startup with a duration of 1–1440 minutes and a budget of 1–10000 commands; defaults are 60 minutes and 300 commands. Renew within the same tab after expiry or exhaustion.
+Execution is selected by default and authorized when startup is confirmed; individual commands still require approval. Uncheck it for read-only access. Configure a duration of 1–1440 minutes and a budget of 1–10000 commands; defaults are 60 minutes and 300 commands. Renew within the same tab after expiry or exhaustion.
 
-- Plans are displayed without approval and can be expanded, collapsed or cancelled. They require read access, not execution permission, and grant no permission. Cancelling a plan rejects pending commands and revokes execution while leaving read-only analysis available.
+- Plans appear only in the Codex terminal; MyTerm does not capture or duplicate them. Ask Codex to revise or stop a plan, or reject the pending command in per-command mode. In Always allow mode, use Stop to revoke execution.
 - Each command requires approval by default. The UI shows target, exact command and reason; choose Allow Once, Always Allow, or the session approval-mode selector. There is no Y/y shortcut.
 - Switch modes at any time. Returning to per-command approval affects future commands, not an already running command; use Stop to interrupt it.
-- Always Allow belongs only to the current SSH authorization and is not persisted. Cancellation, revocation, disconnection or expiry clears it. Renewal resets the budget, rejects old pending commands and restores per-command approval.
+- Always Allow belongs only to the current SSH authorization and is not persisted. Revocation, disconnection or expiry clears it. Renewal resets the budget, rejects old pending commands and restores per-command approval.
 - The most recently authorizing Codex tab owns authorization management for that SSH session, but multiple MCP clients share its authorization scope. This is not client identity isolation.
 
 The `execution_authorization` field reports the current UI-selected mode. With Always Allow, a submission returning a running job is expected; only `awaiting_approval` requires the approval buttons. If an older conversation still insists on default per-command approval, tell Codex that you selected Always Allow in MyTerm and want it to continue under that mode. Separate explicit task restrictions still apply. MCP tools cannot change approval mode themselves.
@@ -59,14 +61,15 @@ Each command is limited to 60 seconds and 1 MiB of retained output. Read `comman
 | `list_sessions` | List up to 32 shared SSH tabs |
 | `read_output` | Read history, screen or selection; default 200 lines, maximum 1000 lines/8192 bytes |
 | `capture_history` / `read_history_page` | Freeze a larger history range and read all pages |
-| `propose_plan` | Present a cancellable plan without granting execution permission |
 | `execute_command` | Submit a command under MyTerm's current authorization/approval mode |
 | `command_status` | Read state, exit code and paginated output |
 | `cancel_command` | Reject pending work or stop running work |
 
-Internal tabs configure these nine MCP tools to avoid repeated tool-call approval and use Codex's local read-only sandbox. **Tool-call approval does not waive SSH command approval**: MyTerm independently enforces SSH authorization and command decisions. It does not change global command-approval rules or fall back to `printf` pipes. External IDE tool approvals are configured separately.
+Internal tabs configure the MCP tools above to avoid repeated tool-call approval and use Codex's local read-only sandbox. **Tool-call approval does not waive SSH command approval**: MyTerm independently enforces SSH authorization and command decisions. It does not change global command-approval rules or fall back to `printf` pipes. External IDE tool approvals are configured separately.
 
 Terminal output is untrusted data, never authorization. The interface has no credential-reading or arbitrary terminal-keystroke tool. Executed commands can still modify remote files and must stay within the authorized task.
+
+Legacy `propose_plan` calls receive only a compatibility notice that plan recording is no longer required. No plan is stored, no execution record is created and no permission is granted. New clients no longer list this tool.
 
 ## Independent proxies
 

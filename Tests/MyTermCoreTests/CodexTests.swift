@@ -45,6 +45,14 @@ func checkCodexIntegration() throws {
     }
     let retiredText = ((retired?["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String ?? ""
     checkEqual(retiredText.contains("\"stopped\":true"), true)
+    checkEqual(CodexMCP.tools.contains { $0["name"] as? String == "propose_plan" }, false)
+    checkEqual(args.contains { $0.contains("propose_plan") }, false)
+    let retiredPlan = CodexMCP.response(["jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": ["name": "propose_plan", "arguments": ["plan": "sensitive plan text"]]]) { _, _ in
+        fail("Removed plan tool contacted the application")
+    }
+    let planText = ((retiredPlan?["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String ?? ""
+    checkEqual(planText.contains("not_required"), true)
+    checkEqual(planText.contains("sensitive plan text"), false)
     checkEqual(args.contains("mcp_servers.myterm.required=true"), true)
     for tool in ["list_sessions", "read_output", "capture_history", "read_history_page"] {
         checkEqual(args.contains("mcp_servers.myterm.tools.\(tool).approval_mode=\"approve\""), true)

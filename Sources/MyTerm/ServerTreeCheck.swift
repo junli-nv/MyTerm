@@ -46,10 +46,17 @@ enum ServerTreeCheck {
         defer { language.selection = previous }
         for selection in [InterfaceLanguage.chinese, .english] {
             language.selection = selection
-            let view = NSHostingView(rootView: ServerGroupsView(workspace: workspace))
+            let view = NSHostingView(rootView: ScrollView { ServerGroupsView(workspace: workspace) }.environment(\.locale, language.locale))
             view.frame = NSRect(x: 0, y: 0, width: 240, height: 600)
             view.layoutSubtreeIfNeeded()
-            try require(view.fittingSize.width <= 241, "Folder tree overflowed sidebar")
+            guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first,
+                  let document = scroll.documentView else { throw ConfigurationError.invalid("Missing sidebar scroll container") }
+            try require(document.frame.width <= scroll.contentSize.width + 1, "Folder tree overflowed sidebar")
+            if let directory = ProcessInfo.processInfo.environment["MYTERM_CHECK_SNAPSHOTS"],
+               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: directory).appendingPathComponent("sidebar-" + selection.rawValue + ".png"))
+            }
         }
         print("PASS: server tree: naming/cancel, atomic persistence, self/stale/grouped drops, duplicate name, collapse, ungroup and bilingual sidebar layout")
     }

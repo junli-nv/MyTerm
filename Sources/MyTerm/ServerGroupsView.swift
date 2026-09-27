@@ -47,7 +47,7 @@ struct ServerGroupsView: View {
                     if !group.collapsed || !workspace.search.isEmpty {
                         VStack(alignment: .leading, spacing: 2) {
                         ForEach(visible) { server in ServerGroupRow(server: server, workspace: workspace) }
-                        if members.isEmpty { Text("拖拽会话到此加入分组").font(.caption2).foregroundStyle(.secondary).padding(.leading, 16) }
+                        if members.isEmpty { Text("拖拽会话到此加入分组").font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).padding(.leading, 16) }
                         }.modifier(ServerTreeChildren())
                     }
                     }
@@ -74,7 +74,7 @@ struct ServerGroupsView: View {
                                 .modifier(ServerGroupDropTarget(workspace: workspace, groupID: nil, targetServerID: server.id))
                                 .help("拖入另一个未分组会话以创建分组；双击连接")
                         }
-                        Text("拖拽会话到此退出分组").font(.caption2).foregroundStyle(.secondary)
+                        Text("拖拽会话到此退出分组").font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                             .padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
                             .modifier(ServerGroupDropTarget(workspace: workspace, groupID: nil))
                     }.modifier(ServerTreeChildren())

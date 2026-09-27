@@ -55,7 +55,7 @@ Select disabled, untrusted (`-X`) or trusted (`-Y`) forwarding in the SSH editor
 
 ## Tabs and groups
 
-Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing, reconnection and **Copy Session ID (Codex)**. Duplication opens an independent connection, without copying processes or history.
+Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing and reconnection. Duplication opens an independent connection, without copying processes or history.
 
 The right-hand `+` and blank-strip menu offer local sessions, SSH configurations, saved servers and session restoration. Double-click blank tab-strip space to maximize/restore. Sidebar and bottom status bar visibility are independent; the bottom bar starts hidden. SSH tabs have an SFTP button beside `+`, independent of the bottom bar.
 
@@ -125,11 +125,11 @@ Codex tabs do not proactively read earlier SSH output on launch by default. Enab
 
 Open **MyTerm → Codex Integration**. **Codex Configuration** contains CLI path, login, independent proxy tests and external MCP registration. **SSH Session Access** controls session selection, history scope and execution authorization.
 
-Start a Codex tab and select an open SSH session. Access is read-only by default. Output is read on demand, without automatic background monitoring. Authorized multi-step command troubleshooting and explicitly requested periodic checks with a defined interval/count remain available. History supports configurable scopes and pagination, but cannot recover text already removed from the terminal buffer. Disk logging is not required.
+Start a Codex tab and select an open SSH session. Command execution is selected by default with per-command approval; uncheck it for read-only access. Output is read on demand, without automatic background monitoring. Authorized multi-step command troubleshooting and explicitly requested periodic checks with a defined interval/count remain available. History supports configurable scopes and pagination, but cannot recover text already removed from the terminal buffer. Disk logging is not required.
 
-SSH execution requires separate authorization with an adjustable duration and command budget; renew in the same tab when exhausted. Commands require individual approval by default. Switch to **Always allow for this session**, or back to per-command approval, at any time. Revocation/expiry clears persistent permission. Plans can be expanded, hidden or cancelled. MyTerm executes commands through an independent channel and requires complete output delivery before the next command; that channel does not share the terminal's working directory, environment or tmux state.
+Confirming startup authorizes SSH execution when selected with an adjustable duration and command budget; renew in the same tab when exhausted. Commands require individual approval by default. Switch to **Always allow for this session**, or back to per-command approval, at any time. Revocation/expiry clears persistent permission. Plans appear only in the Codex terminal; MyTerm does not capture or duplicate them. MyTerm executes commands through an independent channel and requires complete output delivery before the next command; that channel does not share the terminal's working directory, environment or tmux state.
 
-Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompts include the selected live session ID; copy it from the SSH tab menu when needed. External MCP adapters belong to their Codex/IDE caller and exit when their communication pipe closes; their presence alone does not mean the GUI is still running.
+Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompts automatically include the selected live session ID; no manual copying is needed. External clients discover authorized sessions through `list_sessions`. External MCP adapters belong to their Codex/IDE caller and exit when their communication pipe closes; their presence alone does not mean the GUI is still running.
 
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
 
@@ -152,7 +152,7 @@ If a `[tui]` section already exists, update it rather than declaring it again; p
 
 **Settings → Language** supports Chinese, English and system language, applied immediately. Settings use fixed tabs.
 
-**Theme & Font** provides system/dark/light appearance, presets, installed-font search, a monospace filter, custom names and **5–36 pt** sizes. Refresh after installing fonts. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored.
+**Theme & Font** provides system/dark/light appearance, presets, installed-font search, a monospace filter, custom names and **5–36 pt** sizes. Refresh after installing fonts. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored. With terminal focus, use `⌘+` (or `⌘=`) to enlarge and `⌘-` to shrink in 0.5 pt steps; like trackpad zoom, these update the global terminal font setting.
 
 Edit foreground/background, cursor/cursor text, selection colors and ANSI 16 colors using the system color picker, HEX input, preview or `.itermcolors` import/export. Imports preserve font, size and opacity; missing colors remain unchanged. Background opacity defaults to 100% and affects only the default background/padding, not text or program-specified backgrounds. ANSI palette edits do not rewrite RGB truecolor output.
 

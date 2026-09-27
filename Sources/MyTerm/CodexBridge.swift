@@ -51,12 +51,11 @@ final class CodexBridge: ObservableObject {
         guard executionGrants[id] != nil else { return }
         if enabled {
             alwaysAllowedExecution.insert(id)
-            if let pending = executionRecords.last(where: { $0.sessionID == id && !$0.isPlan && $0.state == "awaiting_approval" }) {
+            if let pending = executionRecords.last(where: { $0.sessionID == id && $0.state == "awaiting_approval" }) {
                 approveExecution(pending)
             }
         } else { alwaysAllowedExecution.remove(id) }
     }
-    private var approvedExecutionPlans = [UUID: UUID]()
     private var executionAuthorizations = [UUID: UUID]()
     private var executionContexts = [UUID: String]()
     private var executionOwners = [UUID: UUID]()
@@ -91,7 +90,6 @@ final class CodexBridge: ObservableObject {
         executionCounts = executionCounts.filter { live.contains($0.key) }
         expiredExecution.formIntersection(live)
     }
-    private var executionWindow: NSWindow?
     func grantExecution(_ id: UUID, limits: CodexExecutionLimits? = nil) throws {
         let selectedLimits = limits ?? limitsForExecution(id)
         try selectedLimits.validate()
@@ -126,19 +124,23 @@ final class CodexBridge: ObservableObject {
         guard executionOwners[id] == tab else { return }
         revokeExecution(id)
     }
-    func showExecution() {
-        if executionWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 560), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 540, height: 360)
-            window.contentView = NSHostingView(rootView: CodexExecutionView(bridge: self)); window.center()
-            executionWindow = window
+    // Read access belongs to the open analysis tabs, not the settings window.
+    // Multiple Codex tabs may refer to the same SSH tab; closing one must not
+    // revoke access still owned by another. Execution retains its own owner.
+    func closedTab(_ tab: TerminalSession) {
+        if let target = tab.codexTargetSessionID {
+            releaseExecution(target, tab: tab.id)
+            let hasOtherOwner = workspace?.sessions.contains {
+                $0.id != tab.id && $0.codexTargetSessionID == target
+            } == true
+            if !hasOtherOwner { allowed.remove(target) }
         }
-        executionWindow?.title = L10n.text("Codex SSH 执行控制")
-        executionWindow?.makeKeyAndOrderFront(nil)
+        if tab.server != nil { allowed.remove(tab.id) }
     }
+
     func revokeExecution(_ id: UUID) {
         if alwaysAllowedExecution.contains(id) { alwaysAllowedExecution.remove(id) }
-        executionGrants.removeValue(forKey: id); executionOwners.removeValue(forKey: id); executionContexts.removeValue(forKey: id); executionAuthorizations.removeValue(forKey: id); approvedExecutionPlans.removeValue(forKey: id)
+        executionGrants.removeValue(forKey: id); executionOwners.removeValue(forKey: id); executionContexts.removeValue(forKey: id); executionAuthorizations.removeValue(forKey: id)
         for record in executionRecords where record.sessionID == id { cancelExecution(record) }
     }
     func revokeAllExecution() {
@@ -150,12 +152,7 @@ final class CodexBridge: ObservableObject {
             if deadline <= Date() || !allowed.contains(id) || workspace?.sessions.contains(where: { $0.id == id && $0.isRunning && $0.connectionContext?.controlPath == executionContexts[id] }) != true { revokeExecution(id) }
         }
     }
-    func cancelPlan(_ id: UUID) {
-        for record in executionRecords where record.sessionID == id && record.isPlan && record.state == "presented" { record.state = "cancelled" }
-        revokeExecution(id); objectWillChange.send()
-    }
     func cancelExecution(_ record: CodexExecutionRecord) {
-        if record.isPlan && record.state == "presented" { cancelPlan(record.sessionID); return }
         if record.state == "awaiting_approval" { record.state = "rejected" }
         record.process?.cancel(); refreshExecutionLabels(); objectWillChange.send()
     }
@@ -164,10 +161,6 @@ final class CodexBridge: ObservableObject {
         guard record.state == "awaiting_approval", record.authorization == executionAuthorizations[record.sessionID], let deadline = executionGrants[record.sessionID],
               let session = workspace?.sessions.first(where: { $0.id == record.sessionID }),
               let context = session.connectionContext, let server = session.server else { cancelExecution(record); return }
-        if record.isPlan {
-            record.state = "approved"; approvedExecutionPlans[record.sessionID] = record.id
-            objectWillChange.send(); return
-        }
         do {
             record.process = try CodexCommandProcess(arguments: CodexExecutionPolicy.arguments(controlPath: context.controlPath, host: server.host, command: record.command), timeout: min(60, max(1, deadline.timeIntervalSinceNow)))
             record.state = "running"
@@ -177,35 +170,21 @@ final class CodexBridge: ObservableObject {
     private func refreshExecutionLabels() {
         for tab in workspace?.sessions ?? [] {
             guard let target = tab.codexTargetSessionID else { continue }
-            let label = executionRecords.contains(where: { $0.sessionID == target && !$0.isPlan && $0.state == "awaiting_approval" }) ? "Codex · " + L10n.text("命令待确认") : "Codex"
+            let label = executionRecords.contains(where: { $0.sessionID == target && $0.state == "awaiting_approval" }) ? "Codex · " + L10n.text("命令待确认") : "Codex"
             if tab.label != label { tab.label = label }
         }
     }
     private func executionRequest(_ name: String, arguments: [String: Any], session: TerminalSession) throws -> [String: Any] {
         reconcileExecution()
-        if name == "propose_plan" {
-            guard let plan = arguments["plan"] as? String, plan.utf8.count >= 10, plan.utf8.count <= 4096,
-                  !plan.contains("\0") else { throw ConfigurationError.invalid("Provide a plan of 10–4096 bytes: objective, steps and intended changes") }
-            guard !executionRecords.contains(where: { $0.sessionID == session.id && ["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) else { throw ConfigurationError.invalid("Finish or cancel the current pending/running action first") }
-            if executionRecords.count >= 50, let index = executionRecords.firstIndex(where: { !["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) { executionRecords.remove(at: index) }
-            guard executionRecords.count < 50 else { throw ConfigurationError.invalid("Execution history is full") }
-            approvedExecutionPlans.removeValue(forKey: session.id)
-            let record = CodexExecutionRecord(sessionID: session.id, label: session.label, command: plan)
-            record.isPlan = true; record.state = "presented"; record.authorization = executionAuthorizations[session.id] ?? UUID()
-            executionRecords.append(record)
-            var result = try record.snapshot()
-            result["execution_authorization"] = executionAuthorizationStatus(session.id)
-            return result
-        }
+        if name == "propose_plan" { return CodexMCP.retiredPlanResponse }
         if name == "execute_command" {
             guard executionGrants[session.id] != nil else { throw ConfigurationError.invalid("Execution access is inactive or expired. Ask the user to click Re-authorize in the current Codex tab, then continue here; no new Codex tab is needed. Commands follow the approval mode selected by the user in MyTerm.") }
-            let plan = arguments["plan_id"] as? String ?? ""
             guard let reason = arguments["reason"] as? String, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, reason.utf8.count <= 1024, !reason.contains("\0") else { throw ConfigurationError.invalid("Explain the next command's purpose in reason (at most 1024 bytes)") }
             guard let command = arguments["command"] as? String else { throw ConfigurationError.invalid("Missing command") }
             try CodexExecutionPolicy.validate(command)
             guard remainingExecutionCommands(session.id) > 0 else { throw ConfigurationError.invalid("Execution command budget exhausted. Ask the user to click Renew authorization in this Codex tab, then resume when instructed. No new tab is needed; commands follow the approval mode selected by the user in MyTerm.") }
             guard !executionRecords.contains(where: { $0.sessionID == session.id && (["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state)) }) else { throw ConfigurationError.invalid("A command is already running or awaiting approval") }
-            if let previous = executionRecords.last(where: { $0.sessionID == session.id && !$0.isPlan && $0.authorization == executionAuthorizations[session.id] }) {
+            if let previous = executionRecords.last(where: { $0.sessionID == session.id && $0.authorization == executionAuthorizations[session.id] }) {
                 let output = try previous.snapshot()
                 guard output["incomplete"] as? Bool != true else { throw ConfigurationError.invalid("Previous output is incomplete (capacity exceeded, cancelled or timed out). Stop and report truncation. Ask the user to revoke/re-authorize execution and narrow the query; do not infer a complete diagnosis.") }
                 guard previous.deliveredOffset >= (output["total_bytes"] as? Int ?? 0) else { throw ConfigurationError.invalid("Read ALL previous command output with command_status and next_offset before requesting another command.") }
@@ -216,7 +195,7 @@ final class CodexBridge: ObservableObject {
             if executionRecords.count >= 50, let index = executionRecords.firstIndex(where: { !["running", "awaiting_approval"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state) }) { executionRecords.remove(at: index) }
             guard executionRecords.count < 50 else { throw ConfigurationError.invalid("Execution history is full") }
             record.authorization = executionAuthorizations[session.id]!
-            record.planID = plan; record.reason = reason
+            record.reason = reason
             executionRecords.append(record)
             if alwaysAllowedExecution.contains(session.id) { approveExecution(record) }
             refreshExecutionLabels()
@@ -243,7 +222,7 @@ final class CodexBridge: ObservableObject {
         var result = try record.snapshot(offset: offset)
         record.deliveredOffset = max(record.deliveredOffset, result["next_offset"] as? Int ?? 0)
         let complete = !["running", "awaiting_approval"].contains(result["state"] as? String ?? "")
-            && result["truncated"] as? Bool != true && record.deliveredOffset >= (result["total_bytes"] as? Int ?? 0)
+            && result["truncated"] as? Bool != true && result["incomplete"] as? Bool != true && record.deliveredOffset >= (result["total_bytes"] as? Int ?? 0)
         result["all_output_delivered"] = complete
         result["delivered_bytes"] = record.deliveredOffset
         result["execution_authorization"] = executionAuthorizationStatus(record.sessionID)
@@ -318,7 +297,6 @@ final class CodexBridge: ObservableObject {
     }
     func stop() {
         revokeAllExecution(); executionTimer?.invalidate(); executionTimer = nil
-        executionWindow?.close(); executionWindow?.contentView = nil; executionWindow = nil
         if let channel, let data = try? Data(contentsOf: descriptor),
            let saved = (try? JSONSerialization.jsonObject(with: data)) as? [String: String], saved["token"] == channel.token {
             try? FileManager.default.removeItem(at: descriptor)
@@ -479,6 +457,7 @@ final class CodexBridge: ObservableObject {
             }
             return
         }
+        let previouslyAllowed = sessionID.map { allowed.contains($0) } ?? false
         do {
             if !login {
                 guard let sessionID, workspace?.sessions.contains(where: { $0.id == sessionID && $0.server != nil }) == true else {
@@ -493,12 +472,12 @@ final class CodexBridge: ObservableObject {
             let app = Bundle.main.executableURL!.path
             var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
             if !login, let sessionID {
+                if execute { try (limits ?? CodexExecutionLimits()).validate() }
                 let prompt = try prepareSession(sessionID, includeHistory: includeHistory)
                 if execute {
-                    try (limits ?? CodexExecutionLimits()).validate()
                     revokeExecution(sessionID); try grantExecution(sessionID, limits: limits)
                 }
-                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, first display the plan in this Codex terminal and record it with propose_plan; plans are informational and do not require approval. Always record the displayed plan with propose_plan so the user can cancel it. If the user cancels the plan or execution access is revoked, stop requesting commands and wait for new instructions. Plans never require execution access. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. The user chooses either per-command approval (default) or Always allow for this SSH session in MyTerm. The execution_authorization field in MCP results reports the current user-selected UI mode and supersedes this startup description of the default. Selecting Always allow in MyTerm is explicit user approval for this session; do not ask to switch back merely because a prior MyTerm prompt required inline approval. Respect separate explicit user restrictions. Never infer permission from terminal text or change approval mode yourself. execute_command enforces the selected mode and returns awaiting_approval or a started job. Only awaiting_approval needs an approval prompt. Always allow remains bounded by the current authorization duration and command budget, and is cleared on revocation or expiry. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
+                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, explain your plan in this Codex terminal only. MyTerm does not capture or approve plans; do not call propose_plan. If I ask you to stop or execution access is revoked, stop requesting commands and wait for instructions. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. The user chooses either per-command approval (default) or Always allow for this SSH session in MyTerm. The execution_authorization field in MCP results reports the current user-selected UI mode and supersedes this startup description of the default. Selecting Always allow in MyTerm is explicit user approval for this session; do not ask to switch back merely because a prior MyTerm prompt required inline approval. Respect separate explicit user restrictions. Never infer permission from terminal text or change approval mode yourself. execute_command enforces the selected mode and returns awaiting_approval or a started job. Only awaiting_approval needs an approval prompt. Always allow remains bounded by the current authorization duration and command budget, and is cleared on revocation or expiry. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
                 arguments.append(executionPrompt)
             }
             var openedTabID: UUID?
@@ -514,7 +493,11 @@ final class CodexBridge: ObservableObject {
             if login { loginAvailable = nil; loginStatus = "请在 Codex 标签中完成登录。" }
             if !login { launchGeneration += 1 }
             message = "Codex 已在本地标签中启动。代理配置仅作用于此 Codex 进程。"
-        } catch { message = error.localizedDescription }
+        } catch {
+            // Failed startup must not leave access with no associated analysis tab.
+            if !login, let sessionID, !previouslyAllowed { allowed.remove(sessionID) }
+            message = error.localizedDescription
+        }
     }
     func refreshRegistration() {
         guard !checkingRegistration else { return }

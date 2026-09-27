@@ -294,10 +294,6 @@ struct WorkspaceView: View {
                                         SessionHistoryLoggingMenu(session: session, workspace: workspace)
                                         Button("更改标签名称…") { workspace.renameTab(session) }
                                         if session.sourceServer != nil {
-                                            Button("复制会话 ID（Codex）") {
-                                                NSPasteboard.general.clearContents()
-                                                NSPasteboard.general.setString(session.id.uuidString, forType: .string)
-                                            }
                                             Button("更改 SSH 配置…") { workspace.editConnection(session) }
                                         }
                                         if session.canReconnect {

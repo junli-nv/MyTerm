@@ -4,6 +4,12 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.0.1"></a>
+
+## MyTerm 3.0.1
+
+Fix chooser localization; default to execution with per-command approval; remove duplicate plan capture and session-ID copying. Revoke last-owner access and roll back failed startup authorization. See [release notes](packaging/RELEASE-NOTES-3.0.1.md).
+
 <a id="version-3.0"></a>
 
 ## MyTerm 3.0

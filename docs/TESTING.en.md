@@ -41,7 +41,7 @@ The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. 
 | Password/key management, references, deletion approval, backup | Core encryption/tampering/format tests and bilingual credential UI checks |
 | History opt-in, limits, compression, cleanup, export, memory budget and metadata release | Core/history window checks; 200 metadata cleanup cycles, shared budgets, width changes and opt-out |
 | PTY lifecycle | 100 retained exited objects, 2 MiB final output, EOF before exit, restart and HUP/TERM-ignoring child cleanup |
-| Codex reads, pagination, retired-monitor compatibility, execution approval/renewal/revocation | Core protocol and window MCP/private socket checks; real SSH independent execution channel |
+| Codex reads, pagination, retired monitor/plan compatibility, failed-start rollback, last-owner tab revocation, execution approval/renewal/revocation | Core protocol and window MCP/private socket checks; real SSH independent execution channel |
 | Codex login continuation, MCP paths, proxy isolation | Simulated PTY login, real CLI argument parsing, HTTP/SOCKS5 synthetic HTTPS targets |
 | X11 forwarding | `x11-check.py`: production SSH arguments, temporary sshd, real XQuartz windows and exit cleanup |
 | Release/install consistency | `package-release.sh`, `create-dmg.sh`, `install-release.sh`: multiple app forms, window checks, signatures and complete bundle comparison |

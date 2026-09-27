@@ -9,7 +9,32 @@ class MouseTerminalView: LocalProcessTerminalView {
         tmuxPrefixInput.reset()
         return super.resignFirstResponder()
     }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleFontZoomKey(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+    private func handleFontZoomKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, let window, window.firstResponder === self,
+              window.attachedSheet == nil else { return false }
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard modifiers == [.command] || modifiers == [.command, .shift] else { return false }
+        let key = event.charactersIgnoringModifiers ?? ""
+        let change: Double
+        switch key {
+        case "+", "=": change = 0.5
+        case "-": change = -0.5
+        default: return false
+        }
+        adjustFontSize(by: change)
+        return true
+    }
+    private func adjustFontSize(by change: Double) {
+        let preferences = ThemePreferences.shared
+        let size = min(36, max(5, preferences.theme.fontSize + change))
+        if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
+    }
     override func keyDown(with event: NSEvent) {
+        if handleFontZoomKey(event) { return }
         if let text = tmuxPrefixInput.consume(event) {
             selection.active = false
             inputContext?.discardMarkedText()
@@ -68,9 +93,7 @@ class MouseTerminalView: LocalProcessTerminalView {
                 began: event.phase.contains(.began), timestamp: event.timestamp)
             guard let change else { return event }
             if change != 0 {
-                let preferences = ThemePreferences.shared
-                let size = min(36, max(5, preferences.theme.fontSize + change))
-                if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
+                self.adjustFontSize(by: change)
             }
             return nil
         }

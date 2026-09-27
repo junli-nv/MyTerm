@@ -25,7 +25,7 @@ enum CodexBridgeCheck {
         ended.handleProcessTermination(exitCode: 256)
         try require(!closed && ended.status.contains("exit=1") && ended.statusBarVisible, "Codex failure closed its tab or hid exit status")
         try require(ended.historySnapshot().text.contains("synthetic startup error"), "Codex error output disappeared")
-        try require(ended.status.contains("找不到 MyTerm MCP"), "Missing actionable MCP path diagnosis")
+        try require(ended.status.contains(L10n.text("Codex 找不到 MyTerm MCP 程序。请更新 MyTerm 后重新启动 Codex；外部 Codex 请重新配置 MyTerm MCP。")), "Missing actionable MCP path diagnosis")
         ended.handleProcessTermination(exitCode: 0)
         try require(!closed && ended.status.contains("exit=0"), "Successful Codex exit closed tab")
         let loginCLI = root.appendingPathComponent("fake-codex")
@@ -194,6 +194,14 @@ enum CodexBridgeCheck {
         let language = LanguagePreferences.shared, original = LanguagePreferences.shared.selection
         defer { language.selection = original }
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        func snapshotChooser(_ view: NSView, name: String) throws {
+            guard let directory = ProcessInfo.processInfo.environment["MYTERM_CHECK_SNAPSHOTS"],
+                  let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            if let data = bitmap.representation(using: .png, properties: [:]) {
+                try data.write(to: URL(fileURLWithPath: directory).appendingPathComponent(name + ".png"))
+            }
+        }
         for locale in [InterfaceLanguage.english, .chinese] {
             language.selection = locale; bridge.connection.proxyMode = .socks5
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -213,10 +221,20 @@ enum CodexBridgeCheck {
             try require(navigation.page == 1, "Language change reset Codex settings section")
             language.selection = locale; navigation.page = 0
             let chooserSelection = CodexChooserState()
-            let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection).environment(\.locale, language.locale))
+            let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection))
             window.contentView = chooser
             window.setContentSize(NSSize(width: 558, height: 558))
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
+            try require(chooserSelection.execute, "Chooser did not enable execution by default")
+            chooserSelection.execute = false
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            try require(!chooserSelection.execute, "Chooser did not preserve read-only selection")
+            // No caller-provided locale: sheets must follow the app language themselves.
+            try snapshotChooser(chooser, name: "codex-chooser-" + locale.rawValue)
+            language.selection = locale == .english ? .chinese : .english
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            try snapshotChooser(chooser, name: "codex-chooser-switched-from-" + locale.rawValue)
+            language.selection = locale
             chooserSelection.execute = true
             chooserSelection.includeHistory = true // Exercise the longest form, including optional history limits.
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
@@ -234,9 +252,9 @@ enum CodexBridgeCheck {
         }
         try deniedExecution()
         let readonlyPlan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Read-only plan without execution authorization."])
-        try require(readonlyPlan["state"] as? String == "presented" && bridge.executionGrants.isEmpty, "Plan display required or granted execution authorization")
+        try require(readonlyPlan["state"] as? String == "not_required" && bridge.executionGrants.isEmpty && bridge.executionRecords.isEmpty, "Plan display required or granted execution authorization")
         try deniedExecution()
-        try require(!CodexChooserState().execute, "Unsafe execution/plan defaults")
+        try require(CodexChooserState().execute && bridge.alwaysAllowedExecution.isEmpty, "Execution default must retain per-command approval")
         // A placeholder path permits authorization; real ssh must fail closed when it cannot multiplex.
         FileManager.default.createFile(atPath: execContext.controlPath, contents: Data())
         let windowsBeforeGrant = NSApp.windows.count
@@ -245,8 +263,8 @@ enum CodexBridgeCheck {
         try deniedExecution() // A malformed command request must not execute.
         let plan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Check fixture output; make no changes."])
         try deniedExecution()
-        try require(plan["state"] as? String == "presented", "Plan incorrectly requested confirmation")
-        let pending = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "printf fixture", "plan_id": plan["plan_id"]!, "reason": "Verify output capture"] )
+        try require(plan["state"] as? String == "not_required" && bridge.executionRecords.isEmpty, "Plan incorrectly requested confirmation")
+        let pending = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "printf fixture", "reason": "Verify output capture"] )
         try require(pending["state"] as? String == "awaiting_approval", "Arbitrary shell command bypassed confirmation")
         let record = bridge.executionRecords.last!
         try require(NSApp.windows.count == windowsBeforeGrant, "Pending plan or command opened a popup")
@@ -262,9 +280,8 @@ enum CodexBridgeCheck {
             try require(record.state == "awaiting_approval" && record.process == nil, "Displaying inline approval executed command")
             inlineWindow.close()
         }
-        bridge.cancelPlan(execSession.id)
-        try require(bridge.executionRecords.first(where: { $0.id.uuidString == plan["plan_id"] as? String })?.state == "cancelled", "Plan cancellation was not recorded")
-        try require(bridge.executionGrants[execSession.id] == nil, "Cancelled plan retained execution permission")
+        bridge.revokeExecution(execSession.id)
+        try require(bridge.executionGrants[execSession.id] == nil, "Revocation retained execution permission")
         bridge.approveExecution(record)
         try require(record.process == nil && record.state == "rejected", "Stale approval executed after revocation")
         try bridge.grantExecution(execSession.id)
@@ -307,12 +324,18 @@ enum CodexBridgeCheck {
         while (try automatic.snapshot()["state"] as? String) == "running" && Date() < truncateDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
         do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Next step"]); throw ConfigurationError.invalid("Incomplete output bypass") }
         catch { try require(error.localizedDescription.contains("incomplete"), "Incomplete output did not stop automatic progression") }
+        automatic.process = try CodexCommandProcess(executable: "/bin/sleep", arguments: ["5"], timeout: 0.05)
+        automatic.deliveredOffset = 0
+        let timeoutDeadline = Date().addingTimeInterval(2)
+        while (try automatic.snapshot()["state"] as? String) == "running" && Date() < timeoutDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        let timedOut = try bridge.read("command_status", arguments: ["session_id": execSession.id.uuidString, "job_id": automatic.id.uuidString])
+        try require(timedOut["incomplete"] as? Bool == true && timedOut["all_output_delivered"] as? Bool == false, "Timeout reported complete command output")
         execSession.isRunning = false
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         try require(bridge.executionGrants.isEmpty, "Disconnect retained execution authorization")
         try deniedExecution()
         let disconnectedPlan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Explain diagnostics while the SSH execution channel is disconnected."])
-        try require(disconnectedPlan["state"] as? String == "presented", "Disconnected execution blocked plan display")
+        try require(disconnectedPlan["state"] as? String == "not_required", "Disconnected execution blocked plan display")
         execSession.isRunning = true
         try bridge.grantExecution(execSession.id, limits: CodexExecutionLimits(minutes: 120, commands: 1))
         try require((bridge.executionGrants[execSession.id]?.timeIntervalSinceNow ?? 0) > 7190, "Custom duration ignored")
@@ -390,7 +413,7 @@ enum CodexBridgeCheck {
         bridge.revokeExecution(execSession.id)
         print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 
-        print("PASS: Codex execution default-off, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
+        print("PASS: Codex execution selected by default, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
         let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         launchWindow.isReleasedWhenClosed = false
         var didCloseAfterLaunch = false
@@ -403,6 +426,21 @@ enum CodexBridgeCheck {
         RunLoop.main.run(until: Date().addingTimeInterval(0.2))
         try require(bridge.launchGeneration == generation + 1 && didCloseAfterLaunch && !launchWindow.isVisible, "Successful launch did not dismiss integration window")
         try require(workspace.selected?.codexTargetSessionID == session.id, "Codex launch lost selected SSH target")
+        bridge.allowed.remove(hidden.id)
+        let beforeFailedLaunch = workspace.sessions.count
+        bridge.launch(sessionID: hidden.id, execute: true, checkSavedLogin: false)
+        try require(workspace.sessions.count == beforeFailedLaunch && !bridge.allowed.contains(hidden.id), "Failed execution startup leaked read authorization")
+        let ownerA = TerminalSession(label: "Analysis A", executable: "/bin/false", arguments: [], retainOnExit: true)
+        let ownerB = TerminalSession(label: "Analysis B", executable: "/bin/false", arguments: [], retainOnExit: true)
+        for owner in [ownerA, ownerB] {
+            owner.codexExecutionBridge = bridge; owner.codexTargetSessionID = hidden.id
+            workspace.sessions.append(owner)
+        }
+        bridge.allowed.insert(hidden.id)
+        workspace.close(ownerA)
+        try require(bridge.allowed.contains(hidden.id), "Closing one analysis tab revoked another owner's read access")
+        workspace.close(ownerB)
+        try require(!bridge.allowed.contains(hidden.id), "Last analysis tab left SSH read access authorized")
         bridge.stop()
         try require(!FileManager.default.fileExists(atPath: root.appendingPathComponent("bridge.json").path) && bridge.allowed.isEmpty, "Disable did not revoke discovery")
         let beforeLoginTabs = workspace.sessions.count

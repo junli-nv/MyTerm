@@ -304,6 +304,8 @@ final class Workspace: ObservableObject {
         history.forgetSession(session.id)
         session.stop()
         sessions.remove(at: index)
+        if session.server != nil { codex.closedTab(session) }
+        else { session.codexExecutionBridge?.closedTab(session) }
         if selectedID == session.id {
             selectedID = sessions.isEmpty ? nil : sessions[min(index, sessions.count - 1)].id
         }
