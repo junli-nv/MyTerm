@@ -275,9 +275,11 @@ enum CodexBridgeCheck {
         let plan = try bridge.read("propose_plan", arguments: ["session_id": execSession.id.uuidString, "plan": "Check fixture output; make no changes."])
         try deniedExecution()
         try require(plan["state"] as? String == "not_required" && bridge.executionRecords.isEmpty, "Plan incorrectly requested confirmation")
-        let pending = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "printf fixture", "reason": "Verify output capture"] )
+        let multilineCommand = "printf fixture\nfor item in one two; do\n\tprintf '%s\\n' \"$item\"\ndone"
+        let pending = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": multilineCommand, "reason": "Verify output capture"] )
         try require(pending["state"] as? String == "awaiting_approval", "Arbitrary shell command bypassed confirmation")
         let record = bridge.executionRecords.last!
+        try require(record.command == multilineCommand, "Approval changed or truncated the multiline script")
         try require(NSApp.windows.count == windowsBeforeGrant, "Pending plan or command opened a popup")
         for locale in [InterfaceLanguage.english, .chinese] {
             language.selection = locale

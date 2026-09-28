@@ -133,6 +133,8 @@ Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompt
 
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
 
+Codex SSH commands support multiline scripts (LF newlines and tabs, up to 4096 UTF-8 bytes). Approval and execution apply to the entire submission, using the current session authorization and output limits; see [Codex integration](docs/CODEX-INTEGRATION.en.md).
+
 ### Codex display, copy and paste
 
 To keep formatted questions and replies while using MyTerm's direct drag-to-copy behavior, choose **Scrollback** in Codex's TUI mode picker, then exit and restart Codex. This corresponds to `fullscreen_transcript = false` in `~/.codex/config.toml`; it is separate from raw output mode (`raw_output_mode`):

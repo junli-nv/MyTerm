@@ -54,6 +54,8 @@ The `execution_authorization` field reports the current UI-selected mode. With A
 
 Commands run through an independent noninteractive channel on the authenticated SSH ControlMaster, reusing SSH jumps/proxies. Reuse failure does not open another connection. This path does not use the Codex proxy or share the terminal's working directory, temporary environment or tmux state.
 
+Multiline shell scripts are supported with LF newlines and tab indentation, up to 4096 UTF-8 bytes per submission. The entire script is displayed, approved and executed unchanged, consuming one command allowance; per-command approval covers the whole script rather than each line. Other control characters such as NUL, ESC and CR remain rejected; convert Windows CRLF text to LF first. Use syntax supported by the remote login shell or explicitly invoke the required interpreter.
+
 Each command is limited to 60 seconds and 1 MiB of retained output. Read `command_status` pages using `next_offset`; skipping pages or submitting another command before complete delivery is rejected. `all_output_delivered=true` means retained output has been returned, not that the model still retains all context. Timeout, cancellation or capacity overflow marks output `incomplete`: stop, explain, renew authorization and narrow the query. Stop closes the execution channel; detached remote background processes may continue. At most 50 execution records are kept in memory.
 
 ## MCP tools and approval layers

@@ -15,10 +15,14 @@ public struct CodexExecutionLimits: Equatable {
 public enum CodexExecutionPolicy {
     // Exact commands only. No shell parsing or prefix-based claims of safety.
     public static let diagnostics: Set<String> = ["pwd", "uptime", "uname -a", "df -h", "df -i", "free -m", "ps aux", "ip addr", "ip route", "ss -s", "vmstat 1 5", "date", "whoami"]
+    // Preserve the exact approved script; allow shell line breaks/indentation,
+    // but never accept NUL, terminal escapes or silently rewrite line endings.
     public static func validate(_ command: String) throws {
-        guard !command.isEmpty, command.utf8.count <= 4096,
-              !command.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-            throw ConfigurationError.invalid("Command must be a single line of at most 4096 bytes")
+        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, command.utf8.count <= 4096,
+              !command.unicodeScalars.contains(where: {
+                  CharacterSet.controlCharacters.contains($0) && $0 != "\n" && $0 != "\t"
+              }) else {
+            throw ConfigurationError.invalid("Command must contain non-whitespace text and be at most 4096 UTF-8 bytes; LF newlines and tabs are allowed, other control characters (including CR) are not")
         }
     }
     public static func arguments(controlPath: String, host: String, command: String) throws -> [String] {

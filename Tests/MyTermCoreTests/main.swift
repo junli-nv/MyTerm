@@ -3,7 +3,17 @@ import Darwin
 import MyTermCore
 
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-execution-fixture" {
-    let arguments = try CodexExecutionPolicy.arguments(controlPath: CommandLine.arguments[2], host: "127.0.0.1", command: "printf 'mux-execution-fixture\\n'; printf 'stderr-fixture\\n' >&2; exit 7")
+    let arguments = try CodexExecutionPolicy.arguments(controlPath: CommandLine.arguments[2], host: "127.0.0.1", command: """
+    printf 'mux-execution-fixture\\n'
+    for item in one two; do
+    \tprintf '%s\\n' "$item"
+    done
+    cat <<'MYTERM_END'
+    $HOME 'quotes' 中文
+    MYTERM_END
+    printf 'stderr-fixture\\n' >&2
+    exit 7
+    """)
     let job = try CodexCommandProcess(arguments: arguments, timeout: 5)
     let deadline = Date().addingTimeInterval(8)
     while Date() < deadline {

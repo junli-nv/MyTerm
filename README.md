@@ -135,6 +135,8 @@ Codex 的 HTTP / SOCKS5 代理与 SSH 代理独立。内置标签启动时自动
 
 详细用法、权限与读取限制见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。
 
+Codex 的 SSH 命令支持多行脚本（LF 换行、Tab 缩进，最多 4096 UTF-8 字节）。整段脚本按一次请求审批和执行，沿用当前会话授权及输出读取限制，详见 [Codex 接入说明](docs/CODEX-INTEGRATION.md)。
+
 ### Codex 显示与复制粘贴
 
 希望保留问答排版，同时使用 MyTerm 的直接拖选复制时，在 Codex 的 TUI 模式选项中选择 **Scrollback**，退出后重新启动 Codex。该选项对应 `~/.codex/config.toml` 中的 `fullscreen_transcript = false`，与原始输出模式 `raw_output_mode` 不同：

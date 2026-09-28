@@ -12,7 +12,15 @@ func checkCodexExecution() throws {
     for value in ["uptime; touch /tmp/unsafe", "python -c 'print(1)'", "df -h > file", "env uptime", "$(uptime)"] {
         checkEqual(CodexExecutionPolicy.diagnostics.contains(value), false)
     }
-    checkThrows(try CodexExecutionPolicy.validate("pwd\nwhoami"))
+    let script = "for item in one two; do\n\tprintf '%s\\n' \"$item\"\ndone\ncat <<'END'\n$HOME stays literal\nEND\n"
+    try CodexExecutionPolicy.validate(script)
+    let scriptArgs = try CodexExecutionPolicy.arguments(controlPath: "/tmp/fixture", host: "localhost", command: script)
+    checkEqual(scriptArgs.last, script)
+    for invalid in ["", " \n\t", "pwd\r\nwhoami", "pwd\u{0}ignored", "pwd\u{1b}[31m", "pwd\u{7}", "pwd\u{7f}"] {
+        checkThrows(try CodexExecutionPolicy.validate(invalid))
+    }
+    try CodexExecutionPolicy.validate(String(repeating: "x", count: 4095) + "\n")
+    checkThrows(try CodexExecutionPolicy.validate(String(repeating: "中", count: 1366)))
     checkThrows(try CodexExecutionPolicy.validate(String(repeating: "x", count: 4097)))
     let args = try CodexExecutionPolicy.arguments(controlPath: "/tmp/nonexistent-myterm-\(UUID())", host: "localhost", command: "exit 0")
     checkEqual(args.contains("ProxyCommand=/usr/bin/false"), true)

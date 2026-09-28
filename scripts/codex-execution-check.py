@@ -29,8 +29,9 @@ with tempfile.TemporaryDirectory(prefix='myterm-exec-', dir='/tmp') as directory
         result = json.loads(subprocess.check_output([str(checks), '--codex-execution-fixture', str(root / 'control')], text=True, timeout=10))
         assert result['state'] == 'completed' and result['exit_code'] == 7, result
         assert 'mux-execution-fixture\n' in result['output'] and 'stderr-fixture\n' in result['output'], result
+        assert "one\ntwo\n$HOME 'quotes' 中文\n" in result['output'], result
         assert master.poll() is None, 'Execution terminated the parent SSH connection'
-        print('PASS: production SSH execution over real loopback mux, stdout/stderr, exit code, parent transport preserved')
+        print('PASS: production SSH execution over real loopback mux, multiline loop/heredoc/Unicode, stdout/stderr, exit code, parent transport preserved')
     finally:
         for process in (master, server):
             if process is not None and process.poll() is None:
