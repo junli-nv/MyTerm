@@ -19,6 +19,22 @@ enum ServerEditorLayoutCheck {
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("SSH editor layout: " + message) }
         }
+        var keyed = server
+        keyed.authentication = .key; keyed.identityFile = "/tmp/myterm-editor-key"
+        keyed.jumpServers?[0].authentication = .key; keyed.jumpServers?[0].identityFile = "/tmp/myterm-editor-hop-key"
+        try require(workspace.save(keyed), "Cannot save key fixture")
+        let credentials = SQLitePasswordStore(directory: directory.appendingPathComponent("MyTerm/Credentials"))
+        let oldAccount = try SSHPasswordMemory.legacyScopeIdentifier(for: keyed) + ":fixture"
+        try credentials.save("fixture-only", account: oldAccount, label: "Fixture")
+        let draft = ServerDraft(server: keyed)
+        draft.server.name = "Edited key fixture"; draft.compression = false
+        try require(workspace.save(draft.server), "Cannot save edited fixture")
+        try require(workspace.servers.first?.identityFile == keyed.identityFile && workspace.servers.first?.authentication == .key,
+                    "Editing discarded the private key or authentication mode")
+        try require(workspace.servers.first?.jumpServers == keyed.jumpServers, "Editing discarded jump keys")
+        let migrated = try SSHPasswordMemory.scopeIdentifier(for: draft.server) + ":fixture"
+        try require(try credentials.read(migrated) == "fixture-only" && credentials.read(oldAccount) == nil,
+                    "Saving edited configuration orphaned legacy credentials")
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
         func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.2)); root.layoutSubtreeIfNeeded() }
         try require(window.styleMask.contains(.resizable) && window.collectionBehavior.contains(.fullScreenPrimary), "Window cannot resize/fullscreen")

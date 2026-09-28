@@ -184,7 +184,7 @@ When enabled, history snapshots are saved every 30 seconds, on tab close and on 
 
 ## Passwords and keys
 
-SSH passwords are entered in the authentication dialog. With Remember after Successful Login selected, they are stored only after successful authentication, reused later, and replaced when rejected. Recognized prompts are scoped to connection definitions and host/user identity; custom prompts are one-time only. Key passphrases and verification codes are not saved automatically.
+SSH passwords are entered in the authentication dialog. With Remember after Successful Login selected, they are stored only after successful authentication, reused later, and replaced when rejected. Changing names, logging, compression or port forwarding preserves password associations. Recognized prompts are scoped to the session, host, user, port and jump route; custom prompts are one-time only. Key passphrases and verification codes are not saved automatically.
 
 **Settings → SSH Passwords** supports names, session associations, updates, removal and clearing. Updates change only local records. Revealing a password requires a click; leaving the page or losing window focus hides it. Passwords do not enter terminal history, server JSON, process arguments or environment variables.
 

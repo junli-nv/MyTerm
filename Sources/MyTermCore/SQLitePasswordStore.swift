@@ -66,6 +66,50 @@ public struct SQLitePasswordStore: PasswordStore {
         if code != SQLITE_OK { if let statement { sqlite3_finalize(statement) }; try check(code) }
         guard let statement else { throw failure("无法准备密码数据库操作。") }; return statement
     }
+    /// Move legacy records atomically, re-sealing because the account is AES-GCM
+    /// authenticated data. Never overwrite a newer password or its custom name.
+    public func migrateScope(from old: String, to new: String) throws {
+        guard old != new, FileManager.default.fileExists(atPath: databaseURL.path) else { return }
+        try access { db, key in
+            try check(sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil))
+            defer { sqlite3_exec(db, "ROLLBACK", nil, nil, nil) }
+            let query = try statement(db, "SELECT account, sealed FROM credentials WHERE substr(account, 1, ?) = ?")
+            defer { sqlite3_finalize(query) }
+            let prefix = old + ":"
+            try check(sqlite3_bind_int(query, 1, Int32(prefix.count)))
+            try check(sqlite3_bind_text(query, 2, prefix, -1, transient))
+            var records: [(String, Data)] = []
+            while true {
+                let code = sqlite3_step(query)
+                if code == SQLITE_DONE { break }
+                guard code == SQLITE_ROW else { try check(code); break }
+                guard let bytes = sqlite3_column_blob(query, 1) else { throw failure("已保存的密码数据损坏。") }
+                records.append((String(cString: sqlite3_column_text(query, 0)), Data(bytes: bytes, count: Int(sqlite3_column_bytes(query, 1)))))
+            }
+            for (account, data) in records {
+                let destination = new + account.dropFirst(old.count)
+                let clear = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key, authenticating: Data(account.utf8))
+                guard let sealed = try AES.GCM.seal(clear, using: key, authenticating: Data(destination.utf8)).combined else { throw failure("无法加密密码。") }
+                let insert = try statement(db, "INSERT OR IGNORE INTO credentials(account, sealed) VALUES (?, ?)")
+                defer { sqlite3_finalize(insert) }
+                try check(sqlite3_bind_text(insert, 1, destination, -1, transient))
+                try sealed.withUnsafeBytes { try check(sqlite3_bind_blob(insert, 2, $0.baseAddress, Int32($0.count), transient)) }
+                try check(sqlite3_step(insert))
+                for (table, column) in [("credential_labels", "label"), ("credential_names", "name")] {
+                    let copy = try statement(db, "INSERT OR IGNORE INTO \(table)(account, \(column)) SELECT ?, \(column) FROM \(table) WHERE account = ?")
+                    defer { sqlite3_finalize(copy) }
+                    try check(sqlite3_bind_text(copy, 1, destination, -1, transient))
+                    try check(sqlite3_bind_text(copy, 2, account, -1, transient)); try check(sqlite3_step(copy))
+                }
+                for table in ["credentials", "credential_labels", "credential_names"] {
+                    let remove = try statement(db, "DELETE FROM \(table) WHERE account = ?")
+                    defer { sqlite3_finalize(remove) }
+                    try check(sqlite3_bind_text(remove, 1, account, -1, transient)); try check(sqlite3_step(remove))
+                }
+            }
+            try check(sqlite3_exec(db, "COMMIT", nil, nil, nil))
+        }
+    }
     public func read(_ account: String) throws -> String? {
         try access { db, key in
             let query = try statement(db, "SELECT sealed FROM credentials WHERE account = ?")

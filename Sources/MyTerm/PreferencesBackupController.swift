@@ -73,6 +73,7 @@ enum PreferencesBackupController {
                     }
                     result.jumpServers = hops
                 }
+                scopes[try SSHPasswordMemory.legacyScopeIdentifier(for: server)] = try SSHPasswordMemory.scopeIdentifier(for: result)
                 if result != server { scopes[try SSHPasswordMemory.scopeIdentifier(for: server)] = try SSHPasswordMemory.scopeIdentifier(for: result) }
                 return result
             }
@@ -88,15 +89,7 @@ enum PreferencesBackupController {
             try SessionRepository(url: stage.appendingPathComponent("sessions.json")).save(sessions)
             try SessionArchive(servers: servers, groups: groups, sessions: sessions).validate()
             let credentials = SQLitePasswordStore(directory: stage.appendingPathComponent("Credentials"))
-            for entry in try credentials.list() {
-                let password = try credentials.read(entry.id)
-                let parts = entry.id.split(separator: ":", maxSplits: 1)
-                if parts.count == 2, let scope = scopes[String(parts[0])], scope != parts[0], let password {
-                    try credentials.save(password, account: scope + ":" + parts[1], label: entry.label)
-                    if let name = entry.name { try credentials.rename(scope + ":" + parts[1], name: name) }
-                    try credentials.delete(entry.id)
-                }
-            }
+            for (old, new) in scopes { try credentials.migrateScope(from: old, to: new) }
             let props = try PropertyListSerialization.propertyList(from: backup.preferences, format: nil) as! [String: Any]
             let alert = NSAlert(); alert.messageText = L10n.text("恢复并替换当前偏好设置？")
             alert.informativeText = L10n.text("将替换会话、分组、密码、应用密钥和偏好设置，并关闭当前连接。历史文件保留；界面设置重启后生效。")

@@ -104,6 +104,7 @@ let checks: [(String, () throws -> Void)] = [
     ("Session archive round trip, merge, repeat import and invalid/conflicting files", checkSessionArchive),
     ("Encrypted SQLite passwords: persistence, permissions, missing/wrong key and deletion", checkSQLitePasswords),
     ("Custom groups: move, rename, collapse, persistence and invalid edits", checkSessionGroups),
+    ("Credential edits, legacy migration, rotation, endpoint isolation and key preservation", CredentialTests().configurationEdits),
     ("Password save, retry, rotation and challenge isolation", CredentialTests().passwordLifecycle),
     ("Authenticated askpass channel, cancellation and invalid token", CredentialTests().channelRoundTrip),
     ("SSH aliases preserve configured defaults", serverTests.testAliasKeepsSSHConfigDefaults),

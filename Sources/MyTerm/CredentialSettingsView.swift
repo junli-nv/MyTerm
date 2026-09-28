@@ -22,7 +22,9 @@ final class CredentialSettingsState: ObservableObject {
             var variants = [reference.server]
             if let resolved = try? SSHConfigurationResolver.resolvingJump(reference.server), resolved != reference.server { variants.append(resolved) }
             for server in variants {
-                if let scope = try? SSHPasswordMemory.scopeIdentifier(for: server) { scopes[scope, default: []].insert(reference.label) }
+                for scope in [try? SSHPasswordMemory.scopeIdentifier(for: server), try? SSHPasswordMemory.legacyScopeIdentifier(for: server)].compactMap({ $0 }) {
+                    scopes[scope, default: []].insert(reference.label)
+                }
             }
         }
         return Dictionary(uniqueKeysWithValues: entries.map { entry in

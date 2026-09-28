@@ -28,10 +28,12 @@ final class Workspace: ObservableObject {
     @Published var error: String?
     private var loadFailed = false
     private var restoredBackup = false
+    private let credentialStore: SQLitePasswordStore
     private let repository: ServerRepository
 
     init(applicationSupportDirectory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]) {
         let directory = applicationSupportDirectory
+        credentialStore = SQLitePasswordStore(directory: directory.appendingPathComponent("MyTerm/Credentials"))
         groupRepository = SessionGroupRepository(url: directory.appendingPathComponent("MyTerm/groups.json"))
         history = HistoryModel(directory: directory.appendingPathComponent("MyTerm/History"))
         sessionRepository = SessionRepository(url: directory.appendingPathComponent("MyTerm/sessions.json"))
@@ -318,6 +320,15 @@ final class Workspace: ObservableObject {
         }
         do {
             let server = try server.validated()
+            // Migrate before replacing the only saved copy of the legacy configuration.
+            let previous = servers.first(where: { $0.id == server.id })
+                ?? sessions.compactMap(\.sourceServer).first(where: { $0.id == server.id })
+            if let previous {
+                try SSHPasswordMemory.migrateLegacy(for: previous, store: credentialStore)
+                for resolved in sessions.compactMap(\.server) where resolved.id == previous.id {
+                    try SSHPasswordMemory.migrateLegacy(for: resolved, store: credentialStore)
+                }
+            }
             var updated = servers
             if let index = updated.firstIndex(where: { $0.id == server.id }) { updated[index] = server }
             else { updated.append(server) }

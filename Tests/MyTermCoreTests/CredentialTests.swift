@@ -1,5 +1,6 @@
 import Foundation
 import MyTermCore
+import CryptoKit
 
 final class MemoryPasswordStore: PasswordStore {
     var values: [String: String] = [:]
@@ -33,6 +34,63 @@ final class CredentialTests {
         try next.authenticated(); checkEqual(store.values.count, 1)
         checkEqual(SSHPasswordMemory.isPassword("(dev@example.test) Password:"), true)
     }
+    func configurationEdits() throws {
+        let directory = URL(fileURLWithPath: "/tmp/credential-edit-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = SQLitePasswordStore(directory: directory)
+        var original = Server(name: "Before", host: "example.test", user: "dev", port: "22", identityFile: "/tmp/key")
+        original.authentication = .password
+        original.jumpServers = [SSHJumpServer(host: "bastion.test", user: "jump", identityFile: "/tmp/jump-key")]
+        let prompt = "dev@example.test's password:"
+        let suffix = SHA256.hash(data: Data(prompt.utf8)).map { String(format: "%02x", $0) }.joined()
+        let old = try SSHPasswordMemory.legacyScopeIdentifier(for: original) + ":" + suffix
+        try store.save("saved-fixture", account: old, label: "Original label")
+        try store.rename(old, name: "Named password")
+        // Upgrade must migrate while the original configuration is still known.
+        try SSHPasswordMemory.migrateLegacy(for: original, store: store)
+        var edited = original
+        edited.name = "After"; edited.compression = false; edited.debugLogging = true
+        edited.historyLogging = .disabled; edited.x11Forwarding = .trusted
+        edited.trzszEnabled = true; edited.identityFile = "/tmp/other-key"; edited.authentication = .automatic
+        edited.jumpServers?[0].identityFile = "/tmp/other-jump-key"
+        edited.jumpServers?[0].authentication = .password
+        edited.forwards = [PortForward()]
+        edited.proxy = NetworkProxy()
+        checkEqual(try SSHPasswordMemory.scopeIdentifier(for: edited), try SSHPasswordMemory.scopeIdentifier(for: original))
+        let login = try SSHPasswordMemory(server: edited, store: store)
+        checkEqual(try login.cached(prompt), "saved-fixture")
+        checkEqual(try store.read(old), nil)
+        checkEqual(try store.list().first?.name, "Named password")
+        checkEqual(try login.cached(prompt), nil) // Actual rejection prompts for replacement.
+        login.submitted("replacement", prompt: prompt, remember: true); try login.authenticated()
+        checkEqual(try SSHPasswordMemory(server: original, store: store).cached(prompt), "replacement")
+        for field in 0..<5 {
+            var different = edited
+            switch field {
+            case 0: different.host = "other.test"
+            case 1: different.user = "other"
+            case 2: different.port = "2222"
+            case 3: different.jumpServers?[0].host = "other-bastion.test"
+            default: different.id = UUID()
+            }
+            checkEqual(try SSHPasswordMemory(server: different, store: store).cached(prompt), nil)
+        }
+        // A stale legacy entry must not overwrite the newer credential.
+        try store.save("stale", account: old, label: "Old")
+        try SSHPasswordMemory.migrateLegacy(for: original, store: store)
+        checkEqual(try SSHPasswordMemory(server: original, store: store).cached(prompt), "replacement")
+        checkEqual(try store.list().first?.name, "Named password")
+        // Key mode/path survive unrelated edits, validation and persistence unchanged.
+        original.authentication = .key; original.jumpServers?[0].authentication = .key
+        var keyEdited = original; keyEdited.name = "Key renamed"; keyEdited.compression = false
+        let restored = try JSONDecoder().decode(Server.self, from: JSONEncoder().encode(keyEdited.validated()))
+        checkEqual(restored.identityFile, original.identityFile)
+        checkEqual(restored.jumpServers, original.jumpServers)
+        let args = try restored.connectionArguments()
+        checkEqual(args.contains("PreferredAuthentications=publickey"), true)
+        checkEqual(args.contains("PasswordAuthentication=no"), true)
+        checkEqual(args.contains(original.identityFile), true)
+    }
     func channelRoundTrip() throws {
         let directory = URL(fileURLWithPath: "/tmp/auth-test-\(UUID())")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -55,6 +113,10 @@ func realPasswordLogins(port: String, knownHosts: String, app: String) throws {
     server.authentication = .password
     var manualCounts: [Int] = []
     for phase in 0..<4 {
+        // Exercise real OpenSSH cached authentication after unrelated config edits.
+        server.name = "Edited fixture \(phase)"
+        server.compression = phase % 2 == 0
+        server.debugLogging = phase > 0
         let directory = URL(fileURLWithPath: "/tmp/pw-test-\(UUID())")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }

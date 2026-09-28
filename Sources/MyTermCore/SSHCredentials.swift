@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 
 public protocol PasswordStore {
+    func migrateScope(from: String, to: String) throws
     func read(_ account: String) throws -> String?
     func save(_ password: String, account: String) throws
     func save(_ password: String, account: String, label: String) throws
@@ -9,6 +10,7 @@ public protocol PasswordStore {
     func invalidateCachedPassword(_ account: String) throws
 }
 public extension PasswordStore {
+    func migrateScope(from: String, to: String) throws {}
     func save(_ password: String, account: String, label: String) throws { try save(password, account: account) }
     func invalidateCachedPassword(_ account: String) throws { try delete(account) }
 }
@@ -21,11 +23,24 @@ public final class SSHPasswordMemory {
     private var labels: [String: String] = [:]
     private var attempted = Set<String>()
     private var pending: [String: String] = [:]
+    /// Connection identity only: presentation, forwarding and authentication-method
+    /// edits must not orphan a saved password. Keep endpoints/routes isolated.
     public static func scopeIdentifier(for server: Server) throws -> String {
+        var identity = Server(id: server.id, host: server.host, user: server.user, port: server.port, jumpHost: server.jumpHost)
+        identity.jumpServers = server.jumpServers?.map {
+            SSHJumpServer(id: $0.id, host: $0.host, port: $0.port, user: $0.user)
+        }
+        return try legacyScopeIdentifier(for: identity)
+    }
+    public static func legacyScopeIdentifier(for server: Server) throws -> String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         return SHA256.hash(data: try encoder.encode(server)).map { String(format: "%02x", $0) }.joined()
     }
+    public static func migrateLegacy(for server: Server, store: PasswordStore = SQLitePasswordStore()) throws {
+        try store.migrateScope(from: legacyScopeIdentifier(for: server), to: scopeIdentifier(for: server))
+    }
     public init(server: Server, store: PasswordStore = SQLitePasswordStore()) throws {
+        try Self.migrateLegacy(for: server, store: store)
         scope = try Self.scopeIdentifier(for: server)
         self.store = store
         serverName = server.displayName
