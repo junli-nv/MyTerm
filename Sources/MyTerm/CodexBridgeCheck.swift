@@ -204,7 +204,7 @@ enum CodexBridgeCheck {
         }
         for locale in [InterfaceLanguage.english, .chinese] {
             language.selection = locale; bridge.connection.proxyMode = .socks5
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 940, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             defer { window.close() }
             let navigation = CodexSettingsNavigation()
@@ -213,7 +213,18 @@ enum CodexBridgeCheck {
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
             guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Missing Codex settings scrollbar") }
             try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Codex settings overflow horizontally or fail to scroll")
-            navigation.page = 1
+            let categories = descendants(view).compactMap { $0 as? SettingsNativeTab }
+            try require(categories.count == 2, "Codex sidebar must contain two categories")
+            let frames = categories.map { $0.convert($0.bounds, to: view) }.sorted { $0.minY < $1.minY }
+            try require(frames.allSatisfy { view.bounds.contains($0) } && abs(frames[0].minX - frames[1].minX) < 1 && frames[0].maxY <= frames[1].minY, "Codex categories are not vertically arranged")
+            try require(categories.contains(where: { $0.title == L10n.text("Codex 配置") }) && categories.contains(where: { $0.title == L10n.text("SSH 会话接入") }), "Codex sidebar language")
+            try snapshotChooser(view, name: "codex-settings-" + locale.rawValue)
+            guard let sshCategory = categories.first(where: { $0.identifier?.rawValue == "codex.settings.ssh" }) else { throw ConfigurationError.invalid("Missing SSH category") }
+            let point = sshCategory.convert(NSPoint(x: sshCategory.bounds.midX, y: sshCategory.bounds.midY), to: nil)
+            let now = ProcessInfo.processInfo.systemUptime
+            NSApp.postEvent(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: now + 0.01, windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0)!, atStart: true)
+            window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: now, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!)
+            try require(navigation.page == 1, "Codex sidebar click did not change page")
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
             try require(document.frame.width <= scroll.contentSize.width + 1, "SSH access page overflow")
             language.selection = locale == .english ? .chinese : .english
@@ -414,7 +425,7 @@ enum CodexBridgeCheck {
         print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 
         print("PASS: Codex execution selected by default, exact-command approval, revocation, stale approval, mux-only failure and disconnect")
-        let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let launchWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 940, height: 620), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         launchWindow.isReleasedWhenClosed = false
         var didCloseAfterLaunch = false
         launchWindow.contentView = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: bridge, onStarted: { didCloseAfterLaunch = true; launchWindow.close() }))

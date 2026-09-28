@@ -17,6 +17,13 @@ enum ThemeColorCheck {
         try require(smallFont.theme.fontSize == 5 && smallTerminal.font.pointSize == 5, "5pt font did not persist/apply")
         preferences.theme.fontSize = 2
         try require(ThemePreferences(defaults: defaults).theme.fontSize == 5, "Font lower bound was not clamped")
+        for name in ThemePreset.names {
+            let sample = ThemePreferences.presetTheme(name, preserving: preferences.theme)
+            try sample.validateColors()
+            try require(sample.fontName == preferences.theme.fontName && sample.fontSize == preferences.theme.fontSize
+                        && sample.backgroundOpacity == preferences.theme.backgroundOpacity, "Preset changed font/opacity")
+            try require(try sample.importingITerm(sample.exportingITerm()) == sample, "Preset color roundtrip")
+        }
         let original = TerminalTheme()
         var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as! [String: Any]
         for key in ["cursorText", "selectionText", "ansi", "brightBold", "backgroundOpacity"] { old.removeValue(forKey: key) }

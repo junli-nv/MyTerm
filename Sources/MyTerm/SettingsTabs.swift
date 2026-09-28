@@ -3,6 +3,16 @@ import SwiftUI
 
 enum SettingsPage: String, CaseIterable {
     case language, theme, highlighting, terminal, passwords, keys
+    var symbol: String {
+        switch self {
+        case .language: return "globe"
+        case .theme: return "paintpalette"
+        case .highlighting: return "highlighter"
+        case .terminal: return "terminal"
+        case .passwords: return "lock"
+        case .keys: return "key"
+        }
+    }
     var title: String {
         switch self {
         case .language: return "语言"
@@ -16,16 +26,24 @@ enum SettingsPage: String, CaseIterable {
 }
 final class SettingsSelection: ObservableObject { @Published var page = SettingsPage.language }
 
-/// Explicit, equal-width tabs: no adaptive overflow menu during locale changes.
-struct SettingsTabButton: NSViewRepresentable {
-    let page: SettingsPage
+/// Persistent sidebar navigation; all categories remain visible after locale changes.
+struct SettingsNavigationButton: NSViewRepresentable {
+    let title: String
+    let symbol: String
+    let identifier: String
     let selected: Bool
     let action: () -> Void
     func makeNSView(context: Context) -> SettingsNativeTab {
         let button = SettingsNativeTab()
         button.setButtonType(.pushOnPushOff)
-        button.bezelStyle = .regularSquare
-        button.font = .systemFont(ofSize: 12, weight: .medium)
+        button.bezelStyle = .rounded
+        button.isBordered = false
+        button.alignment = .left
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 8
+        button.font = .systemFont(ofSize: 13, weight: .medium)
         button.cell?.wraps = true
         button.cell?.usesSingleLineMode = false
         button.cell?.lineBreakMode = .byWordWrapping
@@ -34,11 +52,14 @@ struct SettingsTabButton: NSViewRepresentable {
         return button
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: SettingsNativeTab, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 117, height: 42)
+        CGSize(width: proposal.width ?? 184, height: 48)
     }
     func updateNSView(_ button: SettingsNativeTab, context: Context) {
-        button.title = L10n.text(page.title)
-        button.identifier = NSUserInterfaceItemIdentifier("settings.tab." + page.rawValue)
+        button.title = L10n.text(title)
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        button.contentTintColor = selected ? .white : .labelColor
+        button.layer?.backgroundColor = (selected ? NSColor.controlAccentColor : .clear).cgColor
+        button.identifier = NSUserInterfaceItemIdentifier(identifier)
         button.setAccessibilityLabel(button.title)
         button.state = selected ? .on : .off
         button.onSelect = action

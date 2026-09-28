@@ -4,6 +4,8 @@
 
 This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. Command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
 
+The connection window uses a vertical sidebar: **Codex Configuration** contains the executable, proxy, login and external MCP settings; **SSH Session Access** starts analysis and shows configuration dependencies. The window is resizable and its content scrolls.
+
 ## Configure and start
 
 1. Open an SSH tab, then **MyTerm → Codex Integration**.

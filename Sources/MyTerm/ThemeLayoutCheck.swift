@@ -17,7 +17,7 @@ enum ThemeLayoutCheck {
             if let directory { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
             for selection in [InterfaceLanguage.chinese, .english] {
                 language.selection = selection
-                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 736, height: 550), styleMask: [.titled], backing: .buffered, defer: false)
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 731, height: 620), styleMask: [.titled], backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
                 let view = NSHostingView(rootView: ThemeSettingsView().environment(\.locale, language.locale))
                 window.contentView = view; window.orderFront(nil)
@@ -39,7 +39,7 @@ enum ThemeLayoutCheck {
                 }
                 window.orderOut(nil); window.close()
             }
-            print("PASS: theme layout: Chinese/English at 736x550, no horizontal overflow, vertical scrolling")
+            print("PASS: theme layout: Chinese/English at 731x620, no horizontal overflow, vertical scrolling")
         } catch { fputs("FAIL: theme layout: \(error)\n", stderr); exit(1) }
     }
 }

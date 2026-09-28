@@ -24,7 +24,7 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### UI verification
 
-- For settings/localization changes, test the entire settings window: repeatedly switch Chinese/English, retain the selected page, and click all six visible tabs. Keep explicit tabs; do not reintroduce an adaptive overflow menu.
+- For settings/localization changes, test the entire settings window: repeatedly switch Chinese/English, retain the selected page, and click all six visible sidebar categories. Keep explicit vertical navigation; do not reintroduce an adaptive overflow menu.
 - Configuration forms must scroll at their minimum window size, with long labels wrapping. Keep the SSH editor resizable, with maximize/restore and a visible vertical scrollbar. Check expanded jump, proxy and forwarding sections in Chinese/English in Debug, Release and the installed app.
 - For asynchronous session state, test the initial/loading state as well as the settled state. Keep SFTP controls accessible without the bottom status bar and preserve tab-strip geometry when switching SSH/local tabs.
 
@@ -57,7 +57,7 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### 界面验证
 
-- 设置或本地化修改须验证整个设置窗口：反复切换中英文，保持当前页面，点击全部六个可见标签。保持固定标签，不引入自适应溢出菜单。
+- 设置或本地化修改须验证整个设置窗口：反复切换中英文，保持当前页面，点击全部六个可见侧栏分类。保持固定纵向导航，不引入自适应溢出菜单。
 - 配置表单在最小尺寸可滚动，长文字换行。SSH 编辑器保持可缩放、可最大化/还原，并显示垂直滚动栏；在 Debug、Release 和安装版验证中英文展开的跳板、代理及端口转发区域。
 - 涉及异步会话状态时，验证初始/加载状态与完成状态。SFTP 入口不得依赖底栏，切换 SSH/本地标签保持标签栏布局稳定。
 

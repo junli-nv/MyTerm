@@ -62,13 +62,6 @@ final class ThemePreferences: ObservableObject {
         fonts = Array(Set(NSFontManager.shared.availableFonts + [theme.fontName, "Menlo-Regular", "Monaco"]))
             .filter { NSFont(name: $0, size: 14) != nil }.sorted()
     }
-    func useFont(named name: String) -> Bool {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, let font = NSFont(name: name, size: theme.fontSize) else { return false }
-        theme.fontName = font.fontName
-        refreshFonts()
-        return true
-    }
     var scheme: ColorScheme? { theme.appearance == "system" ? nil : theme.appearance == "light" ? .light : .dark }
     func apply(to terminal: MouseTerminalView) {
         let font = NSFont(name: theme.fontName, size: theme.fontSize) ?? .monospacedSystemFont(ofSize: theme.fontSize, weight: .regular)
@@ -86,7 +79,8 @@ final class ThemePreferences: ObservableObject {
             terminal.appliedANSI = theme.ansi
         }
     }
-    func preset(_ name: String) {
+    func preset(_ name: String) { theme = Self.presetTheme(name, preserving: theme) }
+    static func presetTheme(_ name: String, preserving theme: TerminalTheme = TerminalTheme()) -> TerminalTheme {
         var value = TerminalTheme()
         value.fontName = theme.fontName; value.fontSize = theme.fontSize
         value.backgroundOpacity = theme.backgroundOpacity
@@ -108,46 +102,21 @@ final class ThemePreferences: ObservableObject {
         } else if name == "Solarized" {
             value.ansi = ["073642", "DC322F", "859900", "B58900", "268BD2", "D33682", "2AA198", "EEE8D5", "002B36", "CB4B16", "586E75", "657B83", "839496", "6C71C4", "93A1A1", "FDF6E3"].map { ThemeColor(hex: $0)! }
         }
+        if let preset = ThemePreset.additional.first(where: { $0.name == name }) { preset.apply(to: &value) }
         value.cursorText = value.background
         value.selectionText = value.foreground
-        theme = value
+        return value
     }
-}
-
-private final class FontSelectionDraft: ObservableObject {
-    @Published var fontSearch = ""
-    @Published var customFont = ""
-    @Published var fontError: String?
-    @Published var onlyMonospaced = false
 }
 
 struct ThemeSettingsView: View {
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @ObservedObject var preferences = ThemePreferences.shared
-    @StateObject private var draft = FontSelectionDraft()
-    private var visibleFonts: [String] {
-        preferences.fonts.filter { name in
-            name == preferences.theme.fontName ||
-            ((!draft.onlyMonospaced || NSFont(name: name, size: 14)?.isFixedPitch == true) &&
-             (draft.fontSearch.isEmpty || name.localizedCaseInsensitiveContains(draft.fontSearch)))
-        }
-    }
-    private func applyCustomFont() {
-        draft.fontError = preferences.useFont(named: draft.customFont) ? nil : "未找到此字体，请先通过 macOS 字体册安装，再点击刷新。"
-    }
     var body: some View {
         GeometryReader { geometry in
         ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 16) {
-            ThemeSettingRow(title: "预设") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 125), spacing: 8)], spacing: 8) {
-                ForEach(["深色", "浅色", "Solarized", "午夜蓝", "柔和纸白"], id: \.self) { name in
-                    Button { preferences.preset(name) } label: {
-                        Text(L10n.text(name)).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
-                    }
-                }
-            }
-            }
+            ThemePresetPicker(preferences: preferences)
             ThemeSettingRow(title: "界面外观") {
                 Picker("界面外观", selection: $preferences.theme.appearance) {
                     Text("跟随系统").tag("system"); Text("深色").tag("dark"); Text("浅色").tag("light")
@@ -156,31 +125,13 @@ struct ThemeSettingsView: View {
             ThemeSettingRow(title: "终端字体") {
             VStack(alignment: .leading, spacing: 6) {
                 Picker("终端字体", selection: $preferences.theme.fontName) {
-                    ForEach(visibleFonts, id: \.self) { Text($0).tag($0) }
+                    ForEach(preferences.fonts, id: \.self) { Text($0).tag($0) }
                 }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
                 Text(preferences.theme.fontName).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             }
-            ThemeSettingRow(title: "搜索已安装字体") {
-                HStack(spacing: 12) {
-                    TextField("", text: $draft.fontSearch).labelsHidden()
-                        .accessibilityLabel(Text("搜索已安装字体"))
-                        .textFieldStyle(.roundedBorder).frame(minWidth: 80, maxWidth: .infinity)
-                    Toggle("仅等宽", isOn: $draft.onlyMonospaced).fixedSize()
-                    Button("刷新", action: preferences.refreshFonts).fixedSize()
-                }
-            }
-            ThemeSettingRow(title: "自定义字体名称（如 Menlo-Regular）") {
-                HStack(spacing: 12) {
-                    TextField("", text: $draft.customFont, prompt: Text("Menlo-Regular")).labelsHidden()
-                        .accessibilityLabel(Text("自定义字体名称（如 Menlo-Regular）"))
-                        .textFieldStyle(.roundedBorder).frame(minWidth: 80, maxWidth: .infinity).onSubmit(applyCustomFont)
-                    Button("应用字体", action: applyCustomFont).fixedSize()
-                }
-            }
-            if let fontError = draft.fontError { Text(L10n.text(fontError)).font(.caption).foregroundStyle(.red) }
-            Text("默认列出全部已安装字体。终端表格与 tmux 推荐使用等宽字体，如 Menlo、Monaco、Courier；安装其他字体后点击刷新即可选择。")
+            Text("从下拉列表选择字体；终端表格与 tmux 推荐使用等宽字体。安装新字体后重新打开此页面即可更新列表。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ThemeSettingRow(title: "字号") {
                 Stepper("\(preferences.theme.fontSize.formatted()) pt", value: $preferences.theme.fontSize, in: 5...36, step: 0.5)

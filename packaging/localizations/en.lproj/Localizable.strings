@@ -37,7 +37,6 @@
 "中文（简体）" = "Chinese (Simplified)";
 "主机" = "Host";
 "主题与字体" = "Theme & Fonts";
-"仅等宽" = "Monospaced only";
 "从 SSH 配置导入" = "Import SSH Configuration";
 "从 SSH 配置导入…" = "Import SSH Configuration…";
 "代理地址" = "Proxy host";
@@ -133,7 +132,6 @@
 "已清除 MyTerm 保存的 SSH 密码。" = "All saved SSH passwords have been cleared.";
 "平均" = "Average";
 "平均速度" = "Average speed";
-"应用字体" = "Apply Font";
 "开启后，按住 Shift 再右键仍可打开菜单。\n⌘C 复制、⌘V 粘贴始终可用。" = "When enabled, Shift + right-click still opens the menu.\n⌘C and ⌘V always work.";
 "开始一个新会话" = "Start a New Session";
 "当前需要有 1–100 个标签才能更新保存的会话。" = "Open 1–100 tabs to update a saved session.";
@@ -147,7 +145,6 @@
 "按文件已传输字节计算；断点续传不包含此前已完成的部分。SCP 通过临时文件大小采样。" = "Based on transferred file bytes, excluding the previous resume offset. SCP samples the staging file size.";
 "搜索会话名称" = "Search session names";
 "搜索别名" = "Search aliases";
-"搜索已安装字体" = "Search installed fonts";
 "搜索服务器或分组" = "Search servers or groups";
 "撤销" = "Undo";
 "支持 ssh-keygen 的 OpenSSH / PEM 私钥，包括有口令的密钥。按原格式复制，口令仍在连接时输入；同名 .pub 文件会一并导入。也可在 SSH 配置中直接选用 ~/.ssh 的原文件。" = "Import OpenSSH / PEM private keys from ssh-keygen, including passphrase-protected keys. Files are copied unchanged; enter passphrases when connecting. Matching .pub files are imported too. You can also use original files from ~/.ssh directly.";
@@ -176,7 +173,6 @@
 "未分组" = "Ungrouped";
 "未找到 lrzsz。请安装后重试：brew install lrzsz" = "lrzsz not found. Install it and retry: brew install lrzsz";
 "未找到 lrzsz，请先安装：brew install lrzsz" = "lrzsz not found. Install it first: brew install lrzsz";
-"未找到此字体，请先通过 macOS 字体册安装，再点击刷新。" = "Font not found. Install it with Font Book, then click Refresh.";
 "未收到 rz 响应；请确认远端已安装 lrzsz，并停留在 shell 提示符。" = "No rz response. Make sure lrzsz is installed remotely and the terminal is at the shell prompt.";
 "未检测到 X11 DISPLAY，请安装并启动 XQuartz 后重新连接，或关闭 X11 转发。" = "No X11 DISPLAY detected. Install and start XQuartz, then reconnect, or disable X11 forwarding.";
 "本地 Bash" = "Local Bash";
@@ -229,7 +225,6 @@
 "缩放" = "Zoom";
 "背景颜色" = "Background color";
 "自动" = "Automatic";
-"自定义字体名称（如 Menlo-Regular）" = "Custom font name (e.g. Menlo-Regular)";
 "认证成功后记住密码。可更新或删除本地记录，密码不会显示在列表中。旧版记录没有账号描述，使用编号标识。" = "Passwords are saved after successful authentication. Update or delete local records; passwords are hidden in this list. Older records are identified by ID.";
 "认证方式" = "Authentication";
 "设置…" = "Settings…";
@@ -279,7 +274,6 @@
 "锁定尺寸" = "Lock Size";
 "需要本机运行 XQuartz、远端允许 X11Forwarding。受信任模式仅用于可信服务器，远端程序可访问本地 X server。" = "Requires a running local XQuartz server and remote X11Forwarding. Use trusted mode only for trusted servers; remote applications can access your local X server.";
 "预设" = "Presets";
-"默认列出全部已安装字体。终端表格与 tmux 推荐使用等宽字体，如 Menlo、Monaco、Courier；安装其他字体后点击刷新即可选择。" = "All installed fonts are listed by default. Monospaced fonts such as Menlo, Monaco and Courier work best for terminal tables and tmux. Refresh after installing new fonts.";
 "鼠标与响铃" = "Mouse & Bell";
 "鼠标与粘贴设置…" = "Mouse & Paste Settings…";
 "确认 SSH 主机" = "Confirm SSH Host";
@@ -881,3 +875,13 @@
 "注册后重启外部 Codex／IDE 生效。关闭关联的 Codex 标签或 SSH 标签即可结束相应访问。" = "Restart external Codex or your IDE after registration. Close the associated Codex tab or SSH tab to end access.";
 "选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行并逐条确认，也可选择只读。审批方式可在会话中调整。" = "Select an open SSH session for Codex analysis. Local shells are excluded. Command execution is enabled with per-command approval by default; read-only access is optional. Change approval mode in the session.";
 "默认启用命令执行，执行前逐条确认；取消勾选可保持只读。可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。" = "Command execution is enabled by default with approval before each command. Uncheck for read-only access. Switch to Always allow in the Codex tab if needed. The independent channel does not share terminal directory or tmux state.";
+
+"夜空" = "Night Sky";
+
+"北境" = "Northern Night";
+
+"柔雾" = "Soft Mist";
+
+"暖奶油" = "Warm Cream";
+
+"从下拉列表选择字体；终端表格与 tmux 推荐使用等宽字体。安装新字体后重新打开此页面即可更新列表。" = "Choose a font from the list. Monospaced fonts are recommended for terminal tables and tmux. Reopen this page after installing a font to refresh the list.";

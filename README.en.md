@@ -150,9 +150,11 @@ If a `[tui]` section already exists, update it rather than declaring it again; p
 
 ## Terminal display and interaction
 
-**Settings → Language** supports Chinese, English and system language, applied immediately, including system commands such as AutoFill and Center in the Edit and Window menus, without restarting. Settings use fixed tabs.
+**Settings → Language** supports Chinese, English and system language, applied immediately, including system commands such as AutoFill and Center in the Edit and Window menus, without restarting. Settings and Codex Integration use vertical sidebar navigation, a resizable window and independently scrolling content.
 
-**Theme & Font** provides system/dark/light appearance, presets, installed-font search, a monospace filter, custom names and **5–36 pt** sizes. Refresh after installing fonts. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored. With terminal focus, use `⌘+` (or `⌘=`) to enlarge and `⌘-` to shrink in 0.5 pt steps; like trackpad zoom, these update the global terminal font setting.
+**Theme & Font** provides system/dark/light appearance, dark/light presets with palette previews, a font dropdown and **5–36 pt** sizes. Reopen the theme page after installing fonts to refresh the list. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored. With terminal focus, use `⌘+` (or `⌘=`) to enlarge and `⌘-` to shrink in 0.5 pt steps; like trackpad zoom, these update the global terminal font setting.
+
+Additional presets include Night Sky, Northern Night, Soft Mist and Warm Cream, each with a complete ANSI 16-color palette. Cards preview the colors; clicking applies them while retaining the font, size and background opacity. These MyTerm palettes are inspired by [TerminalColors dark themes](https://terminalcolors.com/tags/dark/) and the [light-theme collection](https://gist.github.com/lr580/7ec84df732e0946f03504d7fe02387c0), rather than exact copies of those themes.
 
 Edit foreground/background, cursor/cursor text, selection colors and ANSI 16 colors using the system color picker, HEX input, preview or `.itermcolors` import/export. Imports preserve font, size and opacity; missing colors remain unchanged. Background opacity defaults to 100% and affects only the default background/padding, not text or program-specified backgrounds. ANSI palette edits do not rewrite RGB truecolor output.
 

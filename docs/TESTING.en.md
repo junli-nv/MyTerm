@@ -37,7 +37,7 @@ The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. 
 | SFTP files/directories, hidden/empty folders, resume, conflicts, links | Core real-SFTP checks; UI selection, batches, file promises, detached window, disconnect/cancel |
 | ZMODEM and trzsz | Real helpers and PTY upload/download, byte comparisons, rates, tmux and drag paths |
 | tmux, copying, IME, font zoom, reconnect | Window checks and real SSH/tmux, including less replay, streaming selection and R/r |
-| Themes, colors, opacity, fonts, six settings tabs, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
+| Themes, colors, opacity, fonts, six vertical settings categories, the two-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
 | Password/key management, references, deletion approval, backup | Core encryption/tampering/format tests and bilingual credential UI checks |
 | History opt-in, limits, compression, cleanup, export, memory budget and metadata release | Core/history window checks; 200 metadata cleanup cycles, shared budgets, width changes and opt-out |
 | PTY lifecycle | 100 retained exited objects, 2 MiB final output, EOF before exit, restart and HUP/TERM-ignoring child cleanup |

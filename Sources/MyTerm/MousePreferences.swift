@@ -29,10 +29,12 @@ final class MouseSettingsController: NSWindowController {
     let selection = SettingsSelection()
     deinit { if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) } }
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
-                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = L10n.text("MyTerm 设置")
         window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 940, height: 620)
+        window.collectionBehavior.insert(.fullScreenPrimary)
         super.init(window: window)
         window.contentView = NSHostingView(rootView: SettingsView(selection: selection))
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
@@ -53,13 +55,15 @@ struct SettingsView: View {
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @ObservedObject var theme = ThemePreferences.shared
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 6) {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(SettingsPage.allCases, id: \.self) { page in
-                    SettingsTabButton(page: page, selected: selection.page == page) { selection.page = page }
-                        .frame(width: (760.0 - 24 - 30) / 6, height: 42)
+                    SettingsNavigationButton(title: page.title, symbol: page.symbol, identifier: "settings.tab." + page.rawValue, selected: selection.page == page) { selection.page = page }
+                        .frame(width: 184, height: 48)
                 }
-            }
+                Spacer(minLength: 0)
+            }.padding(12).frame(width: 208)
+                .background(Color(nsColor: .controlBackgroundColor))
             Divider()
             Group {
                 switch selection.page {
@@ -71,7 +75,7 @@ struct SettingsView: View {
                 case .keys: SSHKeySettingsView()
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.padding(12).frame(width: 760, height: 620).preferredColorScheme(theme.scheme)
+        }.frame(minWidth: 940, minHeight: 620).preferredColorScheme(theme.scheme)
             .environment(\.locale, interfaceLanguage.locale)
     }
 }

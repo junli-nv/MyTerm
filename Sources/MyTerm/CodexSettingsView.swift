@@ -5,8 +5,8 @@ final class CodexSettingsController {
     private var window: NSWindow?
     func present(workspace: Workspace) {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 660, height: 500)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 940, height: 620)
             window.contentView = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: workspace.codex, onStarted: { [weak self] in self?.window?.close() }))
             window.center(); self.window = window
         }
@@ -23,6 +23,7 @@ struct CodexSettingsView: View {
     @ObservedObject var workspace: Workspace
     @ObservedObject var bridge: CodexBridge
     @ObservedObject var language = LanguagePreferences.shared
+    @ObservedObject var theme = ThemePreferences.shared
     var onStarted: () -> Void
     @StateObject private var chooser = CodexChooserState()
     @StateObject private var navigation: CodexSettingsNavigation
@@ -31,12 +32,17 @@ struct CodexSettingsView: View {
         _navigation = StateObject(wrappedValue: navigation)
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("SSH 会话接入 Codex").font(.title2.bold())
-            Picker("配置分类", selection: $navigation.page) {
-                Text("Codex 配置").tag(0)
-                Text("SSH 会话接入").tag(1)
-            }.pickerStyle(.segmented).accessibilityIdentifier("codex-settings-sections")
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                SettingsNavigationButton(title: "Codex 配置", symbol: "slider.horizontal.3", identifier: "codex.settings.configuration", selected: navigation.page == 0) { navigation.page = 0 }
+                    .frame(width: 184, height: 48)
+                SettingsNavigationButton(title: "SSH 会话接入", symbol: "terminal", identifier: "codex.settings.ssh", selected: navigation.page == 1) { navigation.page = 1 }
+                    .frame(width: 184, height: 48)
+                Spacer(minLength: 0)
+            }.padding(12).frame(width: 208).background(Color(nsColor: .controlBackgroundColor))
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.text(navigation.page == 0 ? "Codex 配置" : "SSH 会话接入")).font(.title2.bold())
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if navigation.page == 0 { codexConfiguration.disabled(bridge.busy) } else { sshConfiguration }
@@ -45,7 +51,9 @@ struct CodexSettingsView: View {
             if !bridge.message.isEmpty {
                 Text(L10n.text(bridge.message)).font(.caption).fixedSize(horizontal: false, vertical: true)
             }
-        }.padding(20).sheet(isPresented: $chooser.presented) {
+            }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }.frame(minWidth: 940, minHeight: 620).preferredColorScheme(theme.scheme)
+            .sheet(isPresented: $chooser.presented) {
             CodexSessionChooser(workspace: workspace, bridge: bridge)
         }.environment(\.locale, language.locale)
             .onReceive(bridge.$launchGeneration.dropFirst()) { _ in onStarted() }
