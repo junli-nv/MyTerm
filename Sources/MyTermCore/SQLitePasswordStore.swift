@@ -69,13 +69,19 @@ public struct SQLitePasswordStore: PasswordStore {
     /// Move legacy records atomically, re-sealing because the account is AES-GCM
     /// authenticated data. Never overwrite a newer password or its custom name.
     public func migrateScope(from old: String, to new: String) throws {
+        try migrate(from: old, to: new, exact: false)
+    }
+    public func migrateAccount(from old: String, to new: String) throws {
+        try migrate(from: old, to: new, exact: true)
+    }
+    private func migrate(from old: String, to new: String, exact: Bool) throws {
         guard old != new, FileManager.default.fileExists(atPath: databaseURL.path) else { return }
         try access { db, key in
             try check(sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil))
             defer { sqlite3_exec(db, "ROLLBACK", nil, nil, nil) }
             let query = try statement(db, "SELECT account, sealed FROM credentials WHERE substr(account, 1, ?) = ?")
             defer { sqlite3_finalize(query) }
-            let prefix = old + ":"
+            let prefix = exact ? old : old + ":"
             try check(sqlite3_bind_int(query, 1, Int32(prefix.count)))
             try check(sqlite3_bind_text(query, 2, prefix, -1, transient))
             var records: [(String, Data)] = []
@@ -87,7 +93,8 @@ public struct SQLitePasswordStore: PasswordStore {
                 records.append((String(cString: sqlite3_column_text(query, 0)), Data(bytes: bytes, count: Int(sqlite3_column_bytes(query, 1)))))
             }
             for (account, data) in records {
-                let destination = new + account.dropFirst(old.count)
+                if exact && account != old { continue }
+                let destination = exact ? new : new + account.dropFirst(old.count)
                 let clear = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key, authenticating: Data(account.utf8))
                 guard let sealed = try AES.GCM.seal(clear, using: key, authenticating: Data(destination.utf8)).combined else { throw failure("无法加密密码。") }
                 let insert = try statement(db, "INSERT OR IGNORE INTO credentials(account, sealed) VALUES (?, ?)")
@@ -135,22 +142,28 @@ public struct SQLitePasswordStore: PasswordStore {
         try saveEntry(password, account: account, label: label)
     }
     private func saveEntry(_ password: String, account: String, label: String?) throws {
-        guard password.utf8.count <= 60000 else { throw failure("密码长度超出限制。") }
+        try saveBatch([(password: password, account: account, label: label)])
+    }
+    public func saveBatch(_ entries: [(password: String, account: String, label: String?)]) throws {
+        guard !entries.isEmpty else { return }
+        guard entries.allSatisfy({ $0.password.utf8.count <= 60000 }) else { throw failure("密码长度超出限制。") }
         try access { db, key in
             try check(sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil))
             defer { sqlite3_exec(db, "ROLLBACK", nil, nil, nil) }
-            guard let sealed = try AES.GCM.seal(Data(password.utf8), using: key, authenticating: Data(account.utf8)).combined else { throw failure("无法加密密码。") }
-            let query = try statement(db, "INSERT INTO credentials(account, sealed) VALUES(?, ?) ON CONFLICT(account) DO UPDATE SET sealed = excluded.sealed")
-            defer { sqlite3_finalize(query) }
-            try check(sqlite3_bind_text(query, 1, account, -1, transient))
-            try sealed.withUnsafeBytes { try check(sqlite3_bind_blob(query, 2, $0.baseAddress, Int32($0.count), transient)) }
-            try check(sqlite3_step(query))
-            if let label {
-                let metadata = try statement(db, "INSERT INTO credential_labels(account, label) VALUES(?, ?) ON CONFLICT(account) DO UPDATE SET label = excluded.label")
-                defer { sqlite3_finalize(metadata) }
-                try check(sqlite3_bind_text(metadata, 1, account, -1, transient))
-                try check(sqlite3_bind_text(metadata, 2, label, -1, transient))
-                try check(sqlite3_step(metadata))
+            for (password, account, label) in entries {
+                guard let sealed = try AES.GCM.seal(Data(password.utf8), using: key, authenticating: Data(account.utf8)).combined else { throw failure("无法加密密码。") }
+                let query = try statement(db, "INSERT INTO credentials(account, sealed) VALUES(?, ?) ON CONFLICT(account) DO UPDATE SET sealed = excluded.sealed")
+                defer { sqlite3_finalize(query) }
+                try check(sqlite3_bind_text(query, 1, account, -1, transient))
+                try sealed.withUnsafeBytes { try check(sqlite3_bind_blob(query, 2, $0.baseAddress, Int32($0.count), transient)) }
+                try check(sqlite3_step(query))
+                if let label {
+                    let metadata = try statement(db, "INSERT INTO credential_labels(account, label) VALUES(?, ?) ON CONFLICT(account) DO UPDATE SET label = excluded.label")
+                    defer { sqlite3_finalize(metadata) }
+                    try check(sqlite3_bind_text(metadata, 1, account, -1, transient))
+                    try check(sqlite3_bind_text(metadata, 2, label, -1, transient))
+                    try check(sqlite3_step(metadata))
+                }
             }
             try check(sqlite3_exec(db, "COMMIT", nil, nil, nil))
         }

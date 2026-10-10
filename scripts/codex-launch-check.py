@@ -18,13 +18,18 @@ with tempfile.TemporaryDirectory(prefix="myterm-codex-launch-") as directory:
     alias = pathlib.Path(directory) / 'My Term "quoted" 中文' / "MyTerm"
     alias.parent.mkdir()
     alias.symlink_to(binary)
-    for path in [binary, alias]:
-        args = json.loads(subprocess.check_output([str(binary), "--smoke-test", "--codex-launch-arguments", str(path)], text=True))
+    for path, local in [(binary, False), (alias, False), (alias, True)]:
+        args = json.loads(subprocess.check_output([str(binary), "--smoke-test", "--codex-launch-arguments", str(path), *(["--codex-local-work"] if local else [])], text=True))
         overrides = []
         for index, value in enumerate(args):
             if value == "-c":
                 overrides.extend(["-c", args[index + 1]])
         parsed = json.loads(subprocess.check_output([codex, *overrides, "mcp", "get", "myterm", "--json"], text=True, timeout=15))
+        if local:
+            assert args[args.index("--sandbox") + 1] == "workspace-write"
+            assert args[args.index("--ask-for-approval") + 1] == "on-request"
+            assert parsed["enabled"] is False, "Standalone local Codex still requires MyTerm MCP"
+            continue
         transport = parsed["transport"]
         assert transport["command"] == str(path), "Codex parsed an incorrect executable path"
         requests = [

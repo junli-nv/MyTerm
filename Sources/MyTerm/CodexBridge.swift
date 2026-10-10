@@ -446,31 +446,37 @@ final class CodexBridge: ObservableObject {
             }
         } catch { checkingLogin = false; message = error.localizedDescription; loginStatus = L10n.text("登录检查失败：") + error.localizedDescription }
     }
-    func launch(login: Bool = false, sessionID: UUID? = nil, includeHistory: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, afterLogin: (() -> Void)? = nil) {
+    func launch(login: Bool = false, sessionID: UUID? = nil, includeHistory: Bool = false, execute: Bool = false, limits: CodexExecutionLimits? = nil, checkSavedLogin: Bool = true, localDirectory: String? = nil, afterLogin: (() -> Void)? = nil) {
         if !login, let issue = configurationIssue { message = issue; return }
         if checkSavedLogin {
             if login { checkLogin(loginIfNeeded: true) }
             else {
                 checkLogin(loginIfNeeded: true) { [weak self] in
-                    self?.launch(sessionID: sessionID, includeHistory: includeHistory, execute: execute, limits: limits, checkSavedLogin: false)
+                    self?.launch(sessionID: sessionID, includeHistory: includeHistory, execute: execute, limits: limits, checkSavedLogin: false, localDirectory: localDirectory)
                 }
             }
             return
         }
         let previouslyAllowed = sessionID.map { allowed.contains($0) } ?? false
         do {
-            if !login {
+            if !login && localDirectory == nil {
                 guard let sessionID, workspace?.sessions.contains(where: { $0.id == sessionID && $0.server != nil }) == true else {
                     throw ConfigurationError.invalid("请选择一个仍然打开的 SSH 会话。")
+                }
+            }
+            if let localDirectory {
+                var isDirectory: ObjCBool = false
+                guard sessionID == nil, localDirectory.hasPrefix("/"), FileManager.default.fileExists(atPath: localDirectory, isDirectory: &isDirectory), isDirectory.boolValue else {
+                    throw ConfigurationError.invalid("请选择有效的本地工作目录。")
                 }
             }
             let path = try executable()
             var environment = try saveConnection()
             let relay = try socksRelay()
             if let relay { environment = try relay.environment(base: environment) }
-            guard login || enabled else { throw ConfigurationError.invalid("请先开启 Codex 共享。") }
+            guard login || localDirectory != nil || enabled else { throw ConfigurationError.invalid("请先开启 Codex 共享。") }
             let app = Bundle.main.executableURL!.path
-            var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app)
+            var arguments = login ? CodexConnection.authenticationArguments + ["login", "--device-auth"] : try CodexConnection.launchArguments(appExecutable: app, localDirectory: localDirectory)
             if !login, let sessionID {
                 if execute { try (limits ?? CodexExecutionLimits()).validate() }
                 let prompt = try prepareSession(sessionID, includeHistory: includeHistory)
@@ -481,7 +487,7 @@ final class CodexBridge: ObservableObject {
                 arguments.append(executionPrompt)
             }
             var openedTabID: UUID?
-            let openedTab = workspace?.openCodex(executable: path, arguments: arguments, environment: environment, proxy: relay, executionBridge: login ? nil : self, targetSessionID: login ? nil : sessionID, onExit: login ? { [weak self] status in
+            let openedTab = workspace?.openCodex(executable: path, arguments: arguments, environment: environment, directory: localDirectory, proxy: relay, executionBridge: login || localDirectory != nil ? nil : self, targetSessionID: login ? nil : sessionID, onExit: login ? { [weak self] status in
                 if status == 0 {
                     self?.loginAvailable = true
                     self?.loginStatus = "已登录（检测到本地登录凭据）"

@@ -22,7 +22,10 @@ final class CredentialSettingsState: ObservableObject {
             var variants = [reference.server]
             if let resolved = try? SSHConfigurationResolver.resolvingJump(reference.server), resolved != reference.server { variants.append(resolved) }
             for server in variants {
-                for scope in [try? SSHPasswordMemory.scopeIdentifier(for: server), try? SSHPasswordMemory.legacyScopeIdentifier(for: server)].compactMap({ $0 }) {
+                let sessionScopes = [try? SSHPasswordMemory.scopeIdentifier(for: server),
+                                     try? SSHPasswordMemory.legacyScopeIdentifier(for: server)].compactMap { $0 }
+                let jumpScopes = SSHJumpCredentials.accounts(server: server).map { String($0.split(separator: ":")[0]) }
+                for scope in sessionScopes + jumpScopes {
                     scopes[scope, default: []].insert(reference.label)
                 }
             }

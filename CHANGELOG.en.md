@@ -4,6 +4,24 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.1.4"></a>
+
+# MyTerm 3.1.4
+
+Preconfigure and share jump passwords across sessions, and select saved multi-hop routes. [Release notes](packaging/RELEASE-NOTES-3.1.4.md).
+
+<a id="version-3.1.3"></a>
+
+# MyTerm 3.1.3
+
+Launch standalone local Codex in a chosen directory, without Bash association or MyTerm MCP. [Release notes](packaging/RELEASE-NOTES-3.1.3.md).
+
+<a id="version-3.1.2"></a>
+
+# MyTerm 3.1.2
+
+Add local Bash integration with shared Codex proxy settings and independent SSH execution authorization. [Release notes](packaging/RELEASE-NOTES-3.1.2.md).
+
 <a id="version-3.1.1"></a>
 
 ## MyTerm 3.1.1

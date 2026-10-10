@@ -8,7 +8,7 @@ struct MyTermApp {
         if CommandLine.arguments.contains("--smoke-test"),
            let index = CommandLine.arguments.firstIndex(of: "--codex-launch-arguments"),
            CommandLine.arguments.indices.contains(index + 1),
-           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1]),
+           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1], localDirectory: CommandLine.arguments.contains("--codex-local-work") ? FileManager.default.temporaryDirectory.path : nil),
            let data = try? JSONSerialization.data(withJSONObject: args) {
             print(String(decoding: data, as: UTF8.self)); return
         }
@@ -534,8 +534,15 @@ struct ServerEditor: View {
                 Toggle("详细配置跳板机", isOn: $draft.detailedJumps)
                 if draft.detailedJumps {
                     Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Menu("选择已有跳板配置") {
+                        ForEach(SSHJumpPreset.available(in: workspace.servers)) { preset in
+                            Button(preset.name) { draft.useJumpPreset(preset) }
+                        }
+                    }.disabled(SSHJumpPreset.available(in: workspace.servers).isEmpty)
+                    Text("选择后替换当前跳转路径和网络代理；保存前可继续修改，不会改动来源会话。")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     ForEach($draft.jumpServers) { $hop in
-                        SSHJumpEditor(hop: $hop, position: (draft.jumpServers.firstIndex(where: { $0.id == hop.id }) ?? 0) + 1,
+                        SSHJumpEditor(hop: $hop, password: Binding(get: { draft.jumpPasswords[hop.id] ?? "" }, set: { draft.jumpPasswords[hop.id] = $0 }), position: (draft.jumpServers.firstIndex(where: { $0.id == hop.id }) ?? 0) + 1,
                                       moveUp: { draft.moveJump(hop.id, offset: -1) }, moveDown: { draft.moveJump(hop.id, offset: 1) },
                                       remove: { draft.jumpServers.removeAll { $0.id == hop.id } })
                     }
@@ -613,7 +620,7 @@ struct ServerEditor: View {
                 .padding(.trailing, 8).padding(.bottom, 12)
                 .background(EditorScrollbars())
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            Text("密码在认证窗口输入，可在登录成功后保存到 应用本地加密数据库；失效时提示更新。密钥口令和验证码不自动保存。")
+            Text("目标服务器密码在认证窗口输入；跳板机密码可提前填写。密钥口令和验证码不自动保存。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let validationError = draft.validationError { Text(L10n.text(validationError)).font(.callout).foregroundStyle(.red) }
             HStack {
@@ -631,7 +638,7 @@ struct ServerEditor: View {
     private func save(connect: Bool) {
         do {
             let validated = try draft.server.validated()
-            if workspace.save(validated) {
+            if workspace.save(validated, jumpPasswords: draft.jumpPasswords) {
                 if connect { workspace.connect(validated) }
                 onClose()
             } else {
@@ -654,6 +661,13 @@ struct ServerEditor: View {
 final class ServerDraft: ObservableObject {
     @Published var server: Server
     @Published var validationError: String?
+    @Published var jumpPasswords: [UUID: String] = [:]
+    func useJumpPreset(_ preset: SSHJumpPreset) {
+        jumpPasswords.removeAll()
+        server.jumpHost = nil
+        server.jumpServers = preset.copiedHops()
+        server.proxy = preset.proxy
+    }
     init(server: Server) { self.server = server }
     var jumpHost: String { get { server.jumpHost ?? "" } set { server.jumpHost = newValue.isEmpty ? nil : newValue } }
     var detailedJumps: Bool {

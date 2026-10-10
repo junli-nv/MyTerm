@@ -5,6 +5,24 @@
 保留仓库记录的各版本说明，按版本从新到旧排列。旧 Release 安装包清理后，本日志和各版本原始说明仍保留。历史说明中的安装路径、依赖及限制以对应版本为准。当前使用方法见 [README](README.md)，不要将历史版本的限制作为当前行为。英文入口提供各版本摘要，完整原始记录保留在本文件及各版本说明中。
 
 
+<a id="version-3.1.4"></a>
+
+# MyTerm 3.1.4
+
+跳板密码可提前保存、跨会话复用，并可选择已有多级跳转配置。 [Release notes](packaging/RELEASE-NOTES-3.1.4.md).
+
+<a id="version-3.1.3"></a>
+
+# MyTerm 3.1.3
+
+本地 Codex 改为选择目录后直接启动，无需关联 Bash 或启用 MyTerm MCP。 [Release notes](packaging/RELEASE-NOTES-3.1.3.md).
+
+<a id="version-3.1.2"></a>
+
+# MyTerm 3.1.2
+
+增加本地 Bash 与 Codex 接入，复用 Codex 代理，保留独立的 SSH 执行授权。 [Release notes](packaging/RELEASE-NOTES-3.1.2.md).
+
 <a id="version-3.1.1"></a>
 
 # MyTerm 3.1.1

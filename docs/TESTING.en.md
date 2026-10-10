@@ -37,7 +37,7 @@ The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. 
 | SFTP files/directories, hidden/empty folders, resume, conflicts, links | Core real-SFTP checks; UI selection, batches, file promises, detached window, disconnect/cancel |
 | ZMODEM and trzsz | Real helpers and PTY upload/download, byte comparisons, rates, tmux and drag paths |
 | tmux, copying, IME, font zoom, reconnect | Window checks and real SSH/tmux, including less replay, streaming selection and R/r |
-| Themes, colors, opacity, fonts, six vertical settings categories, the two-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
+| Themes, colors, opacity, fonts, six vertical settings categories, the three-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
 | Password/key management, references, deletion approval, backup | Core encryption/tampering/format tests and bilingual credential UI checks |
 | History opt-in, limits, compression, cleanup, export, memory budget and metadata release | Core/history window checks; 200 metadata cleanup cycles, shared budgets, width changes and opt-out |
 | PTY lifecycle | 100 retained exited objects, 2 MiB final output, EOF before exit, restart and HUP/TERM-ignoring child cleanup |
@@ -61,3 +61,5 @@ These are feature regressions, not 100% line/branch coverage or exhaustive combi
 Keep protocol/persistence in `MyTermCore`, windows/interactions in `MyTerm`, and gestures separate from session/group mutations. Extract focused responsibilities, not arbitrary file fragments. Timers and child processes need shutdown paths; asynchronous results must check connection identity; pagination and recursion need bounds. Reproduce defects before checking fixes.
 
 `MyTermApp` and `CodexBridge` still carry substantial UI orchestration. Prefer focused modules for new behavior and retain regression entry points during extraction. Record third-party SwiftTerm changes in `vendor/SwiftTerm/MYTERM-PATCH.md`; preserve upstream licenses.
+
+Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.

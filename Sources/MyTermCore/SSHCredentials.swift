@@ -3,6 +3,7 @@ import CryptoKit
 
 public protocol PasswordStore {
     func migrateScope(from: String, to: String) throws
+    func migrateAccount(from: String, to: String) throws
     func read(_ account: String) throws -> String?
     func save(_ password: String, account: String) throws
     func save(_ password: String, account: String, label: String) throws
@@ -11,6 +12,12 @@ public protocol PasswordStore {
 }
 public extension PasswordStore {
     func migrateScope(from: String, to: String) throws {}
+    func migrateAccount(from old: String, to new: String) throws {
+        if let value = try read(old) {
+            if try read(new) == nil { try save(value, account: new) }
+            try delete(old)
+        }
+    }
     func save(_ password: String, account: String, label: String) throws { try save(password, account: account) }
     func invalidateCachedPassword(_ account: String) throws { try delete(account) }
 }
@@ -18,6 +25,7 @@ public extension PasswordStore {
 /// host-key confirmations and password-change challenges remain interactive.
 public final class SSHPasswordMemory {
     private let scope: String
+    private let server: Server
     private let store: PasswordStore
     private let serverName: String
     private var labels: [String: String] = [:]
@@ -43,7 +51,21 @@ public final class SSHPasswordMemory {
         try Self.migrateLegacy(for: server, store: store)
         scope = try Self.scopeIdentifier(for: server)
         self.store = store
+        self.server = server
         serverName = server.displayName
+        try migrateJumpPasswords()
+    }
+    private func migrateJumpPasswords() throws {
+        for (index, hop) in (server.jumpServers ?? []).enumerated() {
+            guard hop.authentication != .key, !hop.user.isEmpty else { continue }
+            for host in [hop.host, "myterm-hop-\(server.id.uuidString.lowercased())-\(index + 1)"] {
+                for prompt in ["\(hop.user)@\(host)'s password:", "(\(hop.user)@\(host)) Password:"] {
+                    guard SSHJumpCredentials.matchingIndex(prompt: prompt, server: server) == index else { continue }
+                    let old = scopedAccount(prompt), shared = try SSHJumpCredentials.account(server: server, index: index)
+                    try store.migrateAccount(from: old, to: shared)
+                }
+            }
+        }
     }
     public static func isPassword(_ prompt: String) -> Bool {
         let value = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -51,6 +73,11 @@ public final class SSHPasswordMemory {
             || value.range(of: #"^\([^\r\n]+@[^\r\n]+\) [Pp]assword:$"#, options: .regularExpression) != nil
     }
     private func account(_ prompt: String) -> String {
+        if let index = SSHJumpCredentials.matchingIndex(prompt: prompt, server: server),
+           let shared = try? SSHJumpCredentials.account(server: server, index: index) { return shared }
+        return scopedAccount(prompt)
+    }
+    private func scopedAccount(_ prompt: String) -> String {
         scope + ":" + SHA256.hash(data: Data(prompt.trimmingCharacters(in: .whitespacesAndNewlines).utf8)).map { String(format: "%02x", $0) }.joined()
     }
     public func wasAttempted(_ prompt: String) -> Bool { attempted.contains(account(prompt)) }
@@ -65,7 +92,11 @@ public final class SSHPasswordMemory {
     public func submitted(_ password: String, prompt: String, remember: Bool) {
         guard Self.isPassword(prompt) else { return }
         let key = account(prompt); attempted.insert(key)
-        labels[key] = serverName + " · " + prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let index = SSHJumpCredentials.matchingIndex(prompt: prompt, server: server), let hop = server.jumpServers?[index] {
+            labels[key] = SSHJumpCredentials.label(hop)
+        } else {
+            labels[key] = serverName + " · " + prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         pending[key] = remember ? password : nil
     }
     public func authenticated() throws {

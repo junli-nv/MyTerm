@@ -30,7 +30,7 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### Publishing and documentation
 
-- When publishing is requested, publish and verify the new release before deleting older releases. Keep only the latest GitHub Release and its assets; preserve source tags and historical changelogs. Do not infer publishing authorization from an ordinary code or documentation edit.
+- When publishing is requested, publish and verify the new release. Preserve existing GitHub Releases and their assets unless the user explicitly requests cleanup; preserve source tags and historical changelogs. Do not infer publishing authorization from an ordinary code or documentation edit.
 - Maintain Chinese and English versions of current documentation together, with working language links. README is a usage guide, not a running list of version announcements. Use `releases/latest` for downloads and `packaging/Info.plist` as the version source.
 - After every change, validate code and matching Chinese/English documentation together; run regression checks appropriate to the changed behavior and report any unverified areas.
 - Check documentation against code, UI labels and scripts. Remove obsolete defaults, personal absolute paths from public examples, environment-specific test claims and duplicated contradictory sections.
@@ -64,7 +64,7 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### 发布与文档
 
-- 用户要求发布时，先发布并验证新版本，再清理旧 Release。GitHub 仅保留最新 Release 及附件，保留源码标签和历史日志；普通代码或文档修改不自动授权发布。
+- 用户要求发布时，发布并验证新版本。除非用户明确要求清理，否则保留已有 GitHub Release 及附件，并保留源码标签和历史日志；普通代码或文档修改不自动授权发布。
 - 当前文档的中英文同步维护，并提供有效语言链接。README 描述用法，不堆叠版本公告；下载指向 `releases/latest`，版本以 `packaging/Info.plist` 为准。
 - 每次改动后同步校验代码与对应中英文文档，运行与变更行为相匹配的回归检查，并说明未验证部分。
 - 对照代码、界面文案与脚本核实文档；移除过时默认值、公共示例中的个人绝对路径、特定环境的临时测试结论和重复矛盾段落。

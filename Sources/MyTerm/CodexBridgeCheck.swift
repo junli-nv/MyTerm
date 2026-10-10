@@ -4,6 +4,7 @@ import MyTermCore
 
 enum CodexBridgeCheck {
     static func run() throws {
+        try CodexLocalWorkCheck.run()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-codex-check-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -214,7 +215,7 @@ enum CodexBridgeCheck {
             guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Missing Codex settings scrollbar") }
             try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Codex settings overflow horizontally or fail to scroll")
             let categories = descendants(view).compactMap { $0 as? SettingsNativeTab }
-            try require(categories.count == 2, "Codex sidebar must contain two categories")
+            try require(categories.count == 3, "Codex sidebar must contain three categories")
             let frames = categories.map { $0.convert($0.bounds, to: view) }.sorted { $0.minY < $1.minY }
             try require(frames.allSatisfy { view.bounds.contains($0) } && abs(frames[0].minX - frames[1].minX) < 1 && frames[0].maxY <= frames[1].minY, "Codex categories are not vertically arranged")
             try require(categories.contains(where: { $0.title == L10n.text("Codex 配置") }) && categories.contains(where: { $0.title == L10n.text("SSH 会话接入") }), "Codex sidebar language")
@@ -231,6 +232,14 @@ enum CodexBridgeCheck {
             RunLoop.main.run(until: Date().addingTimeInterval(0.2))
             try require(navigation.page == 1, "Language change reset Codex settings section")
             language.selection = locale; navigation.page = 0
+            guard let localCategory = categories.first(where: { $0.identifier?.rawValue == "codex.settings.local" }) else { throw ConfigurationError.invalid("Missing Local Work category") }
+            localCategory.performClick(nil)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            try require(navigation.page == 2 && localCategory.title == L10n.text("本地工作"), "Local category selection/localization failed")
+            view.layoutSubtreeIfNeeded()
+            guard let localScroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let localDocument = localScroll.documentView else { throw ConfigurationError.invalid("Local work lacks scrollbar") }
+            try require(localDocument.frame.width <= localScroll.contentSize.width + 1, "Local work overflows horizontally")
+            try snapshotChooser(view, name: "codex-local-settings-" + locale.rawValue)
             let chooserSelection = CodexChooserState()
             let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection))
             window.contentView = chooser

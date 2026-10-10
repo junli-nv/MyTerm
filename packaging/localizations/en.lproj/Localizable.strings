@@ -885,3 +885,35 @@
 "暖奶油" = "Warm Cream";
 
 "从下拉列表选择字体；终端表格与 tmux 推荐使用等宽字体。安装新字体后重新打开此页面即可更新列表。" = "Choose a font from the list. Monospaced fonts are recommended for terminal tables and tmux. Reopen this page after installing a font to refresh the list.";
+
+"本地工作" = "Local Work";
+
+"复用 Codex 配置中的登录和代理，直接启动独立的本地 Codex。无需先打开或关联 Bash、SSH 标签。" = "Reuse the login and proxy from Codex Configuration to start standalone local Codex. No Bash or SSH tab needs to be opened or associated.";
+
+"工作目录（请确认）" = "Working directory (please confirm)";
+
+"本地目录" = "Local directory";
+
+"选择目录" = "Choose Directory";
+
+"默认使用用户主目录，也可选择项目目录。本地命令与文件修改使用 Codex 自身的工作区沙盒和审批流程；所选工作目录允许 Codex 写入。" = "The default is your home directory; you can choose a project directory. Local commands and file changes use Codex workspace sandbox and approvals. Codex can write in the selected directory.";
+
+"启动本地 Codex" = "Start Local Codex";
+
+"请选择有效的本地工作目录。" = "Select a valid local working directory.";
+
+"选择已有跳板配置" = "Choose saved jump configuration";
+
+"选择后替换当前跳转路径和网络代理；保存前可继续修改，不会改动来源会话。" = "Replaces this jump route and network proxy. Edit before saving; the source session is unchanged.";
+
+"跳板机密码（可选）" = "Jump password (optional)";
+
+"留空使用已保存密码，否则连接时询问" = "Leave blank to reuse a saved password or ask when connecting";
+
+"填写密码需指定用户名。保存后，同一路径的跳板机共用加密密码；留空不会清除已有密码。" = "A username is required to save a password. Matching routes share the encrypted password; leaving this blank keeps it.";
+
+"保存跳板机密码前请填写用户名。" = "Enter a username before saving a jump password.";
+
+"未保存密码时连接后询问；已保存密码被拒绝时提示更新。密钥口令仍在连接时输入。" = "Ask when connecting if no password is saved; request an update if a saved password is rejected. Key passphrases remain interactive.";
+
+"目标服务器密码在认证窗口输入；跳板机密码可提前填写。密钥口令和验证码不自动保存。" = "Enter destination passwords in the authentication dialog; jump passwords can be configured in advance. Key passphrases and verification codes are not saved automatically.";

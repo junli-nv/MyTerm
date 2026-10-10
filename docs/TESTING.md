@@ -37,12 +37,12 @@ python3 scripts/check-all.py /tmp/myterm-check/Release/MyTerm.app --configuratio
 | SFTP 文件/目录、隐藏/空目录、断点续传、冲突、链接 | 核心真实 SFTP 检查；窗口中的选择、批量、文件承诺拖拽、独立窗口、断开/取消 |
 | ZMODEM、trzsz | 真实助手进程及 PTY 上传/下载、字节比对、速度、tmux 与拖拽路径 |
 | tmux、复制、输入法、字体缩放、断线重连 | 窗口检查及真实 SSH/tmux；包含 less 回放、持续输出选区、R/r |
-| 主题、颜色、透明度、字体、六个纵向设置分类、Codex 双分区侧栏、中英文 | 完整窗口检查，含反复切换语言、小窗口与滚动 |
+| 主题、颜色、透明度、字体、六个纵向设置分类、Codex 三分区侧栏、中英文 | 完整窗口检查，含反复切换语言、小窗口与滚动 |
 | 密码/密钥管理、关联、删除确认、备份 | 核心加密/篡改/格式测试及双语凭据界面检查 |
 | 历史开关、容量、压缩、清理、导出、内存预算与元数据释放 | 核心历史策略与窗口检查；200 次会话元数据清理、标签均分预算/宽度变化/关闭预算 |
 | PTY 生命周期 | 100 次保留退出对象、2 MiB 末尾输出、EOF 先于退出、重启与忽略 HUP/TERM 子进程清理 |
 | Codex 读取、分页、已移除监控/计划工具的兼容响应、启动失败回滚、最后关联标签关闭撤权、执行审批/续期/撤权 | 核心协议及窗口 MCP/私有 socket 检查、真实 SSH 独立执行通道 |
-| Codex 登录衔接、MCP 路径与代理隔离 | PTY 登录模拟、真实 CLI 参数解析、HTTP/SOCKS5 合成 HTTPS 目标 |
+| Codex 登录衔接、MCP 路径与代理隔离、本地无会话启动与目录校验 | PTY 登录模拟、真实 CLI 参数解析、HTTP/SOCKS5 合成 HTTPS 目标 |
 | X11 转发 | `x11-check.py`：生产 SSH 参数、临时 sshd、真实 XQuartz 窗口及退出清理 |
 | 发布/安装一致性 | `package-release.sh`、`create-dmg.sh`、`install-release.sh`：多形态窗口检查、签名、完整包比较 |
 
@@ -61,3 +61,5 @@ python3 scripts/check-all.py /tmp/myterm-check/Release/MyTerm.app --configuratio
 保持协议/持久化在 `MyTermCore`，窗口和交互在 `MyTerm`；手势与会话排序/分组修改分离。提取有明确职责的模块，不为缩短文件盲目重构。计时器与子进程要有关闭路径，后台结果要核对当前连接身份，分页与递归要有上限。缺陷优先加入可复现检查，再验证修复。
 
 `MyTermApp`、`CodexBridge` 仍承担较多界面编排职责，后续新增行为应优先放入专注模块；拆分时保留现有回归入口。第三方 SwiftTerm 修改应记录于 `vendor/SwiftTerm/MYTERM-PATCH.md`，不要直接改动上游许可证。
+
+跳板凭据回归覆盖配置时保存、留空保留、共享路径复用、失效更新、旧记录和名称迁移、歧义提示隔离、复制多级路径及密码关联显示。

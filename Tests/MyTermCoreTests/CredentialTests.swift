@@ -10,6 +10,7 @@ final class MemoryPasswordStore: PasswordStore {
 }
 final class CredentialTests {
     func passwordLifecycle() throws {
+        try sharedJumpPasswords()
         let store = MemoryPasswordStore(), server = Server(host: "example.test", user: "dev", port: "22")
         let prompt = "dev@example.test's password: "
         let first = try SSHPasswordMemory(server: server, store: store)
@@ -34,10 +35,57 @@ final class CredentialTests {
         try next.authenticated(); checkEqual(store.values.count, 1)
         checkEqual(SSHPasswordMemory.isPassword("(dev@example.test) Password:"), true)
     }
+    private func sharedJumpPasswords() throws {
+        let store = MemoryPasswordStore()
+        var first = Server(name: "A", host: "target-a", user: "target")
+        first.jumpServers = [SSHJumpServer(host: "jump.test", user: "jump", authentication: .password)]
+        var second = Server(name: "B", host: "target-b", user: "target")
+        let preset = SSHJumpPreset.available(in: [first])[0]
+        second.jumpServers = preset.copiedHops()
+        checkFalse(second.jumpServers![0].id == first.jumpServers![0].id)
+        let account = try SSHJumpCredentials.account(server: first, index: 0)
+        checkEqual(try SSHJumpCredentials.account(server: second, index: 0), account)
+        try store.save("fixture", account: account)
+        let prompt = "jump@jump.test's password:"
+        checkEqual(try SSHPasswordMemory(server: second, store: store).cached(prompt), "fixture")
+        let retry = try SSHPasswordMemory(server: first, store: store)
+        checkEqual(try retry.cached(prompt), "fixture")
+        checkEqual(try retry.cached("(jump@jump.test) Password:"), nil)
+        retry.submitted("updated", prompt: prompt, remember: true)
+        try retry.authenticated()
+        checkEqual(try SSHPasswordMemory(server: second, store: store).cached(prompt), "updated")
+        for change in 0..<3 {
+            var different = second
+            if change == 0 { different.jumpServers?[0].port = "2222" }
+            if change == 1 { different.jumpServers?[0].user = "other" }
+            if change == 2 { different.jumpServers?.insert(SSHJumpServer(host: "outer", user: "jump"), at: 0) }
+            checkFalse(try SSHJumpCredentials.account(server: different, index: change == 2 ? 1 : 0) == account)
+        }
+        var ambiguous = second
+        ambiguous.jumpServers?.append(SSHJumpServer(host: "jump.test", port: "2222", user: "jump"))
+        checkEqual(SSHJumpCredentials.matchingIndex(prompt: prompt, server: ambiguous), nil)
+        checkEqual(try SSHPasswordMemory(server: ambiguous, store: store).cached(prompt), nil)
+        var keyed = second; keyed.jumpServers?[0].authentication = .key
+        checkEqual(try SSHPasswordMemory(server: keyed, store: store).cached(prompt), nil)
+        let forgotten = try SSHPasswordMemory(server: first, store: store)
+        forgotten.submitted("one-time", prompt: prompt, remember: false); try forgotten.authenticated()
+        checkEqual(try store.read(account), "updated")
+    }
     func configurationEdits() throws {
         let directory = URL(fileURLWithPath: "/tmp/credential-edit-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = SQLitePasswordStore(directory: directory)
+        var jumpServer = Server(host: "destination", user: "target")
+        jumpServer.jumpServers = [SSHJumpServer(host: "jump", user: "admin")]
+        let jumpPrompt = "admin@jump's password:"
+        let jumpLegacy = try SSHPasswordMemory.scopeIdentifier(for: jumpServer) + ":" + SHA256.hash(data: Data(jumpPrompt.utf8)).map { String(format: "%02x", $0) }.joined()
+        try store.save("legacy-jump", account: jumpLegacy, label: "Legacy jump")
+        try store.rename(jumpLegacy, name: "My jump")
+        checkEqual(try SSHPasswordMemory(server: jumpServer, store: store).cached(jumpPrompt), "legacy-jump")
+        let sharedJump = try SSHJumpCredentials.account(server: jumpServer, index: 0)
+        checkEqual(try store.list().first(where: { $0.id == sharedJump })?.name, "My jump")
+        checkEqual(try store.read(jumpLegacy), nil)
+        try store.delete(sharedJump)
         var original = Server(name: "Before", host: "example.test", user: "dev", port: "22", identityFile: "/tmp/key")
         original.authentication = .password
         original.jumpServers = [SSHJumpServer(host: "bastion.test", user: "jump", identityFile: "/tmp/jump-key")]

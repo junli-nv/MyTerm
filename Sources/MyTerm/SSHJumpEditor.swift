@@ -5,6 +5,7 @@ import MyTermCore
 struct SSHJumpEditor: View {
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @Binding var hop: SSHJumpServer
+    @Binding var password: String
     let position: Int
     let moveUp: () -> Void
     let moveDown: () -> Void
@@ -27,6 +28,12 @@ struct SSHJumpEditor: View {
                 Text("密码").tag(AuthenticationMode.password)
                 Text("密钥").tag(AuthenticationMode.key)
             }
+            if hop.authentication != .key {
+                Text("跳板机密码（可选）")
+                SecureField("留空使用已保存密码，否则连接时询问", text: $password)
+                Text("填写密码需指定用户名。保存后，同一路径的跳板机共用加密密码；留空不会清除已有密码。")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             if hop.authentication != .password {
                 HStack {
                     EditorTextField(title: "私钥文件", text: $hop.identityFile, prompt: "可选，使用默认密钥")
@@ -41,7 +48,7 @@ struct SSHJumpEditor: View {
                     }
                 }
             }
-            Text("连接时会分别提示各级跳板机的密码或密钥口令。密码可在登录成功后保存到应用本地加密数据库。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text("未保存密码时连接后询问；已保存密码被拒绝时提示更新。密钥口令仍在连接时输入。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.padding(10).background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 8))
     }
 }

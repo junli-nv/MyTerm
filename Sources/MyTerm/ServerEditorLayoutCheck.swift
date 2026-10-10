@@ -35,6 +35,26 @@ enum ServerEditorLayoutCheck {
         let migrated = try SSHPasswordMemory.scopeIdentifier(for: draft.server) + ":fixture"
         try require(try credentials.read(migrated) == "fixture-only" && credentials.read(oldAccount) == nil,
                     "Saving edited configuration orphaned legacy credentials")
+        var passwordServer = Server(name: "Password jump", host: "target.test")
+        passwordServer.jumpServers = [SSHJumpServer(host: "bastion.test", user: "jump", authentication: .password)]
+        let hopID = passwordServer.jumpServers![0].id
+        try require(workspace.save(passwordServer, jumpPasswords: [hopID: "fixture-jump"]), "Jump password save failed")
+        let jumpAccount = try SSHJumpCredentials.account(server: passwordServer, index: 0)
+        try require(try credentials.read(jumpAccount) == "fixture-jump", "Configured secret missing")
+        try require(workspace.save(passwordServer, jumpPasswords: [hopID: ""]), "Blank save failed")
+        try require(try credentials.read(jumpAccount) == "fixture-jump", "Blank secret erased password")
+        let copyDraft = ServerDraft(server: Server(host: "other.test"))
+        copyDraft.useJumpPreset(SSHJumpPreset.available(in: [passwordServer])[0])
+        try require(copyDraft.jumpServers.first?.id != hopID && copyDraft.jumpPasswords.isEmpty, "Preset copied a row ID or plaintext secret")
+        try require(workspace.save(copyDraft.server), "Copied route save failed")
+        let associations = CredentialSettingsState.matching(try credentials.list(), references: [
+            CredentialSessionReference(server: passwordServer, label: "A"),
+            CredentialSessionReference(server: copyDraft.server, label: "B")])
+        try require(associations[jumpAccount] == ["A", "B"], "Shared password associations missing")
+        var invalid = passwordServer; invalid.jumpServers?[0].user = ""
+        try require(!workspace.save(invalid, jumpPasswords: [hopID: "invalid"]), "Password without username accepted")
+        try require(workspace.servers.first(where: { $0.id == passwordServer.id })?.jumpServers?[0].user == "jump", "Failed save changed server")
+        try require(!String(decoding: JSONEncoder().encode(workspace.servers), as: UTF8.self).contains("fixture-jump"), "Secret leaked into session JSON")
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
         func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.2)); root.layoutSubtreeIfNeeded() }
         try require(window.styleMask.contains(.resizable) && window.collectionBehavior.contains(.fullScreenPrimary), "Window cannot resize/fullscreen")

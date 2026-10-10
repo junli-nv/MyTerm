@@ -38,14 +38,16 @@ struct CodexSettingsView: View {
                     .frame(width: 184, height: 48)
                 SettingsNavigationButton(title: "SSH 会话接入", symbol: "terminal", identifier: "codex.settings.ssh", selected: navigation.page == 1) { navigation.page = 1 }
                     .frame(width: 184, height: 48)
+                SettingsNavigationButton(title: "本地工作", symbol: "desktopcomputer", identifier: "codex.settings.local", selected: navigation.page == 2) { navigation.page = 2 }
+                    .frame(width: 184, height: 48)
                 Spacer(minLength: 0)
             }.padding(12).frame(width: 208).background(Color(nsColor: .controlBackgroundColor))
             Divider()
             VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.text(navigation.page == 0 ? "Codex 配置" : "SSH 会话接入")).font(.title2.bold())
+            Text(L10n.text(navigation.page == 0 ? "Codex 配置" : navigation.page == 1 ? "SSH 会话接入" : "本地工作")).font(.title2.bold())
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if navigation.page == 0 { codexConfiguration.disabled(bridge.busy) } else { sshConfiguration }
+                    if navigation.page == 0 { codexConfiguration.disabled(bridge.busy) } else if navigation.page == 1 { sshConfiguration } else { CodexLocalWorkView(bridge: bridge) }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(4)
             }.scrollIndicators(.visible)
             if !bridge.message.isEmpty {

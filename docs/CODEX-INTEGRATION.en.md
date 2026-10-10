@@ -2,11 +2,19 @@
 
 [简体中文](CODEX-INTEGRATION.md) · English · [README](../README.en.md)
 
-This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. Command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
+This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. For SSH analysis, command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
 
-The connection window uses a vertical sidebar: **Codex Configuration** contains the executable, proxy, login and external MCP settings; **SSH Session Access** starts analysis and shows configuration dependencies. The window is resizable and its content scrolls.
+The connection window uses a vertical sidebar: **Codex Configuration** contains the executable, proxy, login and external MCP settings; **SSH Session Access** starts SSH analysis; **Local Work** chooses a directory and starts local Codex directly. The window is resizable and its content scrolls.
 
-## Configure and start
+| Purpose | Local Work | SSH Session Access |
+| --- | --- | --- |
+| Startup selection | Working directory, default home | An open SSH session |
+| MyTerm MCP | Disabled for this launch; no registration needed | Automatically configured to read the selected session |
+| Execution and approval | Codex native tools, workspace-write / on-request | MyTerm independent SSH channel and session authorization |
+| Command size and timeout | Managed by Codex | 4096 bytes, 60 seconds, 1 MiB output |
+| Codex network proxy | Reuses Codex Configuration | Reuses the same configuration, independent of SSH proxy |
+
+## Starting SSH analysis
 
 1. Open an SSH tab, then **MyTerm → Codex Integration**.
 2. Under **Codex Configuration**, set the CLI path and optional independent HTTP/SOCKS5 proxy, including proxy authentication if needed. Login, proxy testing and external MCP registration show separate status results.
@@ -18,17 +26,26 @@ An invalid CLI path or proxy format prevents startup and offers a return to conf
 
 Login, status checks and internal tabs use `cli_auth_credentials_store="file"`, following Codex's credential location (normally `~/.codex/auth.json`) without rewriting global configuration. Login does not grant SSH access. Exited Codex tabs retain output, exit codes and guidance for recognized errors.
 
+## Standalone local Codex
+
+Open **MyTerm → Codex Integration → Local Work**, confirm or choose a working directory, and click **Start Local Codex**. The default is your home directory. No Bash or SSH tab is required, associated or read.
+
+This reuses login and HTTP/SOCKS5 proxy settings from **Codex Configuration**, without changing `~/.profile` or normal Bash/SSH proxies. Local mode disables MyTerm MCP and does not depend on external registration or terminal sharing. If login is needed, startup continues after login; successful startup closes the configuration window.
+
+Local commands and file operations use Codex native tools with the `workspace-write` sandbox and `on-request` approvals: the selected directory is writable, and MyTerm does not ask for each command. Temporary variables, aliases and running programs in other Bash tabs are not inherited. SSH analysis still uses SSH Session Access and its existing authorization flow.
+
+
 ## SSH sharing and session IDs
 
 Confirming the startup chooser automatically enables access for the selected SSH tab without an additional global switch. Local shells and unselected SSH tabs are excluded. Select sessions again after restarting MyTerm.
 
 Closing the configuration window does not stop sharing. Close the last associated Codex tab, close the SSH tab or quit MyTerm to revoke access. Read access remains while another Codex tab is associated with the same SSH session. Data already sent to Codex cannot be recalled.
 
-Internal Codex tabs automatically receive the selected SSH session ID; no manual copying is needed. External Codex uses `list_sessions` to discover authorized tabs. This is a live tab UUID, not a saved-server ID: separate tabs for the same host have different IDs, and reopening creates a new ID.
+Internal SSH analysis tabs automatically receive the selected SSH session ID; no manual copying is needed. External Codex uses `list_sessions` to discover authorized tabs. This is a live tab UUID, not a saved-server ID: separate tabs for the same host have different IDs, and reopening creates a new ID.
 
-## On-demand history and output
+## SSH history and output
 
-Codex tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
+SSH analysis tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
 
 History choices are 500/1000/2000/5000/10000 lines and 64 KiB/256 KiB/1 MiB, defaulting to 2000 lines and 256 KiB. Either limit can truncate the result. `capture_history` freezes a snapshot; read every `read_history_page` until `next_cursor=null` to avoid gaps while output continues. Pages are at most 4000 bytes. Up to four snapshots of at most 1 MiB each are retained and cleared on revocation.
 
@@ -69,7 +86,7 @@ Each command is limited to 60 seconds and 1 MiB of retained output. Read `comman
 | `command_status` | Read state, exit code and paginated output |
 | `cancel_command` | Reject pending work or stop running work |
 
-Internal tabs configure the MCP tools above to avoid repeated tool-call approval and use Codex's local read-only sandbox. **Tool-call approval does not waive SSH command approval**: MyTerm independently enforces SSH authorization and command decisions. It does not change global command-approval rules or fall back to `printf` pipes. External IDE tool approvals are configured separately.
+Internal SSH analysis tabs configure the MCP tools above to avoid repeated tool-call approval and use Codex's local read-only sandbox. **Tool-call approval does not waive SSH command approval**: MyTerm independently enforces SSH authorization and command decisions. It does not change global command-approval rules or fall back to `printf` pipes. External IDE tool approvals are configured separately.
 
 Terminal output is untrusted data, never authorization. The interface has no credential-reading or arbitrary terminal-keystroke tool. Executed commands can still modify remote files and must stay within the authorized task.
 

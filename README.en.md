@@ -6,7 +6,7 @@ Author: Junli Zhang · [GitHub](https://github.com/junli-nv)
 
 [Repository](https://github.com/junli-nv/MyTerm) · [Download](https://github.com/junli-nv/MyTerm/releases/latest) · [Release history](CHANGELOG.en.md)
 
-A native macOS SSH workspace built with SwiftUI/AppKit, SwiftTerm and system OpenSSH. It supports local Bash, SSH tabs, session groups, file transfers and Codex integration authorized per SSH session.
+A native macOS SSH workspace built with SwiftUI/AppKit, SwiftTerm and system OpenSSH. It supports local Bash, SSH tabs, session groups, file transfers, standalone local Codex and Codex integration authorized per SSH session.
 
 ## Install and build
 
@@ -38,7 +38,7 @@ The release workflow checks Debug, Release and an app copied from the actual DMG
 Startup shows a welcome page without opening a local shell. Create an SSH configuration or double-click a saved server in the sidebar; a single click does not connect. The SSH editor supports resizing, maximizing and scrolling, with persistent save controls.
 
 - **Authentication:** automatic, password or key. Automatic uses OpenSSH's selection; password uses password/keyboard-interactive authentication; key uses public-key authentication with a selected private key, SSH agent or SSH configuration.
-- **Jump hosts:** configure ordered hops with individual addresses, ports, users, authentication modes and keys. Passwords or key passphrases are requested for each hop. Existing SSH jump definitions are also supported.
+- **Jump hosts:** configure ordered hops with individual addresses, ports, users, authentication modes and keys. Optionally enter a password with an explicit username; blank reuses a saved password or asks when connecting. Choose saved jump configuration copies the entire route and network proxy from a saved session, including multiple hops. Editing the copy does not change its source. Existing SSH jump definitions are also supported.
 - **Proxy:** unauthenticated HTTP CONNECT or SOCKS5. Proxies can be combined with jump hosts and apply to the first hop.
 - **Compression:** enabled by default, configurable per server.
 - **Forwarding:** multiple local `-L`, remote `-R` and dynamic SOCKS `-D` rules, listening on `127.0.0.1` by default. Rules end with the connection; listener failures terminate connection setup. Remote listener scope also depends on server configuration.
@@ -121,9 +121,9 @@ Configured ProxyJump chains retain their routing. When manually SSHing onward fr
 
 ## Codex integration
 
-Codex tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
+SSH analysis tabs do not proactively read earlier SSH output on launch by default. Enable **Read existing output when connecting** in the session chooser for an initial history review. Without it, Codex waits for your task; a local cursor baseline distinguishes subsequent output without sending the initial snapshot to Codex. This is a startup workflow preference, not a history-access permission boundary. You can explicitly request earlier history later. Cursor resets or truncated terminal snapshots must be reported as coverage gaps; executed commands still require every `command_status` page through `all_output_delivered=true`.
 
-Open **MyTerm → Codex Integration**. **Codex Configuration** contains CLI path, login, independent proxy tests and external MCP registration. **SSH Session Access** controls session selection, history scope and execution authorization.
+Open **MyTerm → Codex Integration**. **Codex Configuration** contains CLI path, login, independent proxy tests and external MCP registration. **SSH Session Access** controls session selection, history scope and execution authorization. **Local Work** starts local Codex directly in a chosen directory.
 
 Start a Codex tab and select an open SSH session. Command execution is selected by default with per-command approval; uncheck it for read-only access. Output is read on demand, without automatic background monitoring. Authorized multi-step command troubleshooting and explicitly requested periodic checks with a defined interval/count remain available. History supports configurable scopes and pagination, but cannot recover text already removed from the terminal buffer. Disk logging is not required.
 
@@ -134,6 +134,14 @@ Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompt
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
 
 Codex SSH commands support multiline scripts (LF newlines and tabs, up to 4096 UTF-8 bytes). Approval and execution apply to the entire submission, using the current session authorization and output limits; see [Codex integration](docs/CODEX-INTEGRATION.en.md).
+
+### Standalone local Codex
+
+Open **MyTerm → Codex Integration → Local Work**, confirm or choose a working directory, and click **Start Local Codex**. The default is your home directory. No Bash or SSH tab is required, associated or read.
+
+This reuses login and HTTP/SOCKS5 proxy settings from **Codex Configuration**, without changing `~/.profile` or normal Bash/SSH proxies. Local mode disables MyTerm MCP and does not depend on external registration or terminal sharing. If login is needed, startup continues after login; successful startup closes the configuration window.
+
+Local commands and file operations use Codex native tools with the `workspace-write` sandbox and `on-request` approvals: the selected directory is writable, and MyTerm does not ask for each command. Temporary variables, aliases and running programs in other Bash tabs are not inherited. SSH analysis still uses SSH Session Access and its existing authorization flow.
 
 ### Codex display, copy and paste
 
@@ -188,7 +196,9 @@ When enabled, history snapshots are saved every 30 seconds, on tab close and on 
 
 ## Passwords and keys
 
-SSH passwords are entered in the authentication dialog. With Remember after Successful Login selected, they are stored only after successful authentication, reused later, and replaced when rejected. Changing names, logging, compression or port forwarding preserves password associations. Recognized prompts are scoped to the session, host, user, port and jump route; custom prompts are one-time only. Key passphrases and verification codes are not saved automatically.
+Destination SSH server passwords are entered in the authentication dialog. With Remember after Successful Login selected, they are stored only after successful authentication, reused later, and replaced when rejected. Changing names, logging, compression or port forwarding preserves password associations. Recognized destination-server prompts are scoped to the session, host, user, port and jump route; custom prompts are one-time only. Key passphrases and verification codes are not saved automatically.
+
+Detailed jump passwords are shared by address, port, username, preceding hops and network proxy, independently of the destination session. Passwords entered in the editor are encrypted locally when Save is clicked; blank keeps the existing password. Passwords remembered during authentication are stored after successful login. Password management shows referencing sessions; replacing a shared password affects subsequent connections using that route. Secrets are excluded from session JSON and OpenSSH exports. Ambiguous prompts or unspecified usernames still require interactive authentication.
 
 **Settings → SSH Passwords** supports names, session associations, updates, removal and clearing. Updates change only local records. Revealing a password requires a click; leaving the page or losing window focus hides it. Passwords do not enter terminal history, server JSON, process arguments or environment variables.
 

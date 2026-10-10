@@ -237,8 +237,8 @@ final class Workspace: ObservableObject {
     }
 
     @discardableResult
-    func openCodex(executable: String, arguments: [String], environment: [String: String], proxy: CodexSOCKSProxy? = nil, executionBridge: CodexBridge? = nil, targetSessionID: UUID? = nil, onExit: ((Int32?) -> Void)? = nil) -> TerminalSession {
-        let session = TerminalSession(label: "Codex", executable: executable, arguments: arguments, launchEnvironment: environment, launchProxy: proxy, retainOnExit: true)
+    func openCodex(executable: String, arguments: [String], environment: [String: String], directory: String? = nil, proxy: CodexSOCKSProxy? = nil, executionBridge: CodexBridge? = nil, targetSessionID: UUID? = nil, onExit: ((Int32?) -> Void)? = nil) -> TerminalSession {
+        let session = TerminalSession(label: "Codex", executable: executable, arguments: arguments, directory: directory, launchEnvironment: environment, launchProxy: proxy, retainOnExit: true)
         session.codexExecutionBridge = executionBridge; session.codexTargetSessionID = targetSessionID
         session.onProcessExit = onExit
         add(session)
@@ -313,13 +313,17 @@ final class Workspace: ObservableObject {
         }
     }
 
-    func save(_ server: Server) -> Bool {
+    func save(_ server: Server, jumpPasswords: [UUID: String] = [:]) -> Bool {
         guard !loadFailed else {
             error = "请先修复 ~/Library/Application Support/MyTerm/servers.json 并重启，以免覆盖无法读取的配置。"
             return false
         }
         do {
             let server = try server.validated()
+            let credentials = try (server.jumpServers ?? []).enumerated().compactMap { index, hop -> (password: String, account: String, label: String?)? in
+                guard hop.authentication != .key, let password = jumpPasswords[hop.id], !password.isEmpty else { return nil }
+                return (password, try SSHJumpCredentials.account(server: server, index: index), SSHJumpCredentials.label(hop))
+            }
             // Migrate before replacing the only saved copy of the legacy configuration.
             let previous = servers.first(where: { $0.id == server.id })
                 ?? sessions.compactMap(\.sourceServer).first(where: { $0.id == server.id })
@@ -333,6 +337,11 @@ final class Workspace: ObservableObject {
             if let index = updated.firstIndex(where: { $0.id == server.id }) { updated[index] = server }
             else { updated.append(server) }
             try repository.save(updated)
+            do { try credentialStore.saveBatch(credentials) }
+            catch {
+                try repository.save(servers)
+                throw error
+            }
             servers = updated
             return true
         } catch { self.error = error.localizedDescription; return false }
