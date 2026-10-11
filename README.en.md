@@ -172,6 +172,8 @@ Edit foreground/background, cursor/cursor text, selection colors and ANSI 16 col
 
 **Terminal Behavior** controls selection-copy, right-click paste and bell. Selection-copy/right-click paste are enabled and the bell disabled by default. Shift+right-click always opens the menu; `⌘C`/`⌘V` remain available.
 
+**Settings → Terminal Behavior → Full-screen trackpad scrolling** offers Standard, Fast (4×, default) and Page Up / Page Down. Enter tmux copy mode (`Ctrl+B`, then `[`) to browse with two fingers. Page mode sends page keys in the scroll direction, ignores momentum and rate-limits paging. The terminal cannot reliably identify tmux copy mode, so this setting also affects other full-screen programs. Normal shell history, mouse wheels, Shift scrolling and Ctrl font zoom retain their existing behavior.
+
 The first double-click selects whitespace-delimited text; double-click the selection again to expand to a logical line. Copy joins recorded soft wraps and preserves hard newlines. Use Copy with Screen Line Breaks to retain visual layout, or Shift to select locally when the remote program captures mouse events. Full-screen redraws without wrap metadata may still copy as separate screen lines.
 
 The bottom bar offers UTF-8, GB2312, GBK, GB18030, Big5, Shift-JIS, EUC-KR and ISO-8859-1. Changes affect subsequent input/output; unrepresentable characters use replacements. Binary transfers are unaffected.

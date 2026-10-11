@@ -4,6 +4,9 @@ import SwiftUI
 final class MousePreferences: ObservableObject {
     static let shared = MousePreferences()
     private let defaults: UserDefaults
+    @Published var fullscreenScroll: FullscreenScrollMode {
+        didSet { defaults.set(fullscreenScroll.rawValue, forKey: "mouse.fullscreenScroll") }
+    }
     @Published var disableBell: Bool {
         didSet { defaults.set(disableBell, forKey: "terminal.disableBell") }
     }
@@ -17,6 +20,7 @@ final class MousePreferences: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: ["mouse.rightClickPastes": true, "mouse.copyOnSelection": true, "terminal.disableBell": true])
+        fullscreenScroll = FullscreenScrollMode(rawValue: defaults.string(forKey: "mouse.fullscreenScroll") ?? "") ?? .fast
         disableBell = defaults.bool(forKey: "terminal.disableBell")
         rightClickPastes = defaults.bool(forKey: "mouse.rightClickPastes")
         copyOnSelection = defaults.bool(forKey: "mouse.copyOnSelection")
@@ -92,6 +96,11 @@ private struct MouseSettingsView: View {
             Toggle("右键直接粘贴", isOn: $preferences.rightClickPastes)
             Text("开启后，按住 Shift 再右键仍可打开菜单。\n⌘C 复制、⌘V 粘贴始终可用。")
                 .font(.callout).foregroundStyle(.secondary)
+            Picker("全屏终端触摸板", selection: $preferences.fullscreenScroll) {
+                ForEach(FullscreenScrollMode.allCases, id: \.self) { mode in Text(L10n.text(mode.title)).tag(mode) }
+            }
+            Text("默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Divider()
             Toggle("禁用终端响铃", isOn: $preferences.disableBell)
             Text("关闭本地 shell 和 SSH 的 BEL 响铃提示，默认禁用。")

@@ -393,7 +393,7 @@ open class Terminal {
         buffer
     }
 
-    var isDisplayBufferAlternate: Bool {
+    public var isDisplayBufferAlternate: Bool {
         isCurrentBufferAlternate
     }
     

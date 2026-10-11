@@ -5,8 +5,40 @@ import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
     private var tmuxPrefixInput = TmuxPrefixInput()
+    private var fullscreenScrollGesture = FullscreenScrollGesture()
+    private var lastFullscreenScrollMode: FullscreenScrollMode?
+
+    override func scrollWheel(with event: NSEvent) {
+        let mode = preferences.fullscreenScroll
+        if lastFullscreenScrollMode != mode {
+            fullscreenScrollGesture.reset(); lastFullscreenScrollMode = mode
+        }
+        guard event.hasPreciseScrollingDeltas, getTerminal().isDisplayBufferAlternate,
+              event.modifierFlags.intersection([.control, .command, .option, .shift]).isEmpty else {
+            fullscreenScrollGesture.reset()
+            super.scrollWheel(with: event)
+            return
+        }
+        switch mode {
+        case .standard:
+            fullscreenScrollGesture.reset()
+            super.scrollWheel(with: event)
+        case .fast:
+            fullscreenScrollGesture.reset()
+            let original = scrollSensitivity
+            scrollSensitivity = original * 4
+            defer { scrollSensitivity = original }
+            super.scrollWheel(with: event)
+        case .pages:
+            let page = fullscreenScrollGesture.page(delta: event.scrollingDeltaY,
+                began: event.phase.contains(.began), momentum: !event.momentumPhase.isEmpty,
+                timestamp: event.timestamp)
+            if page != 0 { send(txt: page > 0 ? "\u{1b}[5~" : "\u{1b}[6~") }
+        }
+    }
     override func resignFirstResponder() -> Bool {
         tmuxPrefixInput.reset()
+        fullscreenScrollGesture.reset()
         return super.resignFirstResponder()
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {

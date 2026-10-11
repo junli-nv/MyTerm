@@ -63,3 +63,5 @@ Keep protocol/persistence in `MyTermCore`, windows/interactions in `MyTerm`, and
 `MyTermApp` and `CodexBridge` still carry substantial UI orchestration. Prefer focused modules for new behavior and retain regression entry points during extraction. Record third-party SwiftTerm changes in `vendor/SwiftTerm/MYTERM-PATCH.md`; preserve upstream licenses.
 
 Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.
+
+Trackpad regression checks cover page-key encoding from actual scroll events, fast mode, accumulated gestures, throttling, reversal, ignored momentum, and normal-shell/mouse-wheel isolation.

@@ -63,3 +63,5 @@ python3 scripts/check-all.py /tmp/myterm-check/Release/MyTerm.app --configuratio
 `MyTermApp`、`CodexBridge` 仍承担较多界面编排职责，后续新增行为应优先放入专注模块；拆分时保留现有回归入口。第三方 SwiftTerm 修改应记录于 `vendor/SwiftTerm/MYTERM-PATCH.md`，不要直接改动上游许可证。
 
 跳板凭据回归覆盖配置时保存、留空保留、共享路径复用、失效更新、旧记录和名称迁移、歧义提示隔离、复制多级路径及密码关联显示。
+
+触摸板回归覆盖真实滚动事件的按页键编码、快速模式、多次滑动累积、限速、反向、惯性忽略，以及普通 Shell 和鼠标滚轮隔离。

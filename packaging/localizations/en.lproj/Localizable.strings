@@ -917,3 +917,13 @@
 "未保存密码时连接后询问；已保存密码被拒绝时提示更新。密钥口令仍在连接时输入。" = "Ask when connecting if no password is saved; request an update if a saved password is rejected. Key passphrases remain interactive.";
 
 "目标服务器密码在认证窗口输入；跳板机密码可提前填写。密钥口令和验证码不自动保存。" = "Enter destination passwords in the authentication dialog; jump passwords can be configured in advance. Key passphrases and verification codes are not saved automatically.";
+
+"全屏终端触摸板" = "Full-screen trackpad scrolling";
+
+"标准滚动" = "Standard";
+
+"快速滚动" = "Fast";
+
+"按页翻动" = "Page Up / Page Down";
+
+"默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。" = "Fast scrolling (4×) is the default. Page mode sends Page Up / Page Down, useful after entering tmux copy mode. This also affects other full-screen programs; normal shell history, mouse wheels and Ctrl font zoom are unchanged.";

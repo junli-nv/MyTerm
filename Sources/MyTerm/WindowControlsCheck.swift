@@ -22,6 +22,7 @@ final class WindowControlsCheck {
         do {
             try SystemMenuLocalizationCheck.run()
             try FontZoomKeyboardCheck.run()
+            try FullscreenScrollCheck.run()
             try TmuxPrefixInputCheck.run()
             try TerminalCopyCheck.run()
             try SSHDisconnectCheck.run()
