@@ -5,8 +5,8 @@ import MyTermCore
 /// One native responder owns selection, context clicks and drag initiation.
 /// No nested SwiftUI button/drag tracking or application-level mouse monitor.
 struct SessionTabControl: NSViewRepresentable {
-    let workspace: Workspace
-    let session: TerminalSession
+    @ObservedObject var workspace: Workspace
+    @ObservedObject var session: TerminalSession
     func makeNSView(context: Context) -> SessionTabNativeView { SessionTabNativeView() }
     func updateNSView(_ view: SessionTabNativeView, context: Context) {
         view.configure(title: session.label, symbol: session.executable == "/usr/bin/ssh" ? "network" : "terminal",
@@ -21,7 +21,6 @@ struct SessionTabControl: NSViewRepresentable {
             func add(_ title: String, action: @escaping () -> Void) {
                 menu.addItem(SessionTabMenuItem(title: L10n.text(title), action: action))
             }
-            add("选中会话") { workspace.selectedID = session.id }
             add("复制会话（新连接）") { workspace.duplicate(session) }
             let logging = NSMenuItem(title: L10n.text("会话日志"), action: nil, keyEquivalent: "")
             let modes = NSMenu()
@@ -137,9 +136,15 @@ final class SessionTabNativeView: NSView, NSDraggingSource {
     override func rightMouseUp(with event: NSEvent) {
         // A single physical press opens at most one menu, on press rather than release.
     }
-    override func menu(for event: NSEvent) -> NSMenu? { buildMenu?() }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        // AppKit can request a menu through a child responder (e.g. the close
+        // button) instead of calling this view's rightMouseDown directly.
+        select?()
+        return buildMenu?()
+    }
     private func showMenu(_ event: NSEvent) {
         down = nil
+        select?()
         guard let menu = buildMenu?() else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }

@@ -4,6 +4,12 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.1.10"></a>
+
+# MyTerm 3.1.10
+
+Fix tab titles failing to refresh after renaming, with matching tab width updates. Right-click or Control-click selects the target tab before opening its menu; remove the redundant Select Session item. [Release notes](packaging/RELEASE-NOTES-3.1.10.md).
+
 <a id="version-3.1.9"></a>
 
 # MyTerm 3.1.9

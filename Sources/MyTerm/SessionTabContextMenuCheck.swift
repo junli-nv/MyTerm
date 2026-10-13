@@ -54,6 +54,9 @@ enum SessionTabContextMenuCheck {
                 let controlClick = index == 3
                 let translatedClick = index == 5
                 let contextPoint = active.convert(location, to: nil)
+                // Right-click an inactive tab without a preceding left-click.
+                workspace.selectedID = targets.first(where: { $0.id != target.id })!.id
+                settle()
                 let pressTime = ProcessInfo.processInfo.systemUptime
                 var opened = false, ended = false, survivedRelease = false
                 var openings = 0
@@ -61,7 +64,7 @@ enum SessionTabContextMenuCheck {
                 let endObserver = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: nil) { _ in ended = true }
                 let observer = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { notification in
                     guard let menu = notification.object as? NSMenu,
-                          menu.items.first?.title == L10n.text("选中会话") else { return }
+                          menu.items.first?.title == L10n.text("复制会话（新连接）") else { return }
                     opened = true
                     openings += 1
                     ended = false
@@ -97,13 +100,12 @@ enum SessionTabContextMenuCheck {
                 NotificationCenter.default.removeObserver(observer)
                 NotificationCenter.default.removeObserver(endObserver)
                 try require(opened && survivedRelease, "Context menu missing or dismissed on release at \(location)")
+                try require(workspace.selectedID == target.id, "Context click did not select its target")
             }
             let menu = try tabView(target.id).buildMenu!()!
             try require(menu.items.contains(where: { $0.title == L10n.text("复制会话（新连接）") }) &&
                         menu.items.contains(where: { $0.title == L10n.text("关闭会话") }), "Menu actions missing")
-            workspace.selectedID = targets.first(where: { $0.id != target.id })!.id
-            menu.performActionForItem(at: 0)
-            try require(workspace.selectedID == target.id, "Menu action targeted the other tab")
+            try require(!menu.items.contains(where: { $0.title == L10n.text("选中会话") }), "Redundant selection action remains")
         }
         let closing = TerminalSession(label: "Close fixture", executable: "/bin/false", arguments: [])
         workspace.sessions.append(closing); workspace.selectedID = closing.id

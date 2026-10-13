@@ -55,7 +55,7 @@ Select disabled, untrusted (`-X`) or trusted (`-Y`) forwarding in the SSH editor
 
 ## Tabs and groups
 
-Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. A single click selects a tab; the whole tab, including its padding, accepts clicks. Right-click or Control-click opens its menu without double-clicking. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing and reconnection. Duplication opens an independent connection, without copying processes or history.
+Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. A single click selects a tab; the whole tab, including its padding, accepts clicks. Right-click or Control-click selects the target tab and opens its menu, without a preceding left-click or double-click. Renaming updates the title and tab width immediately. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing and reconnection. Duplication opens an independent connection, without copying processes or history.
 
 The right-hand `+` and blank-strip menu offer local sessions, SSH configurations, saved servers and session restoration. Double-click blank tab-strip space to maximize/restore. Sidebar and bottom status bar visibility are independent; the bottom bar starts hidden. SSH tabs have an SFTP button beside `+`, independent of the bottom bar.
 
