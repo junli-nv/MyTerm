@@ -65,3 +65,5 @@ Keep protocol/persistence in `MyTermCore`, windows/interactions in `MyTerm`, and
 Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.
 
 Trackpad regression checks cover page-key encoding from actual scroll events, fast mode, accumulated gestures, throttling, reversal, ignored momentum, and normal-shell/mouse-wheel isolation.
+
+Keyboard-repeat regression checks cover the app-scoped accent-menu policy, repeated h/j/k/l/a events with an ASCII input source in normal/alternate screens, and Chinese preedit/commit. The original input source is restored. Synthetic repeats do not replace a physical long-press test; OS long-press thresholds and repeat rates still require manual verification.

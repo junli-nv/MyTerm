@@ -20,6 +20,10 @@ struct MyTermApp {
                 FileHandle.standardOutput.write(Data((answer + "\n").utf8)); exit(0)
             } catch { exit(1) }
         }
+        // AppKit must see this before creating input contexts. Terminal programs
+        // need held letters as repeated keys, not the macOS accent picker.
+        // This is an application-domain preference; never change NSGlobalDomain.
+        UserDefaults.standard.set(false, forKey: "ApplePressAndHoldEnabled")
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
