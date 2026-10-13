@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory(prefix="myterm-codex-launch-") as directory:
     alias.parent.mkdir()
     alias.symlink_to(binary)
     for path, local in [(binary, False), (alias, False), (alias, True)]:
-        args = json.loads(subprocess.check_output([str(binary), "--smoke-test", "--codex-launch-arguments", str(path), *(["--codex-local-work"] if local else [])], text=True))
+        args = json.loads(subprocess.check_output([str(binary), "--smoke-test", "--codex-launch-arguments", str(path), "--codex-scoped-check", *(["--codex-local-work"] if local else [])], text=True))
         overrides = []
         for index, value in enumerate(args):
             if value == "-c":
@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory(prefix="myterm-codex-launch-") as directory:
             assert parsed["enabled"] is False, "Standalone local Codex still requires MyTerm MCP"
             continue
         transport = parsed["transport"]
+        assert transport["env"]["MYTERM_CODEX_ASSOCIATION"] == "11111111-2222-3333-4444-555555555555", "Codex lost the association environment"
         assert transport["command"] == str(path), "Codex parsed an incorrect executable path"
         requests = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "fixture", "version": "1"}}},

@@ -15,71 +15,22 @@ extension Workspace {
     }
 }
 
-/// A private drag type keeps terminal tabs separate from files and saved-server drags.
+/// Only typed, single-tab payloads are accepted. Terminal files and sidebar
+/// server drags use different types and cannot reorder the tab strip.
 struct SessionTabDrag {
     static let typeIdentifier = "local.myterm.session-tab"
+    static let pasteboardType = NSPasteboard.PasteboardType(typeIdentifier)
     let id: UUID
 
-    var itemProvider: NSItemProvider {
-        let provider = NSItemProvider()
-        provider.registerDataRepresentation(forTypeIdentifier: Self.typeIdentifier, visibility: .ownProcess) { completion in
-            completion(Data(id.uuidString.utf8), nil)
-            return nil
-        }
-        return provider
+    var pasteboardItem: NSPasteboardItem {
+        let item = NSPasteboardItem()
+        item.setData(Data(id.uuidString.utf8), forType: Self.pasteboardType)
+        return item
     }
-
-    @discardableResult
-    static func receive(_ providers: [NSItemProvider], workspace: Workspace, targetID: UUID,
-                        completion: @escaping (Bool) -> Void = { _ in }) -> Bool {
-        guard providers.count == 1, let provider = providers.first,
-              provider.hasItemConformingToTypeIdentifier(typeIdentifier) else { return false }
-        provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
-            let id = data.flatMap { String(data: $0, encoding: .utf8) }.flatMap(UUID.init(uuidString:))
-            DispatchQueue.main.async {
-                // Either tab may have closed while the asynchronous provider was loading.
-                guard let id else { completion(false); return }
-                completion(workspace.moveSessionTab(id, to: targetID))
-            }
-        }
-        return true
-    }
-}
-
-private final class TabDropFeedback: ObservableObject {
-    @Published var targeted = false
-}
-
-private struct SessionTabDropDelegate: DropDelegate {
-    let workspace: Workspace
-    let targetID: UUID
-    let feedback: TabDropFeedback
-
-    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [SessionTabDrag.typeIdentifier]) }
-    func dropEntered(info: DropInfo) { feedback.targeted = validateDrop(info: info) }
-    func dropExited(info: DropInfo) { feedback.targeted = false }
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: validateDrop(info: info) ? .move : .forbidden)
-    }
-    func performDrop(info: DropInfo) -> Bool {
-        feedback.targeted = false
-        // Commit only on drop. Leaving the tab bar or cancelling must not reorder tabs.
-        return SessionTabDrag.receive(info.itemProviders(for: [SessionTabDrag.typeIdentifier]),
-                                      workspace: workspace, targetID: targetID)
-    }
-}
-
-struct SessionTabDropTarget: ViewModifier {
-    let workspace: Workspace
-    let sessionID: UUID
-    @StateObject private var feedback = TabDropFeedback()
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(RoundedRectangle(cornerRadius: 7)
-                .stroke(feedback.targeted ? Color.accentColor : .clear, lineWidth: 2)
-                .allowsHitTesting(false))
-            .onDrop(of: [SessionTabDrag.typeIdentifier],
-                    delegate: SessionTabDropDelegate(workspace: workspace, targetID: sessionID, feedback: feedback))
+    static func decode(_ pasteboard: NSPasteboard) -> UUID? {
+        guard let items = pasteboard.pasteboardItems, items.count == 1,
+              let data = items[0].data(forType: pasteboardType),
+              let text = String(data: data, encoding: .utf8) else { return nil }
+        return UUID(uuidString: text)
     }
 }

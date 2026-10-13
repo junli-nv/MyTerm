@@ -63,9 +63,9 @@ Execution is selected by default and authorized when startup is confirmed; indiv
 
 - Plans appear only in the Codex terminal; MyTerm does not capture or duplicate them. Ask Codex to revise or stop a plan, or reject the pending command in per-command mode. In Always allow mode, use Stop to revoke execution.
 - Each command requires approval by default. The UI shows target, exact command and reason; choose Allow Once, Always Allow, or the session approval-mode selector. There is no Y/y shortcut.
-- Switch modes at any time. Returning to per-command approval affects future commands, not an already running command; use Stop to interrupt it.
-- Always Allow belongs only to the current SSH authorization and is not persisted. Revocation, disconnection or expiry clears it. Renewal resets the budget, rejects old pending commands and restores per-command approval.
-- The most recently authorizing Codex tab owns authorization management for that SSH session, but multiple MCP clients share its authorization scope. This is not client identity isolation.
+- Switch modes at any time. Returning to per-command approval affects future submissions, not already approved queued or running commands; use Stop to interrupt it.
+- Always Allow belongs only to the current Codex tab authorization and is not persisted. Revocation, disconnection or expiry clears it. Renewal resets the budget, rejects old pending commands and restores per-command approval.
+- One SSH tab can be associated with multiple Codex tabs. Each Codex tab has independent authorization duration, command budget, approval mode, records and output delivery progress. Starting, renewing, stopping or closing one does not replace another tab's authorization. Approved commands run serially on the same SSH transport in submission order; `queued` means approved and waiting, with no need to resubmit or re-authorize. Closing or disconnecting SSH invalidates all associated execution grants. External MCP clients can read shared sessions but cannot borrow an internal Codex tab's execution authorization.
 
 The `execution_authorization` field reports the current UI-selected mode. With Always Allow, a submission returning a running job is expected; only `awaiting_approval` requires the approval buttons. If an older conversation still insists on default per-command approval, tell Codex that you selected Always Allow in MyTerm and want it to continue under that mode. Separate explicit task restrictions still apply. MCP tools cannot change approval mode themselves.
 
@@ -75,11 +75,23 @@ Multiline shell scripts are supported with LF newlines and tab indentation, up t
 
 Each command is limited to 60 seconds and 1 MiB of retained output. Read `command_status` pages using `next_offset`; skipping pages or submitting another command before complete delivery is rejected. `all_output_delivered=true` means retained output has been returned, not that the model still retains all context. Timeout, cancellation or capacity overflow marks output `incomplete`: stop, explain, renew authorization and narrow the query. Stop closes the execution channel; detached remote background processes may continue. At most 50 execution records are kept in memory.
 
+### Command states
+
+| State | Meaning and action |
+| --- | --- |
+| `awaiting_approval` | Not approved yet; confirm or reject in the submitting Codex tab. |
+| `queued` | Approved, waiting for the same SSH transport; poll the existing `job_id`, without resubmitting. |
+| `running` | Executing; read output pages or cancel the job to stop. |
+| `completed` | Finished; read all pages and check the exit code and `incomplete`. |
+| `rejected` / `cancelled` / `failed` | Not executed, cancelled or failed to start; inspect the reason before continuing. |
+
+Switching back to per-command approval does not withdraw approval from queued work. Cancel it using Stop in the current tab or the execution record. Each client must finish reading its own previous command output, without waiting for other clients to consume theirs. Expiry rejects queued jobs; renew in the existing tab before submitting them again.
+
 ## MCP tools and approval layers
 
 | Tool | Purpose |
 | --- | --- |
-| `list_sessions` | List up to 32 shared SSH tabs |
+| `list_sessions` | Internal clients see their associated SSH tab; external clients see up to 32 shared SSH tabs |
 | `read_output` | Read history, screen or selection; default 200 lines, maximum 1000 lines/8192 bytes |
 | `capture_history` / `read_history_page` | Freeze a larger history range and read all pages |
 | `execute_command` | Submit a command under MyTerm's current authorization/approval mode |

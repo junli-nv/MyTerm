@@ -927,3 +927,9 @@
 "按页翻动" = "Page Up / Page Down";
 
 "默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。" = "Fast scrolling (4×) is the default. Page mode sends Page Up / Page Down, useful after entering tmux copy mode. This also affects other full-screen programs; normal shell history, mouse wheels and Ctrl font zoom are unchanged.";
+
+"queued" = "Queued";
+
+"命令已获准，等待同一 SSH 会话中的其他命令结束。" = "Command approved; waiting for another command on the same SSH session to finish.";
+
+"仅作用于当前 Codex 标签的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。" = "Applies only to this Codex tab. Switching back does not stop approved work. Authorization ending resets per-command approval.";

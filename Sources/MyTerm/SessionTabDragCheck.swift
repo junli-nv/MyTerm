@@ -1,7 +1,7 @@
 import AppKit
 import MyTermCore
 
-/// Exercise the same asynchronous item-provider path used by native tab drops.
+/// Exercise the production native pasteboard format and session mutations.
 enum SessionTabDragCheck {
     static func run(workspace: Workspace) throws {
         let original = workspace.sessions
@@ -15,31 +15,31 @@ enum SessionTabDragCheck {
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid(message) }
         }
-        func drop(_ provider: NSItemProvider, on target: UUID, expected: Bool) throws {
-            var result: Bool?
-            let accepted = SessionTabDrag.receive([provider], workspace: workspace, targetID: target) { result = $0 }
-            try require(accepted, "Tab provider was not accepted")
-            let deadline = Date().addingTimeInterval(2)
-            while result == nil && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
-            try require(result == expected, "Tab drop result \(String(describing: result)), expected \(expected)")
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        func drop(_ item: NSPasteboardItem, on target: UUID, expected: Bool) throws {
+            pasteboard.clearContents(); pasteboard.writeObjects([item])
+            let result = SessionTabDrag.decode(pasteboard).map { workspace.moveSessionTab($0, to: target) } ?? false
+            try require(result == expected, "Native tab drop result differs from expected")
         }
-        try drop(SessionTabDrag(id: right.id).itemProvider, on: left.id, expected: true)
+        try drop(SessionTabDrag(id: right.id).pasteboardItem, on: left.id, expected: true)
         try require(workspace.sessions.map(\.id) == [right.id, left.id], "Right-to-left tab move failed")
         try require(workspace.selectedID == left.id && workspace.sessions[1] === left, "Tab move replaced the selected terminal")
-        try drop(SessionTabDrag(id: right.id).itemProvider, on: left.id, expected: true)
+        try drop(SessionTabDrag(id: right.id).pasteboardItem, on: left.id, expected: true)
         try require(workspace.sessions.map(\.id) == [left.id, right.id], "Left-to-right tab move failed")
-        try drop(SessionTabDrag(id: left.id).itemProvider, on: left.id, expected: true)
-        try drop(SessionTabDrag(id: UUID()).itemProvider, on: left.id, expected: false)
-        try drop(SessionTabDrag(id: left.id).itemProvider, on: UUID(), expected: false)
-        let malformed = NSItemProvider()
-        malformed.registerDataRepresentation(forTypeIdentifier: SessionTabDrag.typeIdentifier, visibility: .ownProcess) { completion in
-            completion(Data("not-a-uuid".utf8), nil); return nil
-        }
+        try drop(SessionTabDrag(id: left.id).pasteboardItem, on: left.id, expected: true)
+        try drop(SessionTabDrag(id: UUID()).pasteboardItem, on: left.id, expected: false)
+        try drop(SessionTabDrag(id: left.id).pasteboardItem, on: UUID(), expected: false)
+        let malformed = NSPasteboardItem()
+        malformed.setString("not-a-uuid", forType: SessionTabDrag.pasteboardType)
         try drop(malformed, on: left.id, expected: false)
-        try require(!SessionTabDrag.receive([NSItemProvider(object: "unrelated text" as NSString)], workspace: workspace, targetID: left.id), "Text drag accepted as terminal tab")
+        let unrelated = NSPasteboardItem(); unrelated.setString("text", forType: .string)
+        try drop(unrelated, on: left.id, expected: false)
+        pasteboard.clearContents(); pasteboard.writeObjects([SessionTabDrag(id: left.id).pasteboardItem, SessionTabDrag(id: right.id).pasteboardItem])
+        try require(SessionTabDrag.decode(pasteboard) == nil, "Multiple tab payload accepted")
         try require(workspace.sessions.map(\.id) == [left.id, right.id], "Invalid drop changed order")
         workspace.selectAdjacentTab(1)
         try require(workspace.selectedID == right.id, "Keyboard navigation ignored reordered tabs")
-        print("PASS: session tab drag: both directions, stable identity/selection, same-tab, closed tabs, malformed/unrelated providers and keyboard navigation")
+        print("PASS: session tab drag: both directions, stable identity/selection, same-tab, closed tabs, malformed/unrelated native payloads and keyboard navigation")
     }
 }

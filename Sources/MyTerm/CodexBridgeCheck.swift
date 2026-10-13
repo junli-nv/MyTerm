@@ -367,15 +367,10 @@ enum CodexBridgeCheck {
         do { _ = try bridge.read("execute_command", arguments: ["session_id": execSession.id.uuidString, "command": "pwd", "reason": "Budget exceeded"]); throw ConfigurationError.invalid("Budget bypass") }
         catch { try require(error.localizedDescription.contains("budget exhausted"), "Budget exhaustion did not explain renewal") }
         bridge.revokeExecution(execSession.id)
-        let tabA = UUID(), tabB = UUID()
-        bridge.renewExecution(execSession.id, owner: tabA)
+        bridge.renewExecution(execSession.id)
         try require(bridge.executionGrants[execSession.id] != nil, "Existing tab could not renew execution access")
         try require(bridge.remainingExecutionCommands(execSession.id) == 1 && bridge.limitsForExecution(execSession.id).minutes == 120, "Renewal did not retain custom limits or reset budget")
-        bridge.renewExecution(execSession.id, owner: tabB)
-        bridge.releaseExecution(execSession.id, tab: tabA)
-        try require(bridge.executionGrants[execSession.id] != nil, "Old Codex tab revoked a newer tab's access")
-        bridge.releaseExecution(execSession.id, tab: tabB)
-        try require(bridge.executionGrants[execSession.id] == nil, "Owning tab did not revoke execution on close")
+        bridge.revokeExecution(execSession.id)
         try deniedExecution()
         bridge.pollExecution()
         try require(!bridge.executionPollingActive, "Idle execution timer retained after revocation")
@@ -386,7 +381,7 @@ enum CodexBridgeCheck {
         try require(idleRefreshes == 0, "Unchanged execution history continuously invalidated UI")
         print("PASS: 1000 unchanged execution polls: \(Date().timeIntervalSince(idleStart))s, zero UI invalidations")
         idleSubscription.cancel()
-        bridge.renewExecution(execSession.id, owner: tabB)
+        bridge.renewExecution(execSession.id)
         try require(bridge.executionPollingActive, "Renewal did not restart expiry checks")
         bridge.pollExecution()
         var activeRefreshes = 0
@@ -433,6 +428,7 @@ enum CodexBridgeCheck {
         bridge.renewExecution(execSession.id)
         try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Renewal inherited automatic execution")
         bridge.revokeExecution(execSession.id)
+        try CodexAssociationCheck.run(bridge: bridge, session: execSession, descriptorURL: root.appendingPathComponent("bridge.json"))
         print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 
         print("PASS: Codex execution selected by default, exact-command approval, revocation, stale approval, mux-only failure and disconnect")

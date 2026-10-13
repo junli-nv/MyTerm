@@ -55,7 +55,7 @@ Select disabled, untrusted (`-X`) or trusted (`-Y`) forwarding in the SSH editor
 
 ## Tabs and groups
 
-Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing and reconnection. Duplication opens an independent connection, without copying processes or history.
+Drag a tab title onto another tab to reorder SSH, local Bash and Codex tabs without reconnecting or changing the selected session. A single click selects a tab; the whole tab, including its padding, accepts clicks. Right-click or Control-click opens its menu without double-clicking. The context menu supports closing, duplicating, renaming and log policy; SSH tabs also expose connection editing and reconnection. Duplication opens an independent connection, without copying processes or history.
 
 The right-hand `+` and blank-strip menu offer local sessions, SSH configurations, saved servers and session restoration. Double-click blank tab-strip space to maximize/restore. Sidebar and bottom status bar visibility are independent; the bottom bar starts hidden. SSH tabs have an SFTP button beside `+`, independent of the bottom bar.
 
@@ -131,9 +131,11 @@ Confirming startup authorizes SSH execution when selected with an adjustable dur
 
 Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompts automatically include the selected live session ID; no manual copying is needed. External clients discover authorized sessions through `list_sessions`. External MCP adapters belong to their Codex/IDE caller and exit when their communication pipe closes; their presence alone does not mean the GUI is still running.
 
-See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for permissions, limits and troubleshooting.
+SSH commands support multiline scripts (LF newlines and tabs, up to 4096 UTF-8 bytes), approved as one submission. Each command runs for at most 60 seconds and retains up to 1 MiB of output.
 
-Codex SSH commands support multiline scripts (LF newlines and tabs, up to 4096 UTF-8 bytes). Approval and execution apply to the entire submission, using the current session authorization and output limits; see [Codex integration](docs/CODEX-INTEGRATION.en.md).
+Multiple Codex tabs can use one SSH tab with independent authorization, quotas, approval and output progress. Renewing, stopping or closing one Codex tab leaves the others intact. Approved commands on the same SSH connection run serially; waiting does not require reauthorization. Closing or disconnecting SSH invalidates the associated execution grants. External MCP clients can read shared sessions but cannot reuse internal execution grants.
+
+See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for workflow, queue states and limits.
 
 ### Standalone local Codex
 

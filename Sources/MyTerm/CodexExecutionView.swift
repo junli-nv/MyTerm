@@ -4,6 +4,7 @@ import MyTermCore
 
 final class CodexExecutionRecord: Identifiable {
     let id = UUID(), sessionID: UUID, label: String, command: String
+    let associationID: UUID
     let created = Date()
     var reason = ""
     var deliveredOffset = 0
@@ -11,7 +12,8 @@ final class CodexExecutionRecord: Identifiable {
     var state = "awaiting_approval"
     var process: CodexCommandProcess?
     var error = ""
-    init(sessionID: UUID, label: String, command: String) {
+    init(sessionID: UUID, label: String, command: String, associationID: UUID? = nil) {
+        self.associationID = associationID ?? sessionID
         self.sessionID = sessionID; self.label = label; self.command = command
     }
     func snapshot(offset: Int = 0) throws -> [String: Any] {
@@ -26,21 +28,21 @@ final class CodexExecutionRecord: Identifiable {
 struct CodexExecutionView: View {
     @ObservedObject var bridge: CodexBridge
     @ObservedObject var language = LanguagePreferences.shared
-    var sessionID: UUID? = nil
+    var associationID: UUID? = nil
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 Text("Codex SSH 执行控制").font(.title2.bold())
                 Text("独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。")
                     .fixedSize(horizontal: false, vertical: true)
-                Button(L10n.text(sessionID == nil ? "停止全部执行并撤销授权" : "停止执行并撤销授权")) {
-                    if let sessionID { bridge.revokeExecution(sessionID) } else { bridge.revokeAllExecution() }
+                Button(L10n.text(associationID == nil ? "停止全部执行并撤销授权" : "停止执行并撤销授权")) {
+                    if let associationID { bridge.revokeExecution(associationID) } else { bridge.revokeAllExecution() }
                 }
-                ForEach(bridge.executionGrants.keys.filter { sessionID == nil || $0 == sessionID }.sorted { $0.uuidString < $1.uuidString }, id: \.self) { id in
-                    Text(bridge.executionRecords.first(where: { $0.sessionID == id })?.label ?? id.uuidString).font(.headline)
-                    CodexExecutionApprovalMode(bridge: bridge, sessionID: id)
+                ForEach(bridge.executionGrants.keys.filter { associationID == nil || $0 == associationID }.sorted { $0.uuidString < $1.uuidString }, id: \.self) { id in
+                    Text(bridge.executionRecords.first(where: { $0.associationID == id })?.label ?? id.uuidString).font(.headline)
+                    CodexExecutionApprovalMode(bridge: bridge, associationID: id)
                 }
-                ForEach(bridge.executionRecords.filter { sessionID == nil || $0.sessionID == sessionID }.reversed()) { record in
+                ForEach(bridge.executionRecords.filter { associationID == nil || $0.associationID == associationID }.reversed()) { record in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(record.label).font(.headline)
                         if !record.reason.isEmpty { Text(record.reason).fixedSize(horizontal: false, vertical: true) }
@@ -56,7 +58,7 @@ struct CodexExecutionView: View {
                                 Button("允许执行此命令") { bridge.approveExecution(record) }
                                 Button("拒绝") { bridge.cancelExecution(record) }
                             }
-                        } else if result?["state"] as? String == "running" {
+                        } else if ["running", "queued"].contains(result?["state"] as? String ?? "") {
                             Button("停止") { bridge.cancelExecution(record) }
                         }
                         Text(result?["output"] as? String ?? "").font(.caption.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -77,36 +79,37 @@ struct CodexInlineExecutionView: View {
     let sessionID: UUID
     var codexTabID: UUID? = nil
     @StateObject private var presentation = CodexInlinePresentation()
-    private var records: [CodexExecutionRecord] { bridge.executionRecords.filter { $0.sessionID == sessionID } }
+    private var executionID: UUID { bridge.executionID(for: sessionID, tab: codexTabID) }
+    private var records: [CodexExecutionRecord] { bridge.executionRecords.filter { $0.associationID == executionID } }
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text("SSH 执行").fontWeight(.semibold).fixedSize()
-                if let deadline = bridge.executionGrants[sessionID] {
+                if let deadline = bridge.executionGrants[executionID] {
                     Text(deadline.formatted(date: .omitted, time: .standard)).monospacedDigit()
                         .help(L10n.text("执行授权有效至：") + deadline.formatted(date: .omitted, time: .standard))
-                } else { Text(L10n.text(bridge.executionIsExpired(sessionID) ? "授权已到期" : "只读")).foregroundStyle(.secondary).fixedSize() }
-                Text("\(bridge.remainingExecutionCommands(sessionID))/\(bridge.limitsForExecution(sessionID).commands)").monospacedDigit().help(L10n.text("剩余命令额度"))
+                } else { Text(L10n.text(bridge.executionIsExpired(executionID) ? "授权已到期" : "只读")).foregroundStyle(.secondary).fixedSize() }
+                Text("\(bridge.remainingExecutionCommands(executionID))/\(bridge.limitsForExecution(executionID).commands)").monospacedDigit().help(L10n.text("剩余命令额度"))
                 Spacer(minLength: 0)
-                Button("继续授权") { bridge.renewExecution(sessionID, owner: codexTabID) }
-                    .disabled(!bridge.enabled).help("\(bridge.limitsForExecution(sessionID).minutes) min / \(bridge.limitsForExecution(sessionID).commands)").fixedSize()
+                Button("继续授权") { bridge.renewExecution(executionID, owner: codexTabID) }
+                    .disabled(!bridge.enabled).help("\(bridge.limitsForExecution(executionID).minutes) min / \(bridge.limitsForExecution(executionID).commands)").fixedSize()
                 Button(presentation.showHistory ? "收起" : "记录") { presentation.showHistory.toggle() }.fixedSize()
-                Button("停止") { bridge.revokeExecution(sessionID) }
-                    .disabled(bridge.executionGrants[sessionID] == nil).help(L10n.text("停止执行并撤销授权")).fixedSize()
+                Button("停止") { bridge.revokeExecution(executionID) }
+                    .disabled(bridge.executionGrants[executionID] == nil).help(L10n.text("停止执行并撤销授权")).fixedSize()
             }
-            CodexExecutionApprovalMode(bridge: bridge, sessionID: sessionID)
-            if bridge.executionGrants[sessionID] != nil && bridge.remainingExecutionCommands(sessionID) == 0 {
+            CodexExecutionApprovalMode(bridge: bridge, associationID: executionID)
+            if bridge.executionGrants[executionID] != nil && bridge.remainingExecutionCommands(executionID) == 0 {
                 Text("命令额度已用尽，请点击继续授权。").foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
-            if !bridge.executionAccessMessage.isEmpty {
-                Text(L10n.text(bridge.executionAccessMessage)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+            if !bridge.executionAccessMessage(executionID).isEmpty {
+                Text(L10n.text(bridge.executionAccessMessage(executionID))).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             if let pending = records.last(where: { $0.state == "awaiting_approval" }) {
                 HStack(spacing: 8) {
                     Label("命令待确认", systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
                     Spacer(minLength: 0)
                     Button("单次允许") { bridge.approveExecution(pending) }.help(L10n.text("允许执行此命令")).fixedSize()
-                    Button("始终允许") { bridge.setAlwaysAllowExecution(sessionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
+                    Button("始终允许") { bridge.setAlwaysAllowExecution(executionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
                     Button("拒绝") { bridge.cancelExecution(pending) }.fixedSize()
                 }
                 ScrollView {
@@ -116,8 +119,11 @@ struct CodexInlineExecutionView: View {
                         Text(pending.command).font(.callout.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.scrollIndicators(.visible).frame(height: 80)
-            } else if presentation.showHistory {
-                CodexExecutionView(bridge: bridge, sessionID: sessionID).frame(height: 200)
+            } else if records.contains(where: { $0.state == "queued" }) {
+                Text("命令已获准，等待同一 SSH 会话中的其他命令结束。").foregroundStyle(.secondary)
+            }
+            if presentation.showHistory {
+                CodexExecutionView(bridge: bridge, associationID: executionID).frame(height: 200)
             }
         }.font(.caption).controlSize(.small).padding(6).background(Color(nsColor: .controlBackgroundColor))
     }
@@ -129,13 +135,13 @@ final class CodexInlinePresentation: ObservableObject {
 
 struct CodexExecutionApprovalMode: View {
     @ObservedObject var bridge: CodexBridge
-    let sessionID: UUID
+    let associationID: UUID
     var body: some View {
-        Picker("命令审批", selection: Binding(get: { bridge.alwaysAllowedExecution.contains(sessionID) }, set: { bridge.setAlwaysAllowExecution(sessionID, enabled: $0) })) {
+        Picker("命令审批", selection: Binding(get: { bridge.alwaysAllowedExecution.contains(associationID) }, set: { bridge.setAlwaysAllowExecution(associationID, enabled: $0) })) {
             Text("每条命令确认").tag(false)
             Text("本会话始终允许").tag(true)
         }.pickerStyle(.segmented)
-            .disabled(bridge.executionGrants[sessionID] == nil)
-            .help(L10n.text("仅作用于当前 SSH 会话的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。"))
+            .disabled(bridge.executionGrants[associationID] == nil)
+            .help(L10n.text("仅作用于当前 Codex 标签的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。"))
     }
 }

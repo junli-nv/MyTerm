@@ -92,6 +92,7 @@ final class WindowControlsCheck {
                 checkedTabDrag = true
                 do {
                     try SessionTabDragCheck.run(workspace: workspace)
+                    try SessionTabContextMenuCheck.run(window: window, workspace: workspace)
                     try ServerTreeCheck.run()
                     try SFTPInteractionCheck.run()
                 }

@@ -92,7 +92,9 @@ public enum CodexMCP {
         }
         let descriptor = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String]
         guard let path = descriptor?["path"], let token = descriptor?["token"] else { throw ConfigurationError.invalid("Enable Codex sharing in MyTerm first.") }
-        let request = try JSONSerialization.data(withJSONObject: ["name": name, "arguments": arguments])
+        var envelope: [String: Any] = ["name": name, "arguments": arguments]
+        if let client = ProcessInfo.processInfo.environment["MYTERM_CODEX_ASSOCIATION"] { envelope["client"] = client }
+        let request = try JSONSerialization.data(withJSONObject: envelope)
         guard let answer = try AskpassChannel.answer(path: path, token: token, prompt: String(decoding: request, as: UTF8.self), hint: "myterm-mcp", timeout: 10),
               let value = try JSONSerialization.jsonObject(with: Data(answer.utf8)) as? [String: Any] else { throw ConfigurationError.invalid("MyTerm bridge is unavailable.") }
         if let error = value["error"] as? String { throw ConfigurationError.invalid(error) }

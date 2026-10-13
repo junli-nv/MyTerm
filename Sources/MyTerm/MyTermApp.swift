@@ -8,7 +8,7 @@ struct MyTermApp {
         if CommandLine.arguments.contains("--smoke-test"),
            let index = CommandLine.arguments.firstIndex(of: "--codex-launch-arguments"),
            CommandLine.arguments.indices.contains(index + 1),
-           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1], localDirectory: CommandLine.arguments.contains("--codex-local-work") ? FileManager.default.temporaryDirectory.path : nil),
+           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1], localDirectory: CommandLine.arguments.contains("--codex-local-work") ? FileManager.default.temporaryDirectory.path : nil, association: CommandLine.arguments.contains("--codex-scoped-check") ? UUID(uuidString: "11111111-2222-3333-4444-555555555555") : nil),
            let data = try? JSONSerialization.data(withJSONObject: args) {
             print(String(decoding: data, as: UTF8.self)); return
         }
@@ -280,34 +280,8 @@ struct WorkspaceView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
                             ForEach(workspace.sessions) { session in
-                                HStack(spacing: 8) {
-                                    Button { workspace.selectedID = session.id } label: {
-                                        Label(session.label, systemImage: session.executable == "/usr/bin/ssh" ? "network" : "terminal")
-                                            .font(.system(size: 12)).lineLimit(1).padding(.vertical, 5)
-                                    }.buttonStyle(.plain)
-                                        .onDrag { SessionTabDrag(id: session.id).itemProvider }
-                                    Button { workspace.close(session) } label: {
-                                        Image(systemName: "xmark").font(.caption2)
-                                    }.buttonStyle(.plain).help("关闭会话")
-                                }.padding(.horizontal, 9)
-                                    .background(workspace.selectedID == session.id ? Color.primary.opacity(0.1) : .clear,
-                                                in: RoundedRectangle(cornerRadius: 7))
-                                    .contentShape(Rectangle())
-                                    .modifier(SessionTabDropTarget(workspace: workspace, sessionID: session.id))
-                                    .contextMenu {
-                                        Button("选中会话") { workspace.selectedID = session.id }
-                                        Button("复制会话（新连接）") { workspace.duplicate(session) }
-                                        SessionHistoryLoggingMenu(session: session, workspace: workspace)
-                                        Button("更改标签名称…") { workspace.renameTab(session) }
-                                        if session.sourceServer != nil {
-                                            Button("更改 SSH 配置…") { workspace.editConnection(session) }
-                                        }
-                                        if session.canReconnect {
-                                            Button("重新连接", action: session.reconnect)
-                                        }
-                                        Divider()
-                                        Button("关闭会话") { workspace.close(session) }
-                                    }
+                                SessionTabControl(workspace: workspace, session: session)
+                                    .frame(height: 30).fixedSize(horizontal: true, vertical: false)
                             }
                             Menu { newSessionActions } label: {
                                 Text("新建会话…").font(.system(size: 11)).foregroundStyle(.secondary)
@@ -319,7 +293,7 @@ struct WorkspaceView: View {
                             TabBarDragArea().frame(minWidth: 40, maxWidth: .infinity, minHeight: 26)
                                 .contextMenu { newSessionActions }
                                 .help("双击空白处最大化 / 还原窗口，拖动以移动窗口")
-                        }.padding(.horizontal, 4).padding(.vertical, 2)
+                        }.padding(.horizontal, 4)
                             .frame(minWidth: geometry.size.width, alignment: .leading)
                     }
                     }
@@ -691,14 +665,4 @@ final class ServerDraft: ObservableObject {
     var proxyHost: String { get { server.proxy?.host ?? "" } set { server.proxy?.host = newValue } }
     var proxyPort: String { get { server.proxy?.port ?? "" } set { server.proxy?.port = newValue } }
     var forwards: [PortForward] { get { server.forwards ?? [] } set { server.forwards = newValue } }
-}
-
-struct SessionHistoryLoggingMenu: View {
-    @ObservedObject var session: TerminalSession
-    @ObservedObject var workspace: Workspace
-    var body: some View {
-        Picker("会话日志", selection: Binding(get: { session.historyLogging }, set: { workspace.setHistoryLogging($0, for: session) })) {
-            ForEach(HistoryLoggingMode.allCases, id: \.self) { mode in Text(L10n.text(mode.title)).tag(mode) }
-        }
-    }
 }

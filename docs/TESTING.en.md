@@ -46,6 +46,18 @@ The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. 
 | X11 forwarding | `x11-check.py`: production SSH arguments, temporary sshd, real XQuartz windows and exit cleanup |
 | Release/install consistency | `package-release.sh`, `create-dmg.sh`, `install-release.sh`: multiple app forms, window checks, signatures and complete bundle comparison |
 
+## Focused regressions
+
+Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.
+
+Trackpad regression checks cover page-key encoding from actual scroll events, fast mode, accumulated gestures, throttling, reversal, ignored momentum, and normal-shell/mouse-wheel isolation.
+
+Keyboard-repeat regression checks cover the app-scoped accent-menu policy, repeated h/j/k/l/a events with an ASCII input source in normal/alternate screens, and Chinese preedit/commit. The original input source is restored. Synthetic repeats do not replace a physical long-press test; OS long-press thresholds and repeat rates still require manual verification.
+
+Tab-menu regression sends full press/release gestures through NSWindow: single selection followed by right-click or Control-click, padding/edge hit areas, persistence after release, close buttons and action targets. Native drag payload checks cover reordering and invalid payloads. Additional cases cover primary-typed events with secondary button numbers, duplicate suppression for one press, and keyboard focus after switching. Physical trackpad input still needs manual confirmation.
+
+Codex regressions also cover two clients on one SSH transport: independent grants, quotas, approval and output pages, serialized execution, independent expiry, renewal and close cleanup. A real stdio adapter verifies that tool arguments cannot override its environment-provided association.
+
 ## Limits of coverage
 
 These are feature regressions, not 100% line/branch coverage or exhaustive combinations. Passing tests does not establish that no defects remain.
@@ -61,9 +73,3 @@ These are feature regressions, not 100% line/branch coverage or exhaustive combi
 Keep protocol/persistence in `MyTermCore`, windows/interactions in `MyTerm`, and gestures separate from session/group mutations. Extract focused responsibilities, not arbitrary file fragments. Timers and child processes need shutdown paths; asynchronous results must check connection identity; pagination and recursion need bounds. Reproduce defects before checking fixes.
 
 `MyTermApp` and `CodexBridge` still carry substantial UI orchestration. Prefer focused modules for new behavior and retain regression entry points during extraction. Record third-party SwiftTerm changes in `vendor/SwiftTerm/MYTERM-PATCH.md`; preserve upstream licenses.
-
-Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.
-
-Trackpad regression checks cover page-key encoding from actual scroll events, fast mode, accumulated gestures, throttling, reversal, ignored momentum, and normal-shell/mouse-wheel isolation.
-
-Keyboard-repeat regression checks cover the app-scoped accent-menu policy, repeated h/j/k/l/a events with an ASCII input source in normal/alternate screens, and Chinese preedit/commit. The original input source is restored. Synthetic repeats do not replace a physical long-press test; OS long-press thresholds and repeat rates still require manual verification.

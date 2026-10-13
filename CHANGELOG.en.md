@@ -4,6 +4,26 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.1.9"></a>
+
+# MyTerm 3.1.9
+
+Fix tab context menus for trackpad presses delivered as primary-typed events with the secondary button number. Duplicate events from one press do not reopen the menu. Preserve single-click selection and terminal focus, tab dragging, and double-clicking blank title-bar space to maximize. [Release notes](packaging/RELEASE-NOTES-3.1.9.md).
+
+<a id="version-3.1.8"></a>
+
+# MyTerm 3.1.8
+
+Unify native tab click, drag and menu handling across the full strip height; add complete press/release and edge-hit checks. [Release notes](packaging/RELEASE-NOTES-3.1.8.md).
+
+<a id="version-3.1.7"></a>
+
+# MyTerm 3.1.7
+
+Multiple Codex tabs can independently authorize access to one SSH connection, with serialized commands; usage and testing documentation updated.
+
+Fix tab context menus requiring a double-click before opening. [Release notes](packaging/RELEASE-NOTES-3.1.7.md).
+
 <a id="version-3.1.6"></a>
 
 # MyTerm 3.1.6
