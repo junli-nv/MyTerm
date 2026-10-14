@@ -1,4 +1,5 @@
 import AppKit
+import Vision
 import SwiftUI
 import MyTermCore
 
@@ -290,17 +291,40 @@ enum CodexBridgeCheck {
         let record = bridge.executionRecords.last!
         try require(record.command == multilineCommand, "Approval changed or truncated the multiline script")
         try require(NSApp.windows.count == windowsBeforeGrant, "Pending plan or command opened a popup")
-        for locale in [InterfaceLanguage.english, .chinese] {
-            language.selection = locale
+        do {
             let inlineWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             inlineWindow.isReleasedWhenClosed = false
             let inline = NSHostingView(rootView: CodexInlineExecutionView(bridge: bridge, sessionID: execSession.id))
             inlineWindow.contentView = inline; inlineWindow.orderFront(nil)
-            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); inline.layoutSubtreeIfNeeded()
-            try require(descendants(inline).contains(where: { $0 is NSScrollView }), "Inline approval missing scrollable command")
-            try require(inline.fittingSize.width <= 541 && inline.fittingSize.height <= 180, "Inline controls wrapped or exceeded compact height")
-            try require(record.state == "awaiting_approval" && record.process == nil, "Displaying inline approval executed command")
-            inlineWindow.close()
+            defer { inlineWindow.close() }
+            func renderedText() throws -> String {
+                guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(inline.bounds.width * 3), pixelsHigh: Int(inline.bounds.height * 3), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else {
+                    throw ConfigurationError.invalid("Inline snapshot missing")
+                }
+                bitmap.size = inline.bounds.size
+                inline.cacheDisplay(in: inline.bounds, to: bitmap)
+                guard let image = bitmap.cgImage else { throw ConfigurationError.invalid("Inline image missing") }
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.recognitionLanguages = ["en-US", "zh-Hans"]
+                try VNImageRequestHandler(cgImage: image).perform([request])
+                return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            }
+            for locale in [InterfaceLanguage.english, .chinese, .english] {
+                language.selection = locale
+                RunLoop.main.run(until: Date().addingTimeInterval(0.2)); inline.layoutSubtreeIfNeeded()
+                if locale == .english {
+                    let visibleLabels = try renderedText()
+                    for key in ["继续授权", "记录", "停止", "单次允许", "始终允许", "拒绝"] {
+                        try require(L10n.text(key) != key && visibleLabels.contains(L10n.text(key)),
+                                    "Inline button did not switch to English: \(key); rendered=\(visibleLabels)")
+                        try require(!visibleLabels.contains(key), "Inline button retained Chinese: \(key)")
+                    }
+                }
+                try require(descendants(inline).contains(where: { $0 is NSScrollView }), "Inline approval missing scrollable command")
+                try require(inline.fittingSize.width <= 541 && inline.fittingSize.height <= 180, "Inline controls wrapped or exceeded compact height")
+                try require(record.state == "awaiting_approval" && record.process == nil, "Displaying inline approval executed command")
+            }
         }
         bridge.revokeExecution(execSession.id)
         try require(bridge.executionGrants[execSession.id] == nil, "Revocation retained execution permission")

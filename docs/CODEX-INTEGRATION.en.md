@@ -2,6 +2,8 @@
 
 [简体中文](CODEX-INTEGRATION.md) · English · [README](../README.en.md)
 
+For first-time setup, follow the [macOS installation steps](../README.en.md#install-and-build) for Homebrew/Codex CLI installation and the first MyTerm launch.
+
 This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. For SSH analysis, command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
 
 The connection window uses a vertical sidebar: **Codex Configuration** contains the executable, proxy, login and external MCP settings; **SSH Session Access** starts SSH analysis; **Local Work** chooses a directory and starts local Codex directly. The window is resizable and its content scrolls.
@@ -13,6 +15,8 @@ The connection window uses a vertical sidebar: **Codex Configuration** contains 
 | Execution and approval | Codex native tools, workspace-write / on-request | MyTerm independent SSH channel and session authorization |
 | Command size and timeout | Managed by Codex | 4096 bytes, 60 seconds, 1 MiB output |
 | Codex network proxy | Reuses Codex Configuration | Reuses the same configuration, independent of SSH proxy |
+
+The default Codex executable is `/opt/homebrew/bin/codex`; saved custom paths are preserved.
 
 ## Starting SSH analysis
 

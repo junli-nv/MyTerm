@@ -933,3 +933,11 @@
 "命令已获准，等待同一 SSH 会话中的其他命令结束。" = "Command approved; waiting for another command on the same SSH session to finish.";
 
 "仅作用于当前 Codex 标签的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。" = "Applies only to this Codex tab. Switching back does not stop approved work. Authorization ending resets per-command approval.";
+
+"删除转发" = "Remove forwarding";
+
+"删除此条端口转发，保存后生效" = "Remove this forwarding rule; save to apply";
+
+"停止" = "Stop";
+
+"拒绝" = "Reject";

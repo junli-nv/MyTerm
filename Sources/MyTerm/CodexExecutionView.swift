@@ -32,8 +32,8 @@ struct CodexExecutionView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                Text("Codex SSH 执行控制").font(.title2.bold())
-                Text("独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。")
+                Text(L10n.text("Codex SSH 执行控制")).font(.title2.bold())
+                Text(L10n.text("独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。"))
                     .fixedSize(horizontal: false, vertical: true)
                 Button(L10n.text(associationID == nil ? "停止全部执行并撤销授权" : "停止执行并撤销授权")) {
                     if let associationID { bridge.revokeExecution(associationID) } else { bridge.revokeAllExecution() }
@@ -50,19 +50,19 @@ struct CodexExecutionView: View {
                         let result = try? record.snapshot()
                         Text(L10n.text(result?["state"] as? String ?? record.state))
                         if result?["truncated"] as? Bool == true {
-                            Text("输出超限，结果不完整；已阻止自动执行下一条命令。").foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                            Text(L10n.text("输出超限，结果不完整；已阻止自动执行下一条命令。")).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                         }
                         if let exit = result?["exit_code"] as? Int { Text("exit=\(exit)") }
                         if record.state == "awaiting_approval" {
                             HStack {
-                                Button("允许执行此命令") { bridge.approveExecution(record) }
-                                Button("拒绝") { bridge.cancelExecution(record) }
+                                Button(L10n.text("允许执行此命令")) { bridge.approveExecution(record) }
+                                Button(L10n.text("拒绝")) { bridge.cancelExecution(record) }
                             }
                         } else if ["running", "queued"].contains(result?["state"] as? String ?? "") {
-                            Button("停止") { bridge.cancelExecution(record) }
+                            Button(L10n.text("停止")) { bridge.cancelExecution(record) }
                         }
                         Text(result?["output"] as? String ?? "").font(.caption.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        Text("界面显示输出开头；Codex 可按偏移读取全部保留输出。记录仅保存在内存中。")
+                        Text(L10n.text("界面显示输出开头；Codex 可按偏移读取全部保留输出。记录仅保存在内存中。"))
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(.quaternary).cornerRadius(8)
                 }
@@ -75,6 +75,7 @@ struct CodexExecutionView: View {
 /// App-owned approval buttons stay beside the Codex TUI. Never inject bytes into
 /// the terminal buffer or interpret remote/TUI text as an approval gesture.
 struct CodexInlineExecutionView: View {
+    @ObservedObject private var language = LanguagePreferences.shared
     @ObservedObject var bridge: CodexBridge
     let sessionID: UUID
     var codexTabID: UUID? = nil
@@ -84,33 +85,33 @@ struct CodexInlineExecutionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text("SSH 执行").fontWeight(.semibold).fixedSize()
+                Text(L10n.text("SSH 执行")).fontWeight(.semibold).fixedSize()
                 if let deadline = bridge.executionGrants[executionID] {
                     Text(deadline.formatted(date: .omitted, time: .standard)).monospacedDigit()
                         .help(L10n.text("执行授权有效至：") + deadline.formatted(date: .omitted, time: .standard))
                 } else { Text(L10n.text(bridge.executionIsExpired(executionID) ? "授权已到期" : "只读")).foregroundStyle(.secondary).fixedSize() }
                 Text("\(bridge.remainingExecutionCommands(executionID))/\(bridge.limitsForExecution(executionID).commands)").monospacedDigit().help(L10n.text("剩余命令额度"))
                 Spacer(minLength: 0)
-                Button("继续授权") { bridge.renewExecution(executionID, owner: codexTabID) }
+                Button(L10n.text("继续授权")) { bridge.renewExecution(executionID, owner: codexTabID) }
                     .disabled(!bridge.enabled).help("\(bridge.limitsForExecution(executionID).minutes) min / \(bridge.limitsForExecution(executionID).commands)").fixedSize()
-                Button(presentation.showHistory ? "收起" : "记录") { presentation.showHistory.toggle() }.fixedSize()
-                Button("停止") { bridge.revokeExecution(executionID) }
+                Button(L10n.text(presentation.showHistory ? "收起" : "记录")) { presentation.showHistory.toggle() }.fixedSize()
+                Button(L10n.text("停止")) { bridge.revokeExecution(executionID) }
                     .disabled(bridge.executionGrants[executionID] == nil).help(L10n.text("停止执行并撤销授权")).fixedSize()
             }
             CodexExecutionApprovalMode(bridge: bridge, associationID: executionID)
             if bridge.executionGrants[executionID] != nil && bridge.remainingExecutionCommands(executionID) == 0 {
-                Text("命令额度已用尽，请点击继续授权。").foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                Text(L10n.text("命令额度已用尽，请点击继续授权。")).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             if !bridge.executionAccessMessage(executionID).isEmpty {
                 Text(L10n.text(bridge.executionAccessMessage(executionID))).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             if let pending = records.last(where: { $0.state == "awaiting_approval" }) {
                 HStack(spacing: 8) {
-                    Label("命令待确认", systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
+                    Label(L10n.text("命令待确认"), systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
                     Spacer(minLength: 0)
-                    Button("单次允许") { bridge.approveExecution(pending) }.help(L10n.text("允许执行此命令")).fixedSize()
-                    Button("始终允许") { bridge.setAlwaysAllowExecution(executionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
-                    Button("拒绝") { bridge.cancelExecution(pending) }.fixedSize()
+                    Button(L10n.text("单次允许")) { bridge.approveExecution(pending) }.help(L10n.text("允许执行此命令")).fixedSize()
+                    Button(L10n.text("始终允许")) { bridge.setAlwaysAllowExecution(executionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
+                    Button(L10n.text("拒绝")) { bridge.cancelExecution(pending) }.fixedSize()
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
@@ -120,12 +121,13 @@ struct CodexInlineExecutionView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.scrollIndicators(.visible).frame(height: 80)
             } else if records.contains(where: { $0.state == "queued" }) {
-                Text("命令已获准，等待同一 SSH 会话中的其他命令结束。").foregroundStyle(.secondary)
+                Text(L10n.text("命令已获准，等待同一 SSH 会话中的其他命令结束。")).foregroundStyle(.secondary)
             }
             if presentation.showHistory {
                 CodexExecutionView(bridge: bridge, associationID: executionID).frame(height: 200)
             }
         }.font(.caption).controlSize(.small).padding(6).background(Color(nsColor: .controlBackgroundColor))
+            .environment(\.locale, language.locale)
     }
 }
 
@@ -134,12 +136,13 @@ final class CodexInlinePresentation: ObservableObject {
 }
 
 struct CodexExecutionApprovalMode: View {
+    @ObservedObject private var language = LanguagePreferences.shared
     @ObservedObject var bridge: CodexBridge
     let associationID: UUID
     var body: some View {
-        Picker("命令审批", selection: Binding(get: { bridge.alwaysAllowedExecution.contains(associationID) }, set: { bridge.setAlwaysAllowExecution(associationID, enabled: $0) })) {
-            Text("每条命令确认").tag(false)
-            Text("本会话始终允许").tag(true)
+        Picker(L10n.text("命令审批"), selection: Binding(get: { bridge.alwaysAllowedExecution.contains(associationID) }, set: { bridge.setAlwaysAllowExecution(associationID, enabled: $0) })) {
+            Text(L10n.text("每条命令确认")).tag(false)
+            Text(L10n.text("本会话始终允许")).tag(true)
         }.pickerStyle(.segmented)
             .disabled(bridge.executionGrants[associationID] == nil)
             .help(L10n.text("仅作用于当前 Codex 标签的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。"))

@@ -56,6 +56,10 @@ Keyboard-repeat regression checks cover the app-scoped accent-menu policy, repea
 
 Tab-menu regression sends full press/release gestures through NSWindow: single selection followed by right-click or Control-click, padding/edge hit areas, persistence after release, close buttons and action targets. Native drag payload checks cover reordering and invalid payloads. Additional cases cover primary-typed events with secondary button numbers, duplicate suppression for one press, and keyboard focus after switching. Rename checks use the real menu and dialog to verify immediate title/width updates, repeated edits, cancellation, and names after switching/reordering. Context-click checks also cover automatic selection of inactive tabs. Physical trackpad input still needs manual confirmation.
 
+Forwarding-editor checks cover removing a middle rule, preserving other rules, stale IDs, saving/reloading an empty list and adding a rule again.
+
+Codex inline approval checks switch languages repeatedly in the same window and recognize English labels in rendered button snapshots. Core checks cover the default executable and custom-path serialization.
+
 Codex regressions also cover two clients on one SSH transport: independent grants, quotas, approval and output pages, serialized execution, independent expiry, renewal and close cleanup. A real stdio adapter verifies that tool arguments cannot override its environment-provided association.
 
 ## Limits of coverage

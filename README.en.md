@@ -12,6 +12,65 @@ A native macOS SSH workspace built with SwiftUI/AppKit, SwiftTerm and system Ope
 
 Download the DMG for your architecture from the [latest release](https://github.com/junli-nv/MyTerm/releases/latest), open it and drag MyTerm into Applications. The release page and `SHA256SUMS.txt` provide the version, build and checksums. Packages are ad-hoc signed, without Developer ID signing or Apple notarization.
 
+### Install MyTerm from scratch
+
+MyTerm requires macOS 14 or later. Check About This Mac first: use an `arm64` package on Apple Silicon (M-series). Intel Macs need a matching package or a source build and cannot run the arm64 package directly. Available architectures are listed in the release assets.
+
+| Feature | Local prerequisites |
+| --- | --- |
+| Local Bash, SSH, SFTP | MyTerm installer; macOS supplies Bash/OpenSSH/SFTP. Homebrew and Codex are not prerequisites |
+| Codex local work or SSH analysis | Install Codex CLI first; the instructions below use Homebrew, so install Homebrew first |
+| ZMODEM | Local and remote `sz` / `rz` (`brew install lrzsz` locally); see the transfer section |
+| trzsz / tmux transfers | Client bundled with MyTerm; install `trz` / `tsz` remotely; see the transfer section |
+| X11 forwarding | Install and run XQuartz; see the X11 section below |
+| Source builds and development tests | Swift/developer tools and test dependencies; see the build instructions and [testing guide](docs/TESTING.en.md) |
+
+1. Download the DMG and `SHA256SUMS.txt` from the [latest release](https://github.com/junli-nv/MyTerm/releases/latest), avoiding unknown repackaged copies.
+2. In macOS Terminal, change to the download directory and run `shasum -a 256 <downloaded-DMG-path>` (replace the placeholder with the actual path). Compare the result with the matching checksum entry.
+3. Open the DMG and drag MyTerm into Applications. Eject the DMG and launch MyTerm from Applications.
+4. The welcome page lets you create a local Bash or SSH session. Codex is not required to start MyTerm.
+
+### If macOS blocks the first launch
+
+Packages are ad-hoc signed, without Developer ID signing or Apple notarization. macOS may report an unidentified developer or that it cannot check the app for malicious software. After verifying the source and checksum, try opening it once, then go to **System Settings → Privacy & Security → Security → Open Anyway**. Confirm Open and authenticate if requested. Future launches can use Applications. See [Apple's official instructions](https://support.apple.com/en-us/102445).
+
+If Open Anyway is missing, try launching the app again; managed Macs may require administrator approval. For a damaged-app or will-damage-your-computer warning, verify the checksum and download again; report the exact warning if unresolved. Do not disable Gatekeeper system-wide.
+
+### Install Homebrew and Codex CLI (for Codex features)
+
+If already installed, skip installation and check `brew --version` and `codex --version`. MyTerm does not install them automatically.
+
+Run the command from the [official Homebrew instructions](https://brew.sh/) in Terminal:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Follow the installer and its **Next steps**. Homebrew's supported macOS versions can be newer than MyTerm's minimum; check [Homebrew requirements](https://docs.brew.sh/Installation) on older systems. Install Command Line Tools if prompted. Apple Silicon defaults to `/opt/homebrew`; load its environment in the current terminal:
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+brew --version
+```
+
+Follow Next steps for your actual shell so new terminals also find `brew`; Bash examples use `~/.profile`. Do not use the Apple Silicon path for Intel or custom installations.
+
+Install the [Homebrew Codex CLI package](https://formulae.brew.sh/cask/codex) and check its path:
+
+```bash
+brew install --cask codex
+command -v codex
+codex --version
+```
+
+Update an existing Homebrew Codex installation with `brew upgrade --cask codex`. See the [official OpenAI documentation](https://learn.chatgpt.com/docs/codex/cli) for CLI usage and authentication.
+
+Open **MyTerm → Codex Integration… → Codex Configuration** and enter the full path returned by `command -v codex`. The default is `/opt/homebrew/bin/codex`; Intel Homebrew commonly uses `/usr/local/bin/codex`. Other installation methods may differ. Saved custom paths are not overwritten by the default.
+
+If a proxy is needed, configure and test the independent HTTP/SOCKS5 proxy here before signing in and checking login status. It does not change the SSH proxy. This proxy applies to Codex started by MyTerm, not earlier Homebrew/CLI downloads; ensure Terminal can reach download sites during installation. Once signed in, choose Local Work or open an SSH connection and start analysis from SSH Session Access. See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md).
+
+### Build and package from source
+
 Building requires macOS 14+ and Swift 6.0+. Run from the repository root:
 
 ```bash
@@ -41,7 +100,7 @@ Startup shows a welcome page without opening a local shell. Create an SSH config
 - **Jump hosts:** configure ordered hops with individual addresses, ports, users, authentication modes and keys. Optionally enter a password with an explicit username; blank reuses a saved password or asks when connecting. Choose saved jump configuration copies the entire route and network proxy from a saved session, including multiple hops. Editing the copy does not change its source. Existing SSH jump definitions are also supported.
 - **Proxy:** unauthenticated HTTP CONNECT or SOCKS5. Proxies can be combined with jump hosts and apply to the first hop.
 - **Compression:** enabled by default, configurable per server.
-- **Forwarding:** multiple local `-L`, remote `-R` and dynamic SOCKS `-D` rules, listening on `127.0.0.1` by default. Rules end with the connection; listener failures terminate connection setup. Remote listener scope also depends on server configuration.
+- **Forwarding:** multiple local `-L`, remote `-R` and dynamic SOCKS `-D` rules, listening on `127.0.0.1` by default. Use Add to create a rule and Remove forwarding on that rule to remove it. Save, then open a new SSH connection from the updated configuration; existing connections are unchanged. Rules end with the connection; listener failures terminate connection setup. Remote listener scope also depends on server configuration.
 - **Debugging:** optional `ssh -vvv`-style output, off by default.
 - **Keepalive:** `ServerAliveInterval=30`, `ServerAliveCountMax=6`, `TCPKeepAlive=yes`. Keepalives cannot prevent a real network outage.
 

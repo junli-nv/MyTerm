@@ -12,6 +12,65 @@ macOS 原生 SSH 工作台，使用 SwiftUI / AppKit 管理界面、SwiftTerm �
 
 从 [最新 Release](https://github.com/junli-nv/MyTerm/releases/latest) 下载适合设备架构的 DMG，打开后将 MyTerm 拖入“应用程序”。版本、构建号与附件校验值以 Release 页面和 `SHA256SUMS.txt` 为准。发布包使用临时签名（ad-hoc），未进行 Developer ID 签名与 Apple 公证。
 
+### 从零安装 MyTerm
+
+MyTerm 应用要求 macOS 14 或更高版本。先在“关于本机”确认芯片：Apple Silicon（M 系列）选择 `arm64` 包；Intel 只能使用对应架构的包或自行构建，不能直接使用 arm64 包。可下载架构以 Release 附件为准。
+
+| 要使用的功能 | 本机需要准备什么 |
+| --- | --- |
+| 本地 Bash、SSH、SFTP | MyTerm 安装包；使用 macOS 自带的 Bash/OpenSSH/SFTP，无需先装 Homebrew 或 Codex |
+| Codex 本地工作、SSH 分析 | 提前安装 Codex CLI；下面使用 Homebrew 安装，因此先装 Homebrew |
+| ZMODEM | 本机及远端的 `sz` / `rz`（本机可用 `brew install lrzsz`）；见下方传输说明 |
+| trzsz / tmux 传输 | MyTerm 内置客户端，远端需安装 `trz` / `tsz`；见下方传输说明 |
+| X11 转发 | 额外安装并运行 XQuartz，详见下文 X11 说明 |
+| 源码构建和开发测试 | Swift/开发工具及测试依赖，见下方构建说明和[测试文档](docs/TESTING.md) |
+
+1. 从[最新 Release](https://github.com/junli-nv/MyTerm/releases/latest)下载 DMG 和 `SHA256SUMS.txt`，不要使用来源不明的重新打包文件。
+2. 在 macOS“终端”中进入下载目录，运行 `shasum -a 256 <下载的DMG文件路径>`（用实际路径替换占位符），将结果与校验文件中的对应条目比较。
+3. 打开 DMG，将 MyTerm 拖到“应用程序”；推出 DMG，再从“应用程序”打开 MyTerm。
+4. 首次进入显示开始页面，可新建本地 Bash 或 SSH 会话。Codex 并非启动 MyTerm 的必要条件。
+
+### macOS 阻止首次打开时
+
+发布包采用临时签名（ad-hoc），尚未进行 Developer ID 签名和 Apple 公证。因此首次打开可能提示无法验证开发者或无法检查恶意软件。确认下载来源和校验值后，先尝试打开一次，再到 **系统设置 → 隐私与安全性 → 安全性 → 仍要打开**，确认“打开”，并按系统要求认证。之后从“应用程序”启动即可。步骤依据 [Apple 官方说明](https://support.apple.com/en-us/102445)。
+
+如果看不到“仍要打开”，先重新尝试启动；受组织管理的 Mac 可能需要管理员放行。如果提示文件损坏或会损害电脑，先核对校验值并重新下载，无法解决时反馈具体提示；不要直接关闭整个系统的 Gatekeeper。
+
+### 安装 Homebrew 和 Codex CLI（使用 Codex 时）
+
+已有 `brew` 和 `codex` 时可跳过安装，先用 `brew --version`、`codex --version` 检查。MyTerm 不会自动安装它们。
+
+在系统“终端”中按 [Homebrew 官方安装说明](https://brew.sh/)运行：
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+按安装程序提示完成操作和 **Next steps**。Homebrew 有独立的系统支持范围，可能高于 MyTerm 的最低要求，旧版 macOS 请先核对 [Homebrew 系统要求](https://docs.brew.sh/Installation)。如提示安装 Command Line Tools，按提示安装。Apple Silicon 默认安装到 `/opt/homebrew`；可在当前终端加载环境：
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+brew --version
+```
+
+让新终端也能找到 `brew`，需按安装程序的 Next steps 配置实际使用的 shell；Bash 示例使用 `~/.profile`。不要把 Apple Silicon 的路径套用到 Intel 或自定义安装目录。
+
+安装 [Homebrew 的 Codex CLI 包](https://formulae.brew.sh/cask/codex)，并确认命令路径：
+
+```bash
+brew install --cask codex
+command -v codex
+codex --version
+```
+
+已有 Homebrew 安装的 Codex 可用 `brew upgrade --cask codex` 更新。CLI 的使用与登录方式见 [OpenAI 官方文档](https://learn.chatgpt.com/docs/codex/cli)。
+
+打开 **MyTerm → Codex 接入… → Codex 配置**，填写 `command -v codex` 返回的完整路径。默认值为 `/opt/homebrew/bin/codex`；Intel Homebrew 通常为 `/usr/local/bin/codex`，其他安装方式以实际路径为准。已有自定义路径不会被默认值覆盖。
+
+需要代理时，先在这里设置独立的 HTTP/SOCKS5 代理并测试，再点击登录、检查登录状态；该代理不会改变 SSH 自己的代理。MyTerm 中的代理仅供其启动的 Codex 使用，不能解决此前 Homebrew/CLI 下载阶段的网络问题，安装阶段需先确保终端能访问下载站点。登录成功后可选择“本地工作”，或先打开 SSH，再从“SSH 会话接入”启动分析。详细步骤见 [Codex 接入指南](docs/CODEX-INTEGRATION.md)。
+
+### 从源码构建与打包
+
 源码构建需要 macOS 14+、Swift 6.0+。在仓库根目录运行：
 
 ```bash
@@ -41,7 +100,7 @@ bash scripts/install-release.sh
 - **跳板机**：支持多级跳转，可逐级填写地址、端口、用户名、认证方式和私钥，并调整顺序。可提前填写可选密码（需指定用户名），留空则复用已有密码或连接时询问。“选择已有跳板配置”从已保存会话复制完整跳转路径及网络代理，支持多级跳转；修改副本不会改动来源。也可使用 SSH 配置中的跳板定义。
 - **网络代理**：HTTP CONNECT 或 SOCKS5，支持无认证代理。可与跳板组合，代理应用到第一跳。
 - **压缩**：默认开启，可按服务器关闭。
-- **端口转发**：本地 `-L`、远程 `-R`、动态 SOCKS `-D`，支持多条规则，默认监听 `127.0.0.1`。转发随 SSH 连接结束；监听失败时连接报错退出，远程监听范围受服务端配置约束。
+- **端口转发**：本地 `-L`、远程 `-R`、动态 SOCKS `-D`，支持多条规则，默认监听 `127.0.0.1`。点击“添加”新增规则，点击每条规则的“删除转发”移除；保存后从更新的配置新建 SSH 连接生效，已有连接不受影响。转发随 SSH 连接结束；监听失败时连接报错退出，远程监听范围受服务端配置约束。
 - **连接调试**：可开启相当于 `ssh -vvv` 的调试输出，默认关闭。
 - **保活**：使用 `ServerAliveInterval=30`、`ServerAliveCountMax=6` 和 `TCPKeepAlive=yes`。保活不能避免实际网络中断。
 

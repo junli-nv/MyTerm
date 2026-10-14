@@ -5,6 +5,18 @@
 保留仓库记录的各版本说明，按版本从新到旧排列。旧 Release 安装包清理后，本日志和各版本原始说明仍保留。历史说明中的安装路径、依赖及限制以对应版本为准。当前使用方法见 [README](README.md)，不要将历史版本的限制作为当前行为。英文入口提供各版本摘要，完整原始记录保留在本文件及各版本说明中。
 
 
+<a id="version-3.1.12"></a>
+
+# MyTerm 3.1.12
+
+Codex 默认路径改为 `/opt/homebrew/bin/codex`，保留已有自定义路径。修复 SSH 命令审批及执行控制按钮切换语言后仍显示中文的问题；关于窗口链接改为 MyTerm 项目主页。 [Release notes](packaging/RELEASE-NOTES-3.1.12.md).
+
+<a id="version-3.1.11"></a>
+
+# MyTerm 3.1.11
+
+端口转发每条规则提供独立的“删除转发”文字按钮，替代类型选择框旁的小减号；补充删除、清空、保存后重新加载与再次添加检查。 [Release notes](packaging/RELEASE-NOTES-3.1.11.md).
+
 <a id="version-3.1.10"></a>
 
 # MyTerm 3.1.10

@@ -4,6 +4,18 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.1.12"></a>
+
+# MyTerm 3.1.12
+
+Default the Codex executable to `/opt/homebrew/bin/codex`, preserving saved custom paths. Fix stale Chinese labels in SSH approval/execution controls after language changes. Link the About window to the MyTerm repository. [Release notes](packaging/RELEASE-NOTES-3.1.12.md).
+
+<a id="version-3.1.11"></a>
+
+# MyTerm 3.1.11
+
+Give each forwarding rule a separate Remove forwarding text button instead of the small minus icon beside the type picker. Add removal, empty-list persistence, reload and re-add checks. [Release notes](packaging/RELEASE-NOTES-3.1.11.md).
+
 <a id="version-3.1.10"></a>
 
 # MyTerm 3.1.10

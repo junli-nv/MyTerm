@@ -4,6 +4,9 @@ import MyTermCore
 func checkCodexIntegration() throws {
     try checkCodexExecution()
     var connection = CodexConnection()
+    checkEqual(connection.executable, "/opt/homebrew/bin/codex")
+    let custom = CodexConnection(executable: "/custom/bin/codex")
+    checkEqual(try JSONDecoder().decode(CodexConnection.self, from: JSONEncoder().encode(custom)).executable, custom.executable)
     let base = ["HTTP_PROXY": "http://old.invalid", "https_proxy": "http://old.invalid", "NO_PROXY": "*", "SHELL": "/bin/bash"]
     checkEqual(try connection.environment(base: base, password: ""), base)
     connection.proxyMode = .http

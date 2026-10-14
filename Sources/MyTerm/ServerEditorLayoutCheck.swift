@@ -81,6 +81,25 @@ enum ServerEditorLayoutCheck {
         try require(window.frame.width > before.width || window.frame.height > before.height, "Maximize did not enlarge window")
         window.performZoom(nil); settle()
         try require(abs(window.frame.width - before.width) < 2 && abs(window.frame.height - before.height) < 2, "Restore changed window size")
+        // Exercise the deletion action against persisted configuration, including
+        // an empty list: reopening must never resurrect removed forwarding rules.
+        let forwardingDraft = ServerDraft(server: server)
+        let originalRules = forwardingDraft.forwards
+        forwardingDraft.removeForward(id: originalRules[1].id)
+        try require(forwardingDraft.forwards == [originalRules[0], originalRules[2]], "Deleting the middle forward changed other rules")
+        try require(workspace.save(forwardingDraft.server), "Cannot save removed forward")
+        let repository = ServerRepository(fileURL: directory.appendingPathComponent("MyTerm/servers.json"))
+        try require(try repository.load().first(where: { $0.id == server.id })?.forwards == forwardingDraft.forwards,
+                    "Removed forward returned on reload")
+        for rule in originalRules { forwardingDraft.removeForward(id: rule.id) }
+        try require(workspace.save(forwardingDraft.server), "Cannot save empty forwarding list")
+        try require(try repository.load().first(where: { $0.id == server.id })?.forwards?.isEmpty == true,
+                    "Empty forwarding list did not persist")
+        forwardingDraft.forwards.append(originalRules[1])
+        try require(workspace.save(forwardingDraft.server), "Cannot add after deleting all forwards")
+        try require(try repository.load().first(where: { $0.id == server.id })?.forwards == [originalRules[1]],
+                    "Re-added forwarding rule did not persist")
+        print("PASS: forwarding removal: middle/remaining rules, stale IDs, empty save/reload and adding after deletion")
         print("PASS: SSH editor: expanded jumps/proxy/three forwarding types, Chinese/English, small/large windows, persistent scrollbar, unclipped ports and maximize/restore")
     }
 }

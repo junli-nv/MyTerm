@@ -199,8 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
         if let applicationIcon { options[.applicationIcon] = applicationIcon }
         let credits = NSMutableAttributedString(string: "Junli Zhang\n", attributes: [.font: NSFont.systemFont(ofSize: 13)])
-        credits.append(NSAttributedString(string: "github.com/junli-nv", attributes: [
-            .link: URL(string: "https://github.com/junli-nv")!,
+        credits.append(NSAttributedString(string: "https://github.com/junli-nv/MyTerm", attributes: [
+            .link: URL(string: "https://github.com/junli-nv/MyTerm")!,
             .font: NSFont.systemFont(ofSize: 12)
         ]))
         let paragraph = NSMutableParagraphStyle()
@@ -573,12 +573,17 @@ struct ServerEditor: View {
                 ForEach($draft.forwards) { $forward in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
+                            Spacer()
+                            Button("删除转发", systemImage: "trash") { draft.removeForward(id: forward.id) }
+                                .fixedSize()
+                                .help("删除此条端口转发，保存后生效")
+                        }
+                        HStack {
                             Picker("类型", selection: $forward.kind) {
                                 Text("本地 → 远端").tag(ForwardKind.local)
                                 Text("远端 → 本地").tag(ForwardKind.remote)
                                 Text("动态 SOCKS5").tag(ForwardKind.dynamic)
                             }
-                            Button { draft.forwards.removeAll { $0.id == forward.id } } label: { Image(systemName: "minus.circle") }
                         }
                         HStack(alignment: .top, spacing: 16) {
                             EditorTextField(title: "监听地址", text: $forward.bindAddress)
@@ -665,4 +670,5 @@ final class ServerDraft: ObservableObject {
     var proxyHost: String { get { server.proxy?.host ?? "" } set { server.proxy?.host = newValue } }
     var proxyPort: String { get { server.proxy?.port ?? "" } set { server.proxy?.port = newValue } }
     var forwards: [PortForward] { get { server.forwards ?? [] } set { server.forwards = newValue } }
+    func removeForward(id: UUID) { forwards.removeAll { $0.id == id } }
 }

@@ -7,7 +7,7 @@ public struct CodexConnection: Codable, Equatable {
     public var host = "127.0.0.1"
     public var port = ""
     public var username = ""
-    public init(executable: String = "~/.local/bin/codex") { self.executable = executable }
+    public init(executable: String = "/opt/homebrew/bin/codex") { self.executable = executable }
     public func proxyURL(password: String) throws -> String? {
         guard proxyMode != .inherited else { return nil }
         let host = host.trimmingCharacters(in: .whitespacesAndNewlines)
