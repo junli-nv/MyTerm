@@ -129,7 +129,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         }
         if executable == "/usr/bin/ssh", let server, let context = connectionContext {
             do {
-                authentication = try SSHAuthentication(server: server, context: context, terminal: terminal) { [weak self] message in self?.status = message }
+                authentication = try SSHAuthentication(server: server, credentialServer: configuredServer, context: context, terminal: terminal) { [weak self] message in self?.status = message }
                 environment.merge(authentication!.environment) { _, value in value }
             } catch { connectionFailed(error.localizedDescription); return }
         }

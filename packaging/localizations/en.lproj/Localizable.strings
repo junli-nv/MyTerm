@@ -941,3 +941,10 @@
 "停止" = "Stop";
 
 "拒绝" = "Reject";
+
+"SSH 密码（可选）" = "SSH password (optional)";
+"填写密码需指定用户名。保存时写入本地加密数据库；留空保留已有密码，旧密码被拒绝时提示更新。" = "Enter a username to save a password. Save stores it in the local encrypted database; blank keeps the existing password. Rejected passwords prompt for an update.";
+"目标服务器和跳板机密码均可提前填写，也可在连接时输入。密钥口令和验证码不自动保存。" = "Destination and jump host passwords can be entered here or when connecting. Key passphrases and verification codes are not saved automatically.";
+"保存 SSH 密码前请填写用户名。" = "Enter a username before saving an SSH password.";
+
+"自动使用 SSH 配置和已有凭据。如需填写密码或选择私钥，请切换对应认证方式。" = "Use SSH configuration and existing credentials automatically. Choose Password or Key to enter a password or select a private key.";

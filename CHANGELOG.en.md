@@ -4,6 +4,18 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.1.14"></a>
+
+# MyTerm 3.1.14
+
+Choose SSH authentication before entering credentials. Password and private-key inputs are mutually exclusive; Automatic uses existing configuration. Switching modes preserves credentials, and password mode no longer passes a private-key file. [Release notes](packaging/RELEASE-NOTES-3.1.14.md).
+
+<a id="version-3.1.13"></a>
+
+# MyTerm 3.1.13
+
+Add an optional destination password to SSH configuration. Blank retains the saved password; secrets use the local encrypted store and stay out of session configuration. Unify credential matching across ordinary password prompts, preserving legacy migration and replacement after rejection. [Release notes](packaging/RELEASE-NOTES-3.1.13.md).
+
 <a id="version-3.1.12"></a>
 
 # MyTerm 3.1.12

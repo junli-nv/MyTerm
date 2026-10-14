@@ -11,8 +11,8 @@ final class SSHAuthentication {
     private var alert: NSAlert?
     private var stopped = false
     private let report: (String) -> Void
-    init(server: Server, context: SSHLaunchContext, terminal: MouseTerminalView, report: @escaping (String) -> Void) throws {
-        self.memory = try SSHPasswordMemory(server: server)
+    init(server: Server, credentialServer: Server? = nil, context: SSHLaunchContext, terminal: MouseTerminalView, report: @escaping (String) -> Void) throws {
+        self.memory = try SSHPasswordMemory(server: server, credentialServer: credentialServer)
         self.context = context; self.terminal = terminal; self.label = server.displayName; self.report = report
         channel = try AskpassChannel(path: context.directory.appendingPathComponent("auth").path) { [weak self] request, reply in
             DispatchQueue.main.async {

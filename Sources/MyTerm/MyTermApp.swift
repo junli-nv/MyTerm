@@ -500,15 +500,7 @@ struct ServerEditor: View {
                 EditorTextField(title: "主机", text: $draft.server.host, prompt: "IP、域名或 SSH 别名")
                 EditorTextField(title: "用户名", text: $draft.server.user, prompt: "留空使用 SSH 配置")
                 EditorTextField(title: "端口", text: $draft.server.port, prompt: "留空使用 SSH 配置 / 22")
-                HStack {
-                    EditorTextField(title: "私钥文件", text: $draft.server.identityFile, prompt: "可选，使用默认密钥")
-                    Menu("密钥库") {
-                        ForEach((try? SSHKeyLibrary().list()) ?? []) { key in
-                            Button(key.name) { draft.server.identityFile = key.url.path }
-                        }
-                    }.fixedSize()
-                    Button("选择…", action: chooseKey)
-                }
+                ServerAuthenticationEditor(draft: draft)
                 Toggle("详细配置跳板机", isOn: $draft.detailedJumps)
                 if draft.detailedJumps {
                     Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -534,11 +526,6 @@ struct ServerEditor: View {
                     Text("受信任转发（-Y）").tag(X11Forwarding.trusted)
                 }
                 Text("需要本机运行 XQuartz、远端允许 X11Forwarding。受信任模式仅用于可信服务器，远端程序可访问本地 X server。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Picker("认证方式", selection: $draft.authentication) {
-                    Text("自动").tag(AuthenticationMode.automatic)
-                    Text("密码").tag(AuthenticationMode.password)
-                    Text("密钥").tag(AuthenticationMode.key)
-                }
                 Toggle("SSH 压缩（节省带宽）", isOn: $draft.compression)
                 Toggle("trzsz 文件传输（支持 tmux）", isOn: Binding(get: { draft.server.trzszEnabled ?? true }, set: { draft.server.trzszEnabled = $0 }))
                 if draft.server.trzszEnabled ?? true {
@@ -603,7 +590,7 @@ struct ServerEditor: View {
                 .padding(.trailing, 8).padding(.bottom, 12)
                 .background(EditorScrollbars())
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            Text("目标服务器密码在认证窗口输入；跳板机密码可提前填写。密钥口令和验证码不自动保存。")
+            Text("目标服务器和跳板机密码均可提前填写，也可在连接时输入。密钥口令和验证码不自动保存。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let validationError = draft.validationError { Text(L10n.text(validationError)).font(.callout).foregroundStyle(.red) }
             HStack {
@@ -621,7 +608,7 @@ struct ServerEditor: View {
     private func save(connect: Bool) {
         do {
             let validated = try draft.server.validated()
-            if workspace.save(validated, jumpPasswords: draft.jumpPasswords) {
+            if workspace.save(validated, password: draft.authentication == .password ? draft.password : "", jumpPasswords: draft.jumpPasswords) {
                 if connect { workspace.connect(validated) }
                 onClose()
             } else {
@@ -631,19 +618,13 @@ struct ServerEditor: View {
         } catch { draft.validationError = error.localizedDescription }
     }
 
-    private func chooseKey() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.showsHiddenFiles = true
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
-        if panel.runModal() == .OK, let url = panel.url { draft.server.identityFile = url.path }
-    }
+
 }
 
 final class ServerDraft: ObservableObject {
     @Published var server: Server
     @Published var validationError: String?
+    @Published var password = "" // Editor-only; never serialize secrets into Server.
     @Published var jumpPasswords: [UUID: String] = [:]
     func useJumpPreset(_ preset: SSHJumpPreset) {
         jumpPasswords.removeAll()

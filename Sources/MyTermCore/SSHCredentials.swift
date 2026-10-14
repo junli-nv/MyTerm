@@ -28,6 +28,7 @@ public final class SSHPasswordMemory {
     private let server: Server
     private let store: PasswordStore
     private let serverName: String
+    private let destinationAccount: String?
     private var labels: [String: String] = [:]
     private var attempted = Set<String>()
     private var pending: [String: String] = [:]
@@ -47,13 +48,23 @@ public final class SSHPasswordMemory {
     public static func migrateLegacy(for server: Server, store: PasswordStore = SQLitePasswordStore()) throws {
         try store.migrateScope(from: legacyScopeIdentifier(for: server), to: scopeIdentifier(for: server))
     }
-    public init(server: Server, store: PasswordStore = SQLitePasswordStore()) throws {
+    public static func destinationAccount(for server: Server) throws -> String {
+        guard !server.user.isEmpty else { throw ConfigurationError.invalid("保存 SSH 密码前请填写用户名。") }
+        return try scopeIdentifier(for: server) + ":password"
+    }
+    public init(server: Server, credentialServer: Server? = nil, store: PasswordStore = SQLitePasswordStore()) throws {
         try Self.migrateLegacy(for: server, store: store)
         scope = try Self.scopeIdentifier(for: server)
         self.store = store
         self.server = server
         serverName = server.displayName
+        destinationAccount = try? Self.destinationAccount(for: credentialServer ?? server)
         try migrateJumpPasswords()
+        if let destinationAccount {
+            for prompt in destinationPrompts where matchesDestination(prompt) {
+                try store.migrateAccount(from: scopedAccount(prompt), to: destinationAccount)
+            }
+        }
     }
     private func migrateJumpPasswords() throws {
         for (index, hop) in (server.jumpServers ?? []).enumerated() {
@@ -72,9 +83,20 @@ public final class SSHPasswordMemory {
         return value.range(of: #"^[^\r\n]+@[^\r\n]+'s [Pp]assword:$"#, options: .regularExpression) != nil
             || value.range(of: #"^\([^\r\n]+@[^\r\n]+\) [Pp]assword:$"#, options: .regularExpression) != nil
     }
+    private var destinationPrompts: [String] {
+        ["\(server.user)@\(server.host)'s password:", "\(server.user)@\(server.host)'s Password:",
+         "(\(server.user)@\(server.host)) Password:", "(\(server.user)@\(server.host)) password:"]
+    }
+    private func matchesDestination(_ prompt: String) -> Bool {
+        // Prompts omit ports; never offer a destination secret to an ambiguous hop.
+        guard !server.user.isEmpty, server.authentication != .key,
+              !(server.jumpServers ?? []).contains(where: { $0.user == server.user && $0.host == server.host }) else { return false }
+        return destinationPrompts.contains(prompt.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
     private func account(_ prompt: String) -> String {
         if let index = SSHJumpCredentials.matchingIndex(prompt: prompt, server: server),
            let shared = try? SSHJumpCredentials.account(server: server, index: index) { return shared }
+        if matchesDestination(prompt), let destinationAccount { return destinationAccount }
         return scopedAccount(prompt)
     }
     private func scopedAccount(_ prompt: String) -> String {

@@ -313,16 +313,19 @@ final class Workspace: ObservableObject {
         }
     }
 
-    func save(_ server: Server, jumpPasswords: [UUID: String] = [:]) -> Bool {
+    func save(_ server: Server, password: String = "", jumpPasswords: [UUID: String] = [:]) -> Bool {
         guard !loadFailed else {
             error = "请先修复 ~/Library/Application Support/MyTerm/servers.json 并重启，以免覆盖无法读取的配置。"
             return false
         }
         do {
             let server = try server.validated()
-            let credentials = try (server.jumpServers ?? []).enumerated().compactMap { index, hop -> (password: String, account: String, label: String?)? in
+            var credentials = try (server.jumpServers ?? []).enumerated().compactMap { index, hop -> (password: String, account: String, label: String?)? in
                 guard hop.authentication != .key, let password = jumpPasswords[hop.id], !password.isEmpty else { return nil }
                 return (password, try SSHJumpCredentials.account(server: server, index: index), SSHJumpCredentials.label(hop))
+            }
+            if server.authentication != .key, !password.isEmpty {
+                credentials.append((password, try SSHPasswordMemory.destinationAccount(for: server), server.displayName))
             }
             // Migrate before replacing the only saved copy of the legacy configuration.
             let previous = servers.first(where: { $0.id == server.id })

@@ -120,7 +120,7 @@ public struct Server: Identifiable, Codable, Equatable {
         }
         if !server.port.isEmpty { args += ["-p", server.port] }
         if !server.user.isEmpty { args += ["-l", server.user] }
-        if !server.identityFile.isEmpty {
+        if server.authentication != .password, !server.identityFile.isEmpty {
             args += ["-i", (server.identityFile as NSString).expandingTildeInPath]
         }
         if let jump = server.effectiveJumpHost { args += ["-J", jump] }

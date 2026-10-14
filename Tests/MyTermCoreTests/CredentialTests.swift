@@ -10,6 +10,7 @@ final class MemoryPasswordStore: PasswordStore {
 }
 final class CredentialTests {
     func passwordLifecycle() throws {
+        try configuredDestinationPasswords()
         try sharedJumpPasswords()
         let store = MemoryPasswordStore(), server = Server(host: "example.test", user: "dev", port: "22")
         let prompt = "dev@example.test's password: "
@@ -34,6 +35,37 @@ final class CredentialTests {
         }
         try next.authenticated(); checkEqual(store.values.count, 1)
         checkEqual(SSHPasswordMemory.isPassword("(dev@example.test) Password:"), true)
+    }
+    private func configuredDestinationPasswords() throws {
+        let store = MemoryPasswordStore()
+        let server = Server(host: "target.test", user: "dev")
+        let account = try SSHPasswordMemory.destinationAccount(for: server)
+        try store.save("configured-secret", account: account)
+        let prompt = "dev@target.test's password:", alternate = "(dev@target.test) Password:"
+        let memory = try SSHPasswordMemory(server: server, store: store)
+        checkEqual(try memory.cached(prompt), "configured-secret")
+        checkEqual(memory.wasAttempted(alternate), true)
+        checkEqual(try memory.cached(alternate), nil)
+        memory.submitted("replacement", prompt: alternate, remember: true)
+        try memory.authenticated()
+        checkEqual(try SSHPasswordMemory(server: server, store: store).cached(prompt), "replacement")
+        checkEqual(store.values.count, 1)
+        var keyed = server; keyed.authentication = .key
+        checkEqual(try SSHPasswordMemory(server: keyed, store: store).cached(prompt), nil)
+        var ambiguous = server
+        ambiguous.jumpServers = [SSHJumpServer(host: server.host, user: server.user)]
+        try store.save("never-offer-to-hop", account: SSHPasswordMemory.destinationAccount(for: ambiguous))
+        checkEqual(try SSHPasswordMemory(server: ambiguous, store: store).cached(prompt), nil)
+        checkEqual(try SSHPasswordMemory(server: server, store: store).cached("other@target.test's password:"), nil)
+        checkEqual(try SSHPasswordMemory(server: server, store: store).cached("dev@other.test's password:"), nil)
+        var resolved = server; resolved.jumpHost = "inherited-jump"
+        checkEqual(try SSHPasswordMemory(server: resolved, credentialServer: server, store: store).cached(prompt), "replacement")
+        // Cancelling or declining to remember a replacement must not store it.
+        let cancelled = try SSHPasswordMemory(server: server, store: store)
+        _ = try cancelled.cached(prompt); _ = try cancelled.cached(prompt)
+        cancelled.submitted("not-remembered", prompt: prompt, remember: false)
+        try cancelled.authenticated()
+        checkEqual(try store.read(account), nil)
     }
     private func sharedJumpPasswords() throws {
         let store = MemoryPasswordStore()
@@ -128,6 +160,10 @@ final class CredentialTests {
         try SSHPasswordMemory.migrateLegacy(for: original, store: store)
         checkEqual(try SSHPasswordMemory(server: original, store: store).cached(prompt), "replacement")
         checkEqual(try store.list().first?.name, "Named password")
+        var passwordOnly = original; passwordOnly.authentication = .password
+        let passwordArgs = try passwordOnly.connectionArguments()
+        checkFalse(passwordArgs.contains("-i"))
+        checkEqual(passwordArgs.contains("PubkeyAuthentication=no"), true)
         // Key mode/path survive unrelated edits, validation and persistence unchanged.
         original.authentication = .key; original.jumpServers?[0].authentication = .key
         var keyEdited = original; keyEdited.name = "Key renamed"; keyEdited.compression = false
@@ -159,6 +195,8 @@ func realPasswordLogins(port: String, knownHosts: String, app: String) throws {
     defer { try? FileManager.default.removeItem(at: storage) }
     var server = Server(host: "127.0.0.1", user: "fixture", port: port)
     server.authentication = .password
+    let preset = ProcessInfo.processInfo.environment["MYTERM_PASSWORD_PRESET"] == "1"
+    if preset { try store.save("fixture-before", account: SSHPasswordMemory.destinationAccount(for: server)) }
     var manualCounts: [Int] = []
     for phase in 0..<4 {
         // Exercise real OpenSSH cached authentication after unrelated config edits.
@@ -210,7 +248,7 @@ func realPasswordLogins(port: String, knownHosts: String, app: String) throws {
         } else { checkEqual(response, "fixture-ok\n") }
         try memory.authenticated(); manualCounts.append(count)
     }
-    checkEqual(manualCounts, [1, 0, 1, 0])
+    checkEqual(manualCounts, [preset ? 0 : 1, 0, 1, 0])
     print("PASS: real OpenSSH askpass + encrypted SQLite: first save, auto-login, rejected old password, update and auto-login")
 }
 

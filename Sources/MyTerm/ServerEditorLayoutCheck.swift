@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import MyTermCore
 
 enum ServerEditorLayoutCheck {
@@ -55,7 +56,40 @@ enum ServerEditorLayoutCheck {
         try require(!workspace.save(invalid, jumpPasswords: [hopID: "invalid"]), "Password without username accepted")
         try require(workspace.servers.first(where: { $0.id == passwordServer.id })?.jumpServers?[0].user == "jump", "Failed save changed server")
         try require(!String(decoding: JSONEncoder().encode(workspace.servers), as: UTF8.self).contains("fixture-jump"), "Secret leaked into session JSON")
+        var destination = Server(name: "Destination password", host: "target.test", user: "dev")
+        destination.authentication = .password
+        try require(workspace.save(destination, password: "fixture-destination"), "Destination password save failed")
+        let destinationAccount = try SSHPasswordMemory.destinationAccount(for: destination)
+        try require(try credentials.read(destinationAccount) == "fixture-destination", "Destination secret missing")
+        destination.name = "Renamed destination"
+        try require(workspace.save(destination), "Blank destination save failed")
+        try require(try credentials.read(destinationAccount) == "fixture-destination", "Blank destination erased secret")
+        try require(workspace.save(destination, password: "fixture-replacement"), "Destination replacement failed")
+        destination.authentication = .key
+        try require(workspace.save(destination, password: "ignored-key-mode"), "Key mode save failed")
+        try require(try credentials.read(destinationAccount) == "fixture-replacement", "Key mode replaced password")
+        destination.authentication = .password; destination.user = ""
+        try require(!workspace.save(destination, password: "invalid"), "Destination password without username accepted")
+        try require(workspace.servers.first(where: { $0.id == destination.id })?.user == "dev", "Invalid save mutated destination")
+        let savedJSON = try String(contentsOf: directory.appendingPathComponent("MyTerm/servers.json"), encoding: .utf8)
+        try require(!savedJSON.contains("fixture-destination") && !savedJSON.contains("fixture-replacement"), "Destination password leaked into JSON")
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        let authenticationDraft = ServerDraft(server: keyed)
+        authenticationDraft.password = "draft-only-password"
+        let authenticationHost = NSHostingView(rootView: ServerAuthenticationEditor(draft: authenticationDraft))
+        authenticationHost.frame = NSRect(x: 0, y: 0, width: 590, height: 200)
+        for locale in [InterfaceLanguage.chinese, .english] {
+            language.selection = locale
+            for mode in [AuthenticationMode.password, .key, .automatic, .password] {
+                authenticationDraft.authentication = mode
+                RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+                authenticationHost.layoutSubtreeIfNeeded()
+                let fields = descendants(authenticationHost).compactMap { $0 as? NSTextField }
+                try require(fields.contains(where: { $0 is NSSecureTextField }) == (mode == .password), "Password input does not follow authentication choice")
+                try require(fields.contains(where: { $0.stringValue == keyed.identityFile }) == (mode == .key), "Private key input does not follow authentication choice")
+                try require(authenticationDraft.server.identityFile == keyed.identityFile && authenticationDraft.password == "draft-only-password", "Switching modes discarded draft credentials")
+            }
+        }
         func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.2)); root.layoutSubtreeIfNeeded() }
         try require(window.styleMask.contains(.resizable) && window.collectionBehavior.contains(.fullScreenPrimary), "Window cannot resize/fullscreen")
         for locale in [InterfaceLanguage.chinese, .english] {
