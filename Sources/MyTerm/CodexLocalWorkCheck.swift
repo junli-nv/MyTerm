@@ -28,8 +28,12 @@ enum CodexLocalWorkCheck {
         // this synchronous UI check itself occupies the main queue.
         let resultURL = URL(fileURLWithPath: fixture.path + ".result")
         let deadline = Date().addingTimeInterval(3)
-        while !FileManager.default.fileExists(atPath: resultURL.path) && Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
-        let output = (try? String(contentsOf: resultURL, encoding: .utf8)) ?? ""
+        var output = ""
+        repeat {
+            output = (try? String(contentsOf: resultURL, encoding: .utf8)) ?? ""
+            if output.contains(root.path) && output.contains("http://127.0.0.1:18888") { break }
+            Thread.sleep(forTimeInterval: 0.02)
+        } while Date() < deadline
         try require(output.contains(root.path) && output.contains("http://127.0.0.1:18888"), "Real local PTY lost working directory or proxy: \(String(reflecting: output))")
         let count = workspace.sessions.count
         bridge.launch(checkSavedLogin: false, localDirectory: root.appendingPathComponent("missing").path)

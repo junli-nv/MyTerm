@@ -7,6 +7,8 @@ import Combine
 final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProcessTerminalViewDelegate {
     weak var codexExecutionBridge: CodexBridge?
     var codexTargetSessionID: UUID?
+    var isCodexSession = false
+    private(set) var inputGeneration = UUID()
     let id = UUID()
     let startedAt = Date()
     @Published var historyLogging: HistoryLoggingMode = .inherit
@@ -111,6 +113,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     }
 
     private func launch() {
+        inputGeneration = UUID()
         var environment = launchEnvironment ?? ProcessInfo.processInfo.environment
         if let mode = server?.x11Forwarding, mode != .disabled {
             if environment["DISPLAY", default: ""].isEmpty {
@@ -273,13 +276,14 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
 struct TerminalSurface: NSViewRepresentable {
     @ObservedObject private var theme = ThemePreferences.shared
     @ObservedObject var session: TerminalSession
+    var isFocused = true
 
     func makeNSView(context: Context) -> TerminalContainer {
-        TerminalContainer(session: session)
+        TerminalContainer(session: session, isFocused: isFocused)
     }
 
     func updateNSView(_ container: TerminalContainer, context: Context) {
-        container.configure(session)
+        container.configure(session, isFocused: isFocused)
     }
 }
 
@@ -290,21 +294,25 @@ final class TerminalContainer: NSView {
     private var session: TerminalSession
     private var pending: DispatchWorkItem?
     private var focusOnAttach = true
-    init(session: TerminalSession) {
+    private var isFocused = true
+    init(session: TerminalSession, isFocused: Bool = true) {
         self.session = session
         super.init(frame: .zero)
         scroll.drawsBackground = false; scroll.borderType = .noBorder
         scroll.autohidesScrollers = true
         addSubview(scroll)
-        configure(session)
+        configure(session, isFocused: isFocused)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    func configure(_ session: TerminalSession) {
+    func configure(_ session: TerminalSession, isFocused: Bool = true) {
+        if isFocused && !self.isFocused { focusOnAttach = true }
+        self.isFocused = isFocused
+        session.terminal.paneIsActive = isFocused
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
         needsDisplay = true
         self.session = session
-        if scroll.documentView !== session.terminal {
+        if window != nil && scroll.documentView !== session.terminal {
             focusOnAttach = true
             session.terminal.removeFromSuperview()
             session.terminal.autoresizingMask = []
@@ -348,10 +356,10 @@ final class TerminalContainer: NSView {
             scroll.contentView.scroll(to: .zero)
         }
         session.start()
-        if focusOnAttach { window?.makeFirstResponder(session.terminal); focusOnAttach = false }
+        if focusOnAttach && isFocused { window?.makeFirstResponder(session.terminal); focusOnAttach = false }
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window != nil { needsLayout = true }
+        if window != nil { configure(session, isFocused: isFocused); needsLayout = true }
     }
 }

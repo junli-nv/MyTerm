@@ -92,6 +92,12 @@ bash scripts/install-release.sh
 
 The release workflow checks Debug, Release and an app copied from the actual DMG, comparing bundle files, permissions and symlinks. Installation copies that validated app to `/Applications/MyTerm.app`, verifies its contents, signature and window behavior, then opens it and synchronizes `dist/MyTerm.app` to the same bundle. Failed installation validation restores the previous app.
 
+### Check for updates
+
+Use **MyTerm → Check for Updates…** to query the latest stable GitHub release manually. The window shows your version, the new version and release notes. After you choose Download and Install and confirm, MyTerm downloads the ZIP for your architecture, verifies SHA-256, application identity, version, architecture and code signature, then ends current terminal sessions, replaces the app and restarts it. Save ongoing remote and local work first. Settings and saved session configurations are retained; running processes are not restored. Installation failures retain or restore the previous app. Diagnostics are written to `~/Library/Logs/MyTerm/Update.log`.
+
+Checks are manual, with no automatic polling. They use macOS networking settings independently of SSH and Codex proxy configurations. When the GitHub API is rate-limited, MyTerm tries the public release page and provides a link to release notes. Failed lookups and incompatible installers are reported explicitly. The app must be named `MyTerm.app` in a writable location; `/Applications/MyTerm.app` is recommended. An app on a read-only DMG cannot update in place. Only newer stable releases are offered, never downgrades or prereleases. Cancel or close the update window to stop downloading or preparation.
+
 ## SSH connections
 
 Startup shows a welcome page without opening a local shell. Create an SSH configuration or double-click a saved server in the sidebar; a single click does not connect. The SSH editor supports resizing, maximizing and scrolling, with persistent save controls.
@@ -122,19 +128,36 @@ The right-hand `+` and blank-strip menu offer local sessions, SSH configurations
 | --- | --- |
 | `⌘T` | New local Bash session |
 | `⌘N` | Add server |
-| `⌘W` | Close current tab |
+| `⌘W` | Close current pane; the last pane closes its tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Cycle forward/back through tabs |
 | `⌃⌘S` | Toggle sidebar |
 | `⌘⇧S` | Save the current tab collection |
-| `⌘⇧H` | Open session history |
+| `⌘⇧H` / `⌘⇧V` | Split top/bottom / left/right (customizable) |
 | `⌘⇧E` | Export current session text |
 | `⌘,` | Settings |
 
 The sidebar uses a two-level **group → session** tree. Groups can be expanded, collapsed, renamed or deleted. Drop one ungrouped server onto another to name a new group containing both; cancelling changes nothing. Drop into an existing group to move a member, or onto the Ungrouped header/footer to remove membership. The context menu offers the same moves. Deleting a group preserves server definitions. Search matches group/server names, addresses and users, expanding matching entries.
 
-Saved tab collections can be restored, renamed, updated or deleted. They retain order, connection definitions, selection and local directories, up to 100 tabs. An exit snapshot is saved when quitting. Restoration appends tabs and establishes new connections; it does not restore processes or feed old text into the terminal. Use tmux when remote programs must survive disconnection.
+Saved tab collections can be restored, renamed, updated or deleted. They retain order, connection definitions, the active pane and local directories, up to 100 sessions including split panes. An exit snapshot is saved when quitting. Restoration appends tabs and establishes new connections; it does not restore processes or feed old text into the terminal. Use tmux when remote programs must survive disconnection.
 
-Normal Bash/SSH exits close their tabs. Unexpected SSH disconnects retain output; focus the terminal and press `R`/`r`, or use Reconnect. Local Bash runs as an interactive login shell and follows `~/.profile` and Bash startup rules. Local directory tracking uses OSC 7; otherwise the initial directory is retained.
+Normal Bash/SSH exits close their panes; the last pane closes its tab. Unexpected SSH disconnects retain output; focus the terminal and press `R`/`r`, or use Reconnect. Local Bash runs as an interactive login shell and follows `~/.profile` and Bash startup rules. Local directory tracking uses OSC 7; otherwise the initial directory is retained.
+
+### Split panes within a tab
+
+Use `⌘⇧H` for top/bottom and `⌘⇧V` for left/right splits, or use the Window menu or tab context menu. Choose a new local terminal, duplicate the current SSH connection, connect a saved server, or move an existing SSH, local Shell or Codex session. Moving retains the process, output and session ID; duplicating SSH creates an independent connection.
+
+Panes can be split again: each new split halves only the selected region, preserving other panes and manually adjusted divider proportions. Window resizing retains those proportions. Drag dividers to resize panes. Enlarge the window when a pane is too small. Click a terminal or pane title to focus it; the title dot marks the active pane. The top-right SFTP control follows the active pane and opens a separate window while split, preserving terminal space. Codex execution controls scroll horizontally in narrow panes. A pane’s close button and `⌘W` close that pane and expand the remaining panes; a tab’s close button closes all its panes. Move to Separate Tab detaches a pane. Tab switching remembers the last active pane, and Codex authorization stays scoped to each session.
+
+**Settings → Terminal Behavior → Split Pane Shortcuts** supports Command plus other modifiers and one letter, detects duplicates and common shortcut conflicts, and restores defaults. `⌘V` still pastes. The former `⌘⇧H` history shortcut now creates a split; history remains available from the File menu or sidebar.
+
+Saved sessions and preferences backups retain split structure and the selected pane. Restore creates new connections; it does not restore terminal processes, running Codex instances or exact divider proportions.
+
+### Broadcast commands to panes
+
+Click Broadcast Command (the antenna icon) at the top right of a split tab, or open it from a pane menu. No targets are selected by default. Select SSH or local Bash panes in the current tab; selected panes show a broadcast marker. Enter a single-line command (up to 4096 bytes, without newlines or control characters), confirm every target is at an empty shell prompt, then click Send and Execute. Each terminal displays its own results. “Sent” means input was submitted, not that the remote command succeeded. After each send, the command is cleared and readiness must be confirmed again. Ordinary keystrokes are not broadcast.
+
+Codex tabs, unauthenticated SSH connections, disconnected sessions and terminals transferring via ZMODEM are unavailable. All targets are revalidated before sending; if any reconnected or became unavailable, nothing is sent. Input is never replayed after reconnection. Broadcasting is not a remote transaction: a network failure after submission may leave some targets having received the command. MyTerm cannot reliably detect Vim, less, password prompts or other interactive programs on the remote host. Return every target to an empty shell prompt first; partially typed input would be combined with the command. Ending broadcast, switching tabs or changing split structure clears the selection. Broadcast configuration is not saved.
+
 
 ## SFTP file management
 

@@ -96,8 +96,13 @@ final class WindowControlsCheck {
                     try SessionTabRenameCheck.run(window: window, workspace: workspace)
                     try ServerTreeCheck.run()
                     try SFTPInteractionCheck.run()
+                    try SplitPaneCheck.run()
+                    try PaneBroadcastCheck.run()
+                    try AppUpdateCheck.run()
+                    try SplitPaneCheck.shortcuts(window: window, workspace: workspace)
                 }
                 catch { fail(error.localizedDescription) }
+                deadline = Date().addingTimeInterval(30) // Provider suites have their own bounded waits.
                 return // Let SwiftUI restore the selected terminal before inspecting geometry.
             }
             guard fixture.isRunning, fixture.terminal.window != nil else { return }

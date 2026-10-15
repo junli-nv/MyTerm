@@ -35,10 +35,10 @@ enum SFTPInteractionCheck {
         func require(_ value: Bool, _ message: String) throws {
             if !value { throw ConfigurationError.invalid("SFTP check: " + message) }
         }
-        func wait(_ predicate: () -> Bool) throws {
+        func wait(line: Int = #line, _ predicate: () -> Bool) throws {
             let deadline = Date().addingTimeInterval(5)
             while !predicate() && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
-            try require(predicate(), "operation timed out: " + model.status)
+            try require(predicate(), "operation timed out at line \(line): " + model.status)
         }
         let files = [local.appendingPathComponent("中文 one.txt"), local.appendingPathComponent("two.txt")]
         for (index, file) in files.enumerated() { try Data(repeating: UInt8(index + 1), count: 100_000).write(to: file) }

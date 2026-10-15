@@ -948,3 +948,96 @@
 "保存 SSH 密码前请填写用户名。" = "Enter a username before saving an SSH password.";
 
 "自动使用 SSH 配置和已有凭据。如需填写密码或选择私钥，请切换对应认证方式。" = "Use SSH configuration and existing credentials automatically. Choose Password or Key to enter a password or select a private key.";
+
+"上下分屏" = "Split Top/Bottom";
+
+"左右分屏" = "Split Left/Right";
+
+"移为独立标签" = "Move to Separate Tab";
+
+"关闭当前分屏" = "Close Current Pane";
+
+"关闭当前分屏 / 标签页" = "Close Current Pane / Tab";
+
+"选择新分屏中的会话。移入已有会话不会重新连接。" = "Choose a session for the new pane. Moving an existing session does not reconnect it.";
+
+"复制当前 SSH 连接" = "Duplicate Current SSH Connection";
+
+"移入已有会话" = "Move Existing Session";
+
+"创建分屏" = "Create Split";
+
+"当前区域太小，请先放大窗口或调整分隔线。" = "This pane is too small. Enlarge the window or adjust the divider first.";
+
+"分屏快捷键" = "Split Pane Shortcuts";
+
+"Command 为必选。选择修饰键并输入英文字母；保存后立即生效。" = "Command is required. Select modifiers and enter a letter; changes apply immediately after saving.";
+
+"保存快捷键" = "Save Shortcuts";
+
+"恢复默认快捷键" = "Restore Default Shortcuts";
+
+"快捷键已保存。" = "Shortcuts saved.";
+
+"分屏快捷键需使用 Command 加至少一个修饰键，以及一个英文字母。" = "Split shortcuts require Command plus another modifier and one letter (A–Z).";
+
+"此快捷键与已有菜单或 macOS 常用操作冲突，请选择其他组合。" = "This shortcut conflicts with an existing menu or common macOS action. Choose another combination.";
+
+"上下分屏与左右分屏不能使用相同快捷键。" = "Top/bottom and left/right splits must use different shortcuts.";
+
+"保存的分屏布局无效。" = "The saved split layout is invalid.";
+
+"%@（%lld 个会话）" = "%@ (%lld sessions)";
+
+"保存标签、分屏结构和连接配置，恢复时重新连接。密码和终端进程不会被保存。" = "Save tabs, split layout and connection settings. Restoring reconnects sessions; passwords and running processes are not saved.";
+
+"每个保存的会话最多包含 100 个终端区域。" = "A saved session can contain at most 100 terminal panes.";
+
+"当前需要有 1–100 个终端区域才能更新保存的会话。" = "Open 1–100 terminal panes to update a saved session.";
+
+"广播命令" = "Broadcast Command";
+"结束广播" = "End Broadcast";
+"个目标" = "targets";
+"仅发送完整单行命令，不同步键盘操作。请确认目标均处于空白 Shell 提示符；Vim、less、密码提示或正在运行的程序也会接收这些输入。" = "Send a complete single-line command, not live keystrokes. Confirm every target is at an empty shell prompt; Vim, less, password prompts and running programs also receive this input.";
+"单行命令（最多 4096 字节）" = "Single-line command (up to 4096 bytes)";
+"所选终端都处于空白 Shell 提示符" = "All selected terminals are at an empty shell prompt";
+"发送并执行" = "Send and Execute";
+"已发送至：" = "Sent to: ";
+"广播目标" = "Broadcast target";
+"请先确认所选终端都处于空白 Shell 提示符。" = "First confirm all selected terminals are at an empty shell prompt.";
+"请输入不含换行或控制字符的单行命令，最多 4096 字节。" = "Enter a single-line command without newlines or control characters, up to 4096 bytes.";
+"请选择当前标签中的目标分屏。" = "Select target panes in the current tab.";
+"目标已断开、重连、移出或不可用；未发送命令，请重新选择目标。" = "A target disconnected, reconnected, moved or became unavailable. Nothing was sent; select targets again.";
+"不可用" = "Unavailable";
+
+"检查更新…" = "Check for Updates…";
+"检查更新" = "Check for Updates";
+"点击检查 GitHub 上的最新正式版。" = "Check GitHub for the latest stable release.";
+"正在检查更新…" = "Checking for updates…";
+"发现新版本。" = "A new version is available.";
+"当前版本已是最新，或高于 GitHub 正式版。" = "This version is up to date or newer than the GitHub stable release.";
+"检查更新失败：" = "Update check failed: ";
+"安装更新并重新启动？" = "Install the update and restart?";
+"当前终端会话将结束，请先保存工作。更新会保留设置和已保存的会话配置。" = "Current terminal sessions will end. Save your work first. Settings and saved session configurations will be retained.";
+"下载并安装" = "Download and Install";
+"正在下载更新…" = "Downloading update…";
+"正在校验并准备安装…" = "Verifying and preparing installation…";
+"当前应用位置不可更新，请将 MyTerm 安装到可写的 Applications 文件夹后重试。" = "This application location cannot be updated. Install MyTerm in a writable Applications folder and try again.";
+"更新组件缺失，请重新安装 MyTerm。" = "The updater is missing. Please reinstall MyTerm.";
+"更新失败，当前应用未替换：" = "Update failed; the current app was not replaced: ";
+"GitHub 请求失败，HTTP 状态：" = "GitHub request failed, HTTP status: ";
+"更新信息过大，已停止处理。" = "Update information is too large; processing stopped.";
+"更新安装包验证失败；当前应用未替换。" = "Installer validation failed; the current app was not replaced.";
+"更新安装包的应用标识或版本不匹配。" = "The update has an unexpected application identifier or version.";
+"发布页面" = "Release Page";
+"无法识别正式发布版本。" = "The stable release version could not be recognized.";
+"此版本没有兼容本机的更新安装包，请查看发布页面。" = "No compatible installer is available for this Mac. Visit the release page.";
+"更新安装包缺少有效的 SHA-256 校验值。" = "The update has no valid SHA-256 checksum.";
+"更新安装包大小或校验值不正确。" = "The installer size or checksum is invalid.";
+"更新安装包 SHA-256 校验失败；未安装。" = "The installer SHA-256 check failed; nothing was installed.";
+
+"更新操作已取消。" = "The update operation was cancelled.";
+
+"GitHub API 暂不可用，已通过公开发布页检查。完整更新说明请点击“发布页面”。" = "The GitHub API is unavailable; the public release page was used. Click Release Page for full release notes.";
+
+"更新安装进程未准备就绪；当前应用将保持运行。" = "The installer did not become ready; the current app will keep running.";

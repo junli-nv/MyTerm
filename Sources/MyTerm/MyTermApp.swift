@@ -36,19 +36,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var workspace: Workspace!
     private var window: NSWindow!
     private let codexSettings = CodexSettingsController()
+    private let updates = AppUpdateController()
     private let systemMenuLocalizer = SystemMenuLocalizer()
     private var languageObserver: NSObjectProtocol?
+    private var shortcutObserver: NSObjectProtocol?
+    private var sheetObserver: NSObjectProtocol?
     private var tabKeyMonitor: Any?
     private var checkDirectory: URL?
     let applicationIcon = Bundle.main.url(forResource: "MyTerm", withExtension: "icns").flatMap { NSImage(contentsOf: $0) }
     deinit {
         if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) }
+        if let shortcutObserver { NotificationCenter.default.removeObserver(shortcutObserver) }
+        if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) }
         if let tabKeyMonitor { NSEvent.removeMonitor(tabKeyMonitor) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let applicationIcon { NSApp.applicationIconImage = applicationIcon }
-        if (ProcessInfo.processInfo.arguments.contains("--window-controls-check") || ProcessInfo.processInfo.arguments.contains("--codex-login-check")), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
+        if (ProcessInfo.processInfo.arguments.contains("--window-controls-check") || ProcessInfo.processInfo.arguments.contains("--codex-login-check") || ProcessInfo.processInfo.arguments.contains("--split-check")), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             let directory = URL(fileURLWithPath: "/tmp/myterm-window-check-\(UUID())")
             checkDirectory = directory
             workspace = Workspace(applicationSupportDirectory: directory)
@@ -58,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         installMenus()
+        shortcutObserver = NotificationCenter.default.addObserver(forName: SplitShortcutPreferences.didChange, object: nil, queue: .main) { [weak self] _ in self?.installMenus() }
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
             self?.installMenus()
         }
@@ -74,17 +80,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let content = NSHostingView(rootView: WorkspaceView(workspace: workspace).ignoresSafeArea(.container, edges: .top))
         content.safeAreaRegions = []
         window.contentView = content
+        sheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: window, queue: .main) { [weak self] _ in
+            // A newly created pane may mount while the chooser is dismissing.
+            self?.workspace.focusSelectedPane()
+        }
         window.center()
         window.makeKeyAndOrderFront(nil)
         tabKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, NSApp.keyWindow === self.window, self.window.attachedSheet == nil,
-                  event.keyCode == 48 else { return event }
+            guard let self, NSApp.keyWindow === self.window, self.window.attachedSheet == nil else { return event }
+            if SplitShortcutDispatch.handle(event, workspace: self.workspace) { return nil }
+            guard event.keyCode == 48 else { return event }
             let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
             guard modifiers == [.control] || modifiers == [.control, .shift] else { return event }
             self.workspace.selectAdjacentTab(modifiers.contains(.shift) ? -1 : 1)
             return nil
         }
         NSApp.activate(ignoringOtherApps: true)
+        if ProcessInfo.processInfo.arguments.contains("--split-check"), ProcessInfo.processInfo.arguments.contains("--smoke-test") {
+            workspace.newLocal()
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [self] _ in
+                do {
+                    try SplitPaneCheck.run()
+                    try PaneBroadcastCheck.run()
+                    try AppUpdateCheck.run()
+                    try SplitPaneCheck.shortcuts(window: window, workspace: workspace)
+                    workspace.stopAll(); NSApp.terminate(nil)
+                } catch { workspace.stopAll(); fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
+            }
+            return
+        }
         if ProcessInfo.processInfo.arguments.contains("--window-controls-check"),
            ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             workspace.sidebarVisible = false
@@ -145,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let app = submenu("MyTerm")
         app.addItem(withTitle: L10n.text("关于 MyTerm"), action: #selector(showAbout), keyEquivalent: "").target = self
+        app.addItem(withTitle: L10n.text("检查更新…"), action: #selector(checkUpdates), keyEquivalent: "").target = self
         app.addItem(withTitle: L10n.text("Codex 接入…"), action: #selector(showCodexSettings), keyEquivalent: "").target = self
         let settings = app.addItem(withTitle: L10n.text("设置…"), action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
@@ -153,7 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let file = submenu("文件")
         for (title, action, key) in [("新建本地终端", #selector(newTerminal), "t"),
                                     ("添加 SSH 服务器…", #selector(addServer), "n"),
-                                    ("关闭当前标签页", #selector(closeTab), "w")] {
+                                    ("关闭当前分屏 / 标签页", #selector(closeTab), "w")] {
             let item = file.addItem(withTitle: L10n.text(title), action: action, keyEquivalent: key)
             item.target = self
         }
@@ -166,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         file.addItem(withTitle: L10n.text("导出 OpenSSH 配置…"), action: #selector(exportOpenSSH), keyEquivalent: "").target = self
         file.addItem(withTitle: L10n.text("导出偏好设置备份…"), action: #selector(exportPreferences), keyEquivalent: "").target = self
         file.addItem(withTitle: L10n.text("恢复偏好设置备份…"), action: #selector(restorePreferences), keyEquivalent: "").target = self
-        let historyItem = file.addItem(withTitle: L10n.text("会话历史…"), action: #selector(showHistory), keyEquivalent: "h")
+        let historyItem = file.addItem(withTitle: L10n.text("会话历史…"), action: #selector(showHistory), keyEquivalent: "")
         historyItem.keyEquivalentModifierMask = [.command, .shift]; historyItem.target = self
         let exportItem = file.addItem(withTitle: L10n.text("导出当前会话文本…"), action: #selector(exportHistory), keyEquivalent: "e")
         exportItem.keyEquivalentModifierMask = [.command, .shift]; exportItem.target = self
@@ -180,9 +205,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let find = edit.addItem(withTitle: L10n.text("查找文本"), action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
         find.tag = NSTextFinder.Action.showFindInterface.rawValue
         let windows = submenu("窗口")
-        let nextTab = windows.addItem(withTitle: L10n.text("下一个标签页"), action: #selector(selectNextTab), keyEquivalent: "\t")
+        let shortcuts = SplitShortcutPreferences.shared.value
+        for (title, action, binding) in [("上下分屏", #selector(splitHorizontally), shortcuts.horizontal),
+                                         ("左右分屏", #selector(splitVertically), shortcuts.vertical)] {
+            let item = windows.addItem(withTitle: L10n.text(title), action: action, keyEquivalent: binding.key)
+            item.keyEquivalentModifierMask = binding.modifiers; item.target = self
+        }
+        windows.addItem(.separator())
+        let nextTab = windows.addItem(withTitle: L10n.text("下一个会话页"), action: #selector(selectNextTab), keyEquivalent: "\t")
         nextTab.keyEquivalentModifierMask = [.control]; nextTab.target = self
-        let previousTab = windows.addItem(withTitle: L10n.text("上一个标签页"), action: #selector(selectPreviousTab), keyEquivalent: "\t")
+        let previousTab = windows.addItem(withTitle: L10n.text("上一个会话页"), action: #selector(selectPreviousTab), keyEquivalent: "\t")
         previousTab.keyEquivalentModifierMask = [.control, .shift]; previousTab.target = self
         windows.addItem(.separator())
         let sidebar = windows.addItem(withTitle: L10n.text("显示 / 隐藏侧栏"), action: #selector(toggleSidebar), keyEquivalent: "s")
@@ -209,6 +241,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         options[.credits] = credits
         NSApp.orderFrontStandardAboutPanel(options: options)
     }
+    @objc private func splitHorizontally() { openSplit(.horizontal) }
+    @objc private func splitVertically() { openSplit(.vertical) }
+    private func openSplit(_ axis: PaneAxis) {
+        guard NSApp.keyWindow === window, window.attachedSheet == nil else { return }
+        workspace.requestSplit(axis)
+    }
     @objc private func newTerminal() { workspace.newLocal() }
     @objc private func selectNextTab() {
         guard NSApp.keyWindow === window, window.attachedSheet == nil else { return }
@@ -228,6 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func exportOpenSSH() { workspace.exportOpenSSH() }
     @objc private func exportPreferences() { PreferencesBackupController.export(workspace: workspace) }
     @objc private func restorePreferences() { PreferencesBackupController.restore(workspace: workspace) }
+    @objc private func checkUpdates() { updates.present() }
     @objc private func showCodexSettings() { codexSettings.present(workspace: workspace) }
     @objc private func showSettings() { MouseSettingsController.shared.present() }
     @objc private func addServer() { workspace.editor = Server() }
@@ -258,7 +297,7 @@ struct WorkspaceView: View {
         if !workspace.savedSessions.isEmpty {
             Menu("打开已保存会话") {
                 ForEach(workspace.savedSessions) { saved in
-                    Button("\(saved.name)（\(saved.tabs.count) 个标签）") { workspace.restore(saved) }
+                    Button("\(saved.name)（\(saved.tabs.count) 个会话）") { workspace.restore(saved) }
                 }
             }
         }
@@ -279,7 +318,7 @@ struct WorkspaceView: View {
                     GeometryReader { geometry in
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
-                            ForEach(workspace.sessions) { session in
+                            ForEach(workspace.visibleTabs) { session in
                                 SessionTabControl(workspace: workspace, session: session)
                                     .frame(height: 30).fixedSize(horizontal: true, vertical: false)
                             }
@@ -297,9 +336,15 @@ struct WorkspaceView: View {
                             .frame(minWidth: geometry.size.width, alignment: .leading)
                     }
                     }
+                    if let selectedID = workspace.selectedID, workspace.layout(containing: selectedID).leaves.count > 1 {
+                        Button { if workspace.broadcastTabID == nil { workspace.beginBroadcast() } else { workspace.endBroadcast() } } label: {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .foregroundStyle(workspace.broadcastTabID == nil ? Color.secondary : Color.orange)
+                        }.buttonStyle(.plain).frame(width: 28, height: 28).help("广播命令")
+                    }
                     Group {
                         if let session = workspace.selected {
-                            TerminalSFTPButton(session: session)
+                            TerminalSFTPButton(session: session, preferDetached: workspace.layout(containing: session.id).leaves.count > 1)
                         } else {
                             Color.clear.accessibilityHidden(true)
                         }
@@ -340,7 +385,7 @@ struct WorkspaceView: View {
                     Button("导出 OpenSSH 配置…", action: workspace.exportOpenSSH)
                     Divider()
                     ForEach(workspace.savedSessions) { saved in
-                        Menu("\(saved.name)（\(saved.tabs.count) 个标签）") {
+                        Menu("\(saved.name)（\(saved.tabs.count) 个会话）") {
                             Button("恢复") { workspace.restore(saved) }
                             Button("重命名…") { workspace.renameSaved(saved) }
                             Button("用当前标签配置更新") { workspace.updateSaved(saved) }
@@ -358,7 +403,7 @@ struct WorkspaceView: View {
             }
             VStack(spacing: 0) {
                 if let selected = workspace.selected {
-                    TerminalPane(session: selected)
+                    SplitPaneView(workspace: workspace, layout: workspace.layout(containing: selected.id))
                 } else {
                     VStack(spacing: 16) {
                         Image(systemName: "terminal").font(.system(size: 44)).foregroundStyle(.mint)
@@ -394,6 +439,7 @@ struct WorkspaceView: View {
         .onChange(of: workspace.editor) { _, server in
             if let server { ServerEditorWindowController.shared.present(server: server, workspace: workspace) }
         }
+        .sheet(item: $workspace.splitRequest) { SplitSessionChooser(workspace: workspace, request: $0) }
         .sheet(isPresented: $workspace.importPresented) { SSHImportView(workspace: workspace) }
         .sheet(isPresented: $workspace.historyPresented) { HistoryView(model: workspace.history, refresh: workspace.showHistory) }
         .preferredColorScheme(theme.scheme)
@@ -419,10 +465,11 @@ struct TerminalStatusBarButton: View {
 /// Keep the shortcut present even while the model is being prepared or reconnected.
 struct TerminalSFTPButton: View {
     @ObservedObject var session: TerminalSession
+    var preferDetached = false
     var body: some View {
         if session.sourceServer != nil {
             TabBarButton(symbol: "sidebar.right", tooltip: "展开 / 收起 SFTP 文件面板", identifier: "tabbar.sftp", selected: session.showSFTP) {
-                if let model = session.sftp, model.detached {
+                if let model = session.sftp, model.detached || preferDetached {
                     session.showSFTP = true
                     model.showWindow()
                 } else { session.showSFTP.toggle() }
@@ -436,21 +483,27 @@ struct TerminalSFTPButton: View {
 struct TerminalPane: View {
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @ObservedObject var session: TerminalSession
+    var isFocused = true
+    var isSplit = false
     var body: some View {
         VStack(spacing: 0) {
             HSplitView {
-                TerminalSurface(session: session).frame(minWidth: 300)
-                if session.showSFTP, let sftp = session.sftp {
+                TerminalSurface(session: session, isFocused: isFocused).frame(minWidth: 220)
+                if session.showSFTP, !isSplit, let sftp = session.sftp {
                     SFTPInlinePanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
                 }
             }
             if let bridge = session.codexExecutionBridge, let target = session.codexTargetSessionID {
-                CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id)
+                if isSplit {
+                    ScrollView(.horizontal) {
+                        CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id).frame(minWidth: 560)
+                    }.fixedSize(horizontal: false, vertical: true)
+                } else { CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id) }
             }
             if let bridge = session.terminal.zmodem { ZmodemStatusView(bridge: bridge) }
             if session.statusBarVisible || !session.isRunning {
             Divider()
-            HStack(spacing: 7) {
+            ScrollView(.horizontal) { HStack(spacing: 7) {
                 Circle().fill(session.isRunning ? Color.mint : .secondary).frame(width: 6, height: 6)
                 Text(L10n.text(session.status))
                 if session.canReconnect { Button("重新连接", action: session.reconnect).controlSize(.small) }
@@ -469,9 +522,12 @@ struct TerminalPane: View {
                     Button { session.statusBarVisible = false } label: { Image(systemName: "chevron.down") }
                         .buttonStyle(.plain).help("收起底部状态栏")
                 }
-            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 3).background(Color(nsColor: .windowBackgroundColor))
+            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 3).background(Color(nsColor: .windowBackgroundColor)) }.fixedSize(horizontal: false, vertical: true)
             }
         }
+        .onAppear { if isSplit && session.showSFTP { session.sftp?.showWindow() } }
+        .onChange(of: session.showSFTP) { _, shown in if isSplit && shown { session.sftp?.showWindow() } }
+        .onReceive(session.$sftp) { model in if isSplit && session.showSFTP { model?.showWindow() } }
     }
 }
 

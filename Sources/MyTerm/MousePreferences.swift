@@ -108,6 +108,8 @@ private struct MouseSettingsView: View {
             Text("设置立即应用到所有终端，并在下次启动时保留。")
                 .font(.caption).foregroundStyle(.secondary)
             Divider()
+            SplitShortcutSettingsView()
+            Divider()
             HistorySettingsView()
         }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
         }

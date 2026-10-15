@@ -4,6 +4,8 @@ import MyTermCore
 import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
+    var onPaneFocus: (() -> Void)?
+    var paneIsActive = true
     private var tmuxPrefixInput = TmuxPrefixInput()
     private var fullscreenScrollGesture = FullscreenScrollGesture()
     private var lastFullscreenScrollMode: FullscreenScrollMode?
@@ -66,6 +68,7 @@ class MouseTerminalView: LocalProcessTerminalView {
         if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
     }
     override func keyDown(with event: NSEvent) {
+        onPaneFocus?()
         if handleFontZoomKey(event) { return }
         if let text = tmuxPrefixInput.consume(event) {
             selection.active = false
@@ -151,7 +154,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     func handleReconnectEvent(_ event: NSEvent) -> Bool {
-        guard let window, event.window === window, window.attachedSheet == nil,
+        guard paneIsActive, let window, event.window === window, window.attachedSheet == nil,
               !isHiddenOrHasHiddenAncestor, !visibleRect.isEmpty else { return false }
         let responder = window.firstResponder
         // Controls may retain focus when SSH ends. Allow R there, but never
@@ -232,6 +235,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        onPaneFocus?()
         progressiveDoubleClickSelection = true
         super.mouseDown(with: event)
     }
@@ -247,6 +251,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        onPaneFocus?()
         window?.makeFirstResponder(self)
         if let menu = menu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)

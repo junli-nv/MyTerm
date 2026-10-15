@@ -23,7 +23,17 @@ final class Workspace: ObservableObject {
     @Published var search = ""
     @Published var servers: [Server] = []
     @Published var sessions: [TerminalSession] = []
-    @Published var selectedID: UUID?
+    var paneFractions: [UUID: CGFloat] = [:]
+    @Published var broadcastTabID: UUID?
+    @Published var broadcastTargets: [UUID: UUID] = [:]
+    @Published var paneLayouts: [UUID: PaneLayout] = [:]
+    var paneFocus: [UUID: UUID] = [:]
+    @Published var splitRequest: SplitRequest?
+    @Published var selectedID: UUID? {
+        didSet {
+            if let anchor = broadcastTabID, selectedID.map({ tabID(containing: $0) }) != anchor { endBroadcast() }
+        }
+    }
     @Published var editor: Server?
     @Published var error: String?
     private var loadFailed = false
@@ -55,24 +65,25 @@ final class Workspace: ObservableObject {
 
     var selected: TerminalSession? { sessions.first { $0.id == selectedID } }
     func selectAdjacentTab(_ direction: Int) {
-        guard !sessions.isEmpty else { return }
-        guard let index = sessions.firstIndex(where: { $0.id == selectedID }) else {
-            selectedID = sessions[direction < 0 ? sessions.count - 1 : 0].id
-            return
+        let tabs = visibleTabs
+        guard !tabs.isEmpty else { return }
+        let anchor = selectedID.map { tabID(containing: $0) }
+        guard let index = tabs.firstIndex(where: { $0.id == anchor }) else {
+            selectTab(tabs[direction < 0 ? tabs.count - 1 : 0]); return
         }
-        selectedID = sessions[(index + (direction < 0 ? sessions.count - 1 : 1)) % sessions.count].id
+        selectTab(tabs[(index + (direction < 0 ? tabs.count - 1 : 1)) % tabs.count])
     }
     func backupConfigurationFiles() throws -> [String: Data] {
         guard !loadFailed, !groupsLoadFailed, !sessionsLoadFailed else { throw ConfigurationError.invalid("请先修复配置文件再备份。") }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         var saved = savedSessions
         if !sessions.isEmpty, sessions.count <= 100 {
-            saved.append(SavedSession(name: "备份时的会话", tabs: sessions.map { SessionTab(server: $0.sourceServer, directory: $0.sourceServer == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) }, selectedIndex: sessions.firstIndex(where: { $0.id == selectedID }) ?? 0))
+            saved.append(sessionSnapshot(named: "备份时的会话"))
         }
         return ["servers.json": try encoder.encode(servers), "groups.json": try encoder.encode(groups), "sessions.json": try encoder.encode(saved)]
     }
     func acceptRestoredConfiguration(servers: [Server], groups: [SessionGroup], saved: [SavedSession]) {
-        self.sessions = []; selectedID = nil
+        self.sessions = []; selectedID = nil; paneLayouts = [:]; paneFractions = [:]; paneFocus = [:]; splitRequest = nil
         self.servers = servers; self.groups = groups; savedSessions = saved
         loadFailed = false; groupsLoadFailed = false; groupRecoveryRequired = false; sessionsLoadFailed = false; restoredBackup = true
     }
@@ -239,6 +250,7 @@ final class Workspace: ObservableObject {
     @discardableResult
     func openCodex(executable: String, arguments: [String], environment: [String: String], directory: String? = nil, proxy: CodexSOCKSProxy? = nil, executionBridge: CodexBridge? = nil, targetSessionID: UUID? = nil, onExit: ((Int32?) -> Void)? = nil) -> TerminalSession {
         let session = TerminalSession(label: "Codex", executable: executable, arguments: arguments, directory: directory, launchEnvironment: environment, launchProxy: proxy, retainOnExit: true)
+        session.isCodexSession = true
         session.codexExecutionBridge = executionBridge; session.codexTargetSessionID = targetSessionID
         session.onProcessExit = onExit
         add(session)
@@ -296,12 +308,19 @@ final class Workspace: ObservableObject {
         session.onNormalExit = { [weak self, weak session] in
             guard let self, let session else { return }; self.close(session)
         }
+        session.terminal.onPaneFocus = { [weak self, weak session] in
+            guard let self, let session else { return }; self.focusPane(session.id)
+        }
         sessions.append(session)
         selectedID = session.id
     }
 
     func close(_ session: TerminalSession) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+        let neighbors = layout(containing: session.id).leaves.filter { $0 != session.id }
+        removePaneLayout(session.id)
+        paneFocus = paneFocus.filter { $0.key != session.id && $0.value != session.id }
+        session.terminal.onPaneFocus = nil
         archiveHistory([session])
         history.forgetSession(session.id)
         session.stop()
@@ -309,7 +328,7 @@ final class Workspace: ObservableObject {
         if session.server != nil { codex.closedTab(session) }
         else { session.codexExecutionBridge?.closedTab(session) }
         if selectedID == session.id {
-            selectedID = sessions.isEmpty ? nil : sessions[min(index, sessions.count - 1)].id
+            selectedID = neighbors.first ?? (sessions.isEmpty ? nil : sessions[min(index, sessions.count - 1)].id)
         }
     }
 
@@ -368,7 +387,7 @@ final class Workspace: ObservableObject {
 
     func saveSession() {
         guard !sessions.isEmpty, !sessionsLoadFailed else { error = "没有可保存的标签，或会话配置无法读取。"; return }
-        let alert = NSAlert(); alert.messageText = L10n.text("保存当前会话"); alert.informativeText = L10n.text("保存标签顺序和连接配置，恢复时重新连接。密码和终端进程不会被保存。")
+        let alert = NSAlert(); alert.messageText = L10n.text("保存当前会话"); alert.informativeText = L10n.text("保存标签、分屏结构和连接配置，恢复时重新连接。密码和终端进程不会被保存。")
         let field = NSTextField(string: "工作会话"); field.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
         alert.accessoryView = field; alert.addButton(withTitle: L10n.text("保存")); alert.addButton(withTitle: L10n.text("取消"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -379,9 +398,8 @@ final class Workspace: ObservableObject {
 
     private func persistSession(named name: String, replaceLast: Bool = false) {
         guard !sessionsLoadFailed, !sessions.isEmpty else { return }
-        guard sessions.count <= 100 else { error = "每个保存的会话最多包含 100 个标签。"; return }
-        let item = SavedSession(name: name, tabs: sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) },
-            selectedIndex: sessions.firstIndex(where: { $0.id == selectedID }) ?? 0)
+        guard sessions.count <= 100 else { error = "每个保存的会话最多包含 100 个终端区域。"; return }
+        let item = sessionSnapshot(named: name)
         var updated = savedSessions
         if replaceLast { updated.removeAll { $0.name == "上次退出时的会话" } }
         updated.append(item)
@@ -397,6 +415,7 @@ final class Workspace: ObservableObject {
     }
 
     func restore(_ saved: SavedSession) {
+        do { try saved.validateLayouts() } catch { self.error = error.localizedDescription; return }
         // Append restored tabs so current work is never discarded.
         let start = sessions.count
         for tab in saved.tabs {
@@ -412,6 +431,14 @@ final class Workspace: ObservableObject {
             if sessions.count > previousCount, let selected {
                 selected.encoding = tab.encoding ?? .utf8
                 setHistoryLogging(tab.historyLogging ?? selected.historyLogging, for: selected)
+            }
+        }
+        if sessions.count == start + saved.tabs.count, let ids = saved.paneSessionIDs, let layouts = saved.paneLayouts {
+            let mapping = Dictionary(uniqueKeysWithValues: zip(ids, sessions.dropFirst(start).map(\.id)))
+            for layout in layouts {
+                if let restored = layout.remapping(mapping), restored.leaves.count > 1, let anchor = restored.leaves.first {
+                    paneLayouts[anchor] = restored
+                }
             }
         }
         if sessions.indices.contains(start + saved.selectedIndex) { selectedID = sessions[start + saved.selectedIndex].id }
@@ -440,12 +467,12 @@ final class Workspace: ObservableObject {
 
     func updateSaved(_ saved: SavedSession) {
         guard !sessionsLoadFailed, !sessions.isEmpty, sessions.count <= 100 else {
-            error = "当前需要有 1–100 个标签才能更新保存的会话。"; return
+            error = "当前需要有 1–100 个终端区域才能更新保存的会话。"; return
         }
         var updated = savedSessions
         guard let index = updated.firstIndex(where: { $0.id == saved.id }) else { return }
-        updated[index].tabs = sessions.map { SessionTab(server: $0.server, directory: $0.server == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging) }
-        updated[index].selectedIndex = sessions.firstIndex(where: { $0.id == selectedID }) ?? 0
+        var replacement = sessionSnapshot(named: saved.name); replacement.id = saved.id
+        updated[index] = replacement
         do { try sessionRepository.save(updated); savedSessions = updated }
         catch { self.error = error.localizedDescription }
     }

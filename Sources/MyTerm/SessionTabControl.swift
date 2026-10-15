@@ -10,9 +10,12 @@ struct SessionTabControl: NSViewRepresentable {
     func makeNSView(context: Context) -> SessionTabNativeView { SessionTabNativeView() }
     func updateNSView(_ view: SessionTabNativeView, context: Context) {
         view.configure(title: session.label, symbol: session.executable == "/usr/bin/ssh" ? "network" : "terminal",
-                       selected: workspace.selectedID == session.id, sessionID: session.id)
-        view.select = { [weak workspace] in workspace?.selectedID = session.id }
-        view.close = { [weak workspace, weak session] in if let session { workspace?.close(session) } }
+                       selected: workspace.selectedID.map { workspace.tabID(containing: $0) } == session.id, sessionID: session.id)
+        view.select = { [weak workspace] in workspace?.selectTab(session) }
+        // A context click chooses its target without synchronously moving the
+        // first responder during AppKit's menu tracking transition.
+        view.selectForMenu = { [weak workspace] in workspace?.selectTab(session, focus: false) }
+        view.close = { [weak workspace, weak session] in if let session { workspace?.closeTab(containing: session.id) } }
         view.move = { [weak workspace] source in workspace?.moveSessionTab(source, to: session.id) ?? false }
         view.identifier = NSUserInterfaceItemIdentifier("session.tab.menu." + session.id.uuidString)
         view.buildMenu = { [weak workspace, weak session] in
@@ -34,7 +37,9 @@ struct SessionTabControl: NSViewRepresentable {
             if session.sourceServer != nil { add("更改 SSH 配置…") { workspace.editConnection(session) } }
             if session.canReconnect { add("重新连接", action: session.reconnect) }
             menu.addItem(.separator())
-            add("关闭会话") { workspace.close(session) }
+            add("上下分屏") { workspace.requestSplit(.horizontal) }
+            add("左右分屏") { workspace.requestSplit(.vertical) }
+            add("关闭会话") { workspace.closeTab(containing: session.id) }
             return menu
         }
     }
@@ -43,6 +48,7 @@ struct SessionTabControl: NSViewRepresentable {
 final class SessionTabNativeView: NSView, NSDraggingSource {
     var buildMenu: (() -> NSMenu?)?
     var select: (() -> Void)?
+    var selectForMenu: (() -> Void)?
     var close: (() -> Void)?
     var move: ((UUID) -> Bool)?
     private var sessionID = UUID()
@@ -139,12 +145,12 @@ final class SessionTabNativeView: NSView, NSDraggingSource {
     override func menu(for event: NSEvent) -> NSMenu? {
         // AppKit can request a menu through a child responder (e.g. the close
         // button) instead of calling this view's rightMouseDown directly.
-        select?()
+        selectForMenu?()
         return buildMenu?()
     }
     private func showMenu(_ event: NSEvent) {
         down = nil
-        select?()
+        selectForMenu?()
         guard let menu = buildMenu?() else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }

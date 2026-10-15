@@ -24,6 +24,7 @@ for resource in "$bin_dir"/*.bundle; do
     [[ -d "$resource" ]] || continue
     ditto "$resource" "$app_dir/Contents/Resources/$(basename "$resource")"
 done
+install -m 644 packaging/install-update.sh "$app_dir/Contents/Resources/install-update.sh"
 cp packaging/Info.plist "$app_dir/Contents/Info.plist"
 swift scripts/generate-icon.swift "$PWD/dist/MyTerm.iconset"
 iconutil -c icns "$PWD/dist/MyTerm.iconset" -o "$app_dir/Contents/Resources/MyTerm.icns"

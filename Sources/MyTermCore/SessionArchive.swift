@@ -24,6 +24,7 @@ public struct SessionArchive: Codable {
             throw ConfigurationError.invalid("分组引用了不存在的服务器。")
         }
         for session in sessions {
+            try session.validateLayouts()
             guard !session.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   !session.tabs.isEmpty, session.tabs.count <= 100,
                   session.tabs.indices.contains(session.selectedIndex) else {

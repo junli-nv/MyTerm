@@ -26,6 +26,12 @@ After installing and starting XQuartz, add `--x11` to test real windows with for
 
 The app argument can also be `/Applications/MyTerm.app` or a copy from the DMG. This entry point does not build, install, publish or modify releases. `swift test` is not a substitute: core regressions use the `MyTermChecks` executable target.
 
+Split regression covers nested top/bottom and left/right layouts, real terminal mouse focus, move/detach, closing and collapse, saved-layout restoration and shortcut persistence. Core checks cover layout collapse, invalid references and shortcut conflicts. Divider proportions are not persisted. Regression checks also verify initial equal halves, stable sibling bounds when nesting, and retained parent proportions after manual resizing, further splitting and child closure.
+
+Broadcast regression uses isolated Bash PTYs and file results to verify execution in two targets, unselected isolation, readiness confirmation, input bounds, Codex/disconnected/stale-connection rejection and cleanup on tab/layout changes. Submitting terminal input is not treated as proof of remote success.
+
+Update regression covers version comparison, architecture selection, download URL restrictions, SHA-256 and size checks, and fixture GitHub HTTP success, rate limits and errors. `scripts/update-installer-check.py` uses temporary signed apps to verify replacement, preservation on version/signature failures and rollback on launch failure; it does not modify the installed user app.
+
 ## Feature coverage map
 
 | Feature | Checks and scope |

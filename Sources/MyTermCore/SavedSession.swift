@@ -15,6 +15,18 @@ public struct SavedSession: Codable, Identifiable, Equatable {
     public var name: String
     public var tabs: [SessionTab]
     public var selectedIndex: Int
+    public var paneSessionIDs: [UUID]?
+    public var paneLayouts: [PaneLayout]?
+    public func validateLayouts() throws {
+        guard paneSessionIDs != nil || paneLayouts != nil else { return }
+        guard let ids = paneSessionIDs, let layouts = paneLayouts,
+              ids.count == tabs.count, Set(ids).count == ids.count,
+              Set(layouts.flatMap(\.nodeIDs)).count == layouts.flatMap(\.nodeIDs).count,
+              layouts.flatMap(\.leaves).count == ids.count,
+              Set(layouts.flatMap(\.leaves)) == Set(ids) else {
+            throw ConfigurationError.invalid("保存的分屏布局无效。")
+        }
+    }
     public init(id: UUID = UUID(), name: String, tabs: [SessionTab], selectedIndex: Int) {
         self.id = id; self.name = name; self.tabs = tabs; self.selectedIndex = selectedIndex
     }
@@ -28,6 +40,7 @@ public struct SessionRepository {
         let sessions = try JSONDecoder().decode([SavedSession].self, from: Data(contentsOf: url))
         guard Set(sessions.map(\.id)).count == sessions.count else { throw ConfigurationError.invalid("保存的会话 ID 重复。") }
         for session in sessions {
+            try session.validateLayouts()
             guard !session.tabs.isEmpty, session.tabs.count <= 100, session.tabs.indices.contains(session.selectedIndex) else {
                 throw ConfigurationError.invalid("保存的会话标签或选中位置无效。")
             }
@@ -36,6 +49,7 @@ public struct SessionRepository {
         return sessions
     }
     public func save(_ sessions: [SavedSession]) throws {
+        for session in sessions { try session.validateLayouts() }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(sessions)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

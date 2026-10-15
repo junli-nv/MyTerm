@@ -4,6 +4,24 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.2"></a>
+
+# MyTerm 3.2.2
+
+Add command broadcasting to selected panes in the current tab: explicit targets, shell-readiness confirmation, single-line submission, connection revalidation and pane markers. Codex tabs are excluded; input is never replayed after reconnection. Add Check for Updates: after confirmation, download from GitHub, validate, replace and restart, retaining or restoring the previous app on installation errors. [Release notes](packaging/RELEASE-NOTES-3.2.2.md).
+
+<a id="version-3.2.1"></a>
+
+# MyTerm 3.2.1
+
+Fix mixed split sizing: new splits halve only the selected region and preserve existing divider proportions, including manual adjustments. [Release notes](packaging/RELEASE-NOTES-3.2.1.md).
+
+<a id="version-3.2"></a>
+
+# MyTerm 3.2
+
+Add top/bottom and left/right splits within tabs, adjustable dividers, moving existing sessions and detaching panes. Defaults are ⌘⇧H / ⌘⇧V, customizable in Terminal Behavior. Panes retain independent sessions, SFTP and Codex authorization. Saved sessions preserve layout and selection, but not divider proportions. History remains available in menus and the sidebar. [Release notes](packaging/RELEASE-NOTES-3.2.md).
+
 <a id="version-3.1.14"></a>
 
 # MyTerm 3.1.14
