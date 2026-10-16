@@ -106,6 +106,7 @@ let serverTests = ServerTests()
 let ptyTests = PTYTests()
 let features = FeatureTests()
 let checks: [(String, () throws -> Void)] = [
+    ("Bounded opt-in terminal diagnostics, expiry, clearing and concurrent events", checkTerminalDiagnostics),
     ("Release versions, trusted assets and installer SHA-256 validation", checkAppRelease),
     ("Pane layouts, collapse, snapshot compatibility and shortcut conflicts", checkPaneLayouts),
     ("Opt-in history, line and byte limits, capacity eviction and cleanup", checkHistoryPolicy),

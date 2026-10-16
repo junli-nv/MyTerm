@@ -244,7 +244,7 @@ enum CodexBridgeCheck {
             let chooserSelection = CodexChooserState()
             let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection))
             window.contentView = chooser
-            window.setContentSize(NSSize(width: 558, height: 558))
+            window.setContentSize(NSSize(width: 640, height: 480))
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
             try require(chooserSelection.execute, "Chooser did not enable execution by default")
             chooserSelection.execute = false
@@ -257,10 +257,41 @@ enum CodexBridgeCheck {
             try snapshotChooser(chooser, name: "codex-chooser-switched-from-" + locale.rawValue)
             language.selection = locale
             chooserSelection.execute = true
+            chooserSelection.resume = true
             chooserSelection.includeHistory = true // Exercise the longest form, including optional history limits.
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
             guard let chooserScroll = descendants(chooser).compactMap({ $0 as? NSScrollView }).first, let chooserDoc = chooserScroll.documentView else { throw ConfigurationError.invalid("Session chooser missing scrollable list") }
             try require(chooserDoc.frame.width <= chooserScroll.contentSize.width + 1 && chooserDoc.frame.height > chooserScroll.contentSize.height, "Expanded authorization limits do not fit/scroll")
+            for size in [NSSize(width: 640, height: 480), NSSize(width: 800, height: 700)] {
+                window.setContentSize(size)
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15)); chooser.layoutSubtreeIfNeeded()
+                guard let actions = descendants(chooser).compactMap({ $0 as? CodexLaunchActionRow }).first else {
+                    throw ConfigurationError.invalid("Missing launch action row")
+                }
+                try require(actions.cancelButton.keyEquivalent == "\u{1b}" && actions.launchButton.keyEquivalent == "\r", "Dialog keyboard shortcuts lost")
+                chooserSelection.selected = session.id
+                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+                try require(actions.launchButton.isEnabled, "Selecting SSH did not enable launch")
+                var cancelled = false, launched = false
+                let originalCancel = actions.onCancel, originalLaunch = actions.onLaunch
+                actions.onCancel = { cancelled = true }; actions.onLaunch = { launched = true }
+                actions.cancelButton.performClick(nil); actions.launchButton.performClick(nil)
+                actions.onCancel = originalCancel; actions.onLaunch = originalLaunch
+                try require(cancelled && launched, "Native dialog actions did not dispatch")
+                let buttons = descendants(chooser).compactMap { $0 as? NSButton }
+                for id in ["codex.chooser.cancel", "codex.chooser.start"] {
+                    guard let button = buttons.first(where: { $0.identifier?.rawValue == id }) else {
+                        throw ConfigurationError.invalid("Missing chooser footer button: " + id)
+                    }
+                    let frame = button.convert(button.bounds, to: chooser)
+                    try require(chooser.bounds.contains(frame) && frame.width > 20 && frame.height > 15,
+                                "Chooser footer button clipped: " + id)
+                    try require(button.enclosingScrollView == nil, "Chooser action scrolls with form")
+                    try require(button.title == L10n.text(id.hasSuffix("cancel") ? "取消" : "确认并启动"), "Stale chooser action translation")
+                }
+                try snapshotChooser(chooser, name: "codex-chooser-expanded-" + locale.rawValue + "-" + String(Int(size.width)))
+            }
+
         }
         let execServer = Server(host: "localhost")
         let execContext = try SSHLaunchContext(server: execServer)
@@ -364,6 +395,10 @@ enum CodexBridgeCheck {
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); executionView.layoutSubtreeIfNeeded()
             guard let scroll = descendants(executionView).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Execution view missing scrollbar") }
             try require(document.frame.width > scroll.contentSize.width && executionView.frame.width <= 541, "Narrow execution bar did not scroll horizontally")
+            checkWindow.setContentSize(NSSize(width: 1400, height: 360))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2)); executionView.layoutSubtreeIfNeeded()
+            try require(abs(document.frame.width - scroll.contentSize.width) < 2, "Wide execution bar did not fill its viewport")
+            try snapshotChooser(executionView, name: "codex-execution-wide-" + locale.rawValue)
             checkWindow.close()
         }
         automatic.state = previousState
@@ -472,6 +507,28 @@ enum CodexBridgeCheck {
         RunLoop.main.run(until: Date().addingTimeInterval(0.2))
         try require(bridge.launchGeneration == generation + 1 && didCloseAfterLaunch && !launchWindow.isVisible, "Successful launch did not dismiss integration window")
         try require(workspace.selected?.codexTargetSessionID == session.id, "Codex launch lost selected SSH target")
+        let reconnected = TerminalSession(label: "Reconnected SSH", executable: "/bin/bash", arguments: [], server: session.server)
+        workspace.sessions.append(reconnected)
+        bridge.launch(sessionID: reconnected.id, checkSavedLogin: false, resume: true)
+        guard let resumedTab = workspace.selected else { throw ConfigurationError.invalid("Resume tab missing") }
+        let association = bridge.executionID(for: reconnected.id, tab: resumedTab.id)
+        try require(Array(resumedTab.arguments.suffix(2)) == ["resume", "--all"], "Resume lost native picker or supplied stale prompt")
+        let rebound = try bridge.read("list_sessions", arguments: [:], client: association.uuidString)
+        let targets = rebound["sessions"] as? [[String: Any]] ?? []
+        try require(targets.count == 1 && targets.first?["id"] as? String == reconnected.id.uuidString, "Resume exposed the old SSH binding")
+        let instructions = rebound["connection_instructions"] as? String ?? ""
+        try require(instructions.contains(reconnected.id.uuidString) && !instructions.contains(session.id.uuidString), "Resume context has stale SSH UUID")
+        try require(instructions.contains("subsequent commands") && bridge.executionGrants[association] == nil, "Resume inherited old history/authorization")
+        do {
+            _ = try bridge.read("read_output", arguments: ["session_id": session.id.uuidString], client: association.uuidString)
+            throw ConfigurationError.invalid("Old UUID accepted after resume")
+        } catch { try require(error.localizedDescription.contains("list_sessions"), "Old UUID did not direct rediscovery") }
+        bridge.releaseExecution(reconnected.id, tab: resumedTab.id)
+        do {
+            _ = try bridge.read("list_sessions", arguments: [:], client: association.uuidString)
+            throw ConfigurationError.invalid("Closed resume association retained access")
+        } catch { try require(error.localizedDescription.contains("association is closed"), "Resume cleanup failed") }
+        print("PASS: resume native picker, fresh SSH UUID and context, old UUID rejection, read-only grant and association cleanup")
         bridge.allowed.remove(hidden.id)
         let beforeFailedLaunch = workspace.sessions.count
         bridge.launch(sessionID: hidden.id, execute: true, checkSavedLogin: false)

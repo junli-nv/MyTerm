@@ -25,6 +25,8 @@ final class WindowControlsCheck {
             try FullscreenScrollCheck.run()
             try TmuxPrefixInputCheck.run()
             try KeyboardRepeatCheck.run()
+            try TerminalInputStateCheck.run()
+            try TerminalDiagnosticsCheck.run(workspace: workspace)
             try TerminalCopyCheck.run()
             try SSHDisconnectCheck.run()
             try OutputHighlightCheck.run()

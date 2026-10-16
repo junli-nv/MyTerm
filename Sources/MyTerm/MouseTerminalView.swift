@@ -4,6 +4,7 @@ import MyTermCore
 import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
+    let diagnosticTrace = TerminalDiagnosticTrace()
     var onPaneFocus: (() -> Void)?
     var paneIsActive = true
     private var tmuxPrefixInput = TmuxPrefixInput()
@@ -11,6 +12,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     private var lastFullscreenScrollMode: FullscreenScrollMode?
 
     override func scrollWheel(with event: NSEvent) {
+        defer { diagnosticTrace.record(.scroll, view: self) }
         let mode = preferences.fullscreenScroll
         if lastFullscreenScrollMode != mode {
             fullscreenScrollGesture.reset(); lastFullscreenScrollMode = mode
@@ -41,7 +43,9 @@ class MouseTerminalView: LocalProcessTerminalView {
     override func resignFirstResponder() -> Bool {
         tmuxPrefixInput.reset()
         fullscreenScrollGesture.reset()
-        return super.resignFirstResponder()
+        let result = super.resignFirstResponder()
+        diagnosticTrace.record(.focus, view: self)
+        return result
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if handleFontZoomKey(event) { return true }
@@ -68,6 +72,8 @@ class MouseTerminalView: LocalProcessTerminalView {
         if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
     }
     override func keyDown(with event: NSEvent) {
+        diagnosticTrace.beginReturn(event, view: self)
+        defer { diagnosticTrace.endReturn(view: self) }
         onPaneFocus?()
         if handleFontZoomKey(event) { return }
         if let text = tmuxPrefixInput.consume(event) {
@@ -78,6 +84,21 @@ class MouseTerminalView: LocalProcessTerminalView {
             return
         }
         super.keyDown(with: event)
+    }
+    override func keyUp(with event: NSEvent) {
+        diagnosticTrace.beginReturn(event, view: self, up: true)
+        defer { diagnosticTrace.endReturn(view: self) }
+        super.keyUp(with: event)
+    }
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        diagnosticTrace.record(.focus, view: self)
+        return result
+    }
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        let wasComposing = hasMarkedText()
+        super.insertText(string, replacementRange: replacementRange)
+        if wasComposing { diagnosticTrace.record(.compositionCommit, view: self) }
     }
     var appliedANSI: [ThemeColor]?
     private var highlighting: TerminalOutputHighlighter?
@@ -225,13 +246,13 @@ class MouseTerminalView: LocalProcessTerminalView {
     override func dataReceived(slice: ArraySlice<UInt8>) {
         let visible = zmodem?.consume(Data(slice)) ?? Data(slice)
         let bytes = incomingText?.convert(Array(visible)) ?? Array(visible)
-        if !bytes.isEmpty { super.dataReceived(slice: bytes[...]) }
+        if !bytes.isEmpty { super.dataReceived(slice: bytes[...]); diagnosticTrace.output(count: bytes.count, view: self) }
     }
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard reconnectHandler == nil else { return }
         guard zmodem?.active != true, zmodem?.awaitingReceiver != true else { return }
         let bytes = outgoingText?.convert(Array(data)) ?? Array(data)
-        if !bytes.isEmpty { super.send(source: source, data: bytes[...]) }
+        if !bytes.isEmpty { diagnosticTrace.sent(bytes, view: self); super.send(source: source, data: bytes[...]) }
     }
 
     override func mouseDown(with event: NSEvent) {

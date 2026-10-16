@@ -148,9 +148,6 @@ struct CodexSettingsView: View {
                 }
                 Text("配置修改仅用于新启动的 Codex 标签；代理测试用于诊断，不是启动前的必选步骤。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
-                Text(L10n.text("SSH 执行默认配置")).font(.headline)
-                CodexExecutionSettings(limits: $bridge.launchExecutionSettings)
-                Divider()
                 Text("SSH 会话分析").font(.headline)
                 HStack {
                     Button("启动 Codex 标签") { chooser.presented = true }
@@ -169,69 +166,12 @@ struct CodexSettingsView: View {
 import MyTermCore
 
 
-struct CodexSessionChooser: View {
-    @ObservedObject private var language = LanguagePreferences.shared
-    @ObservedObject var workspace: Workspace
-    @ObservedObject var bridge: CodexBridge
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var selection: CodexChooserState
-    init(workspace: Workspace, bridge: CodexBridge, selection: CodexChooserState = CodexChooserState()) {
-        self.workspace = workspace; self.bridge = bridge
-        _selection = StateObject(wrappedValue: selection)
-    }
-    var body: some View {
-        ScrollView { VStack(alignment: .leading, spacing: 14) {
-            Text("选择 SSH 会话").font(.title2.bold())
-            Text("确认启动即允许 Codex 按任务需要读取所选 SSH 标签。默认不回溯已有输出。")
-                .fixedSize(horizontal: false, vertical: true)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(workspace.sessions.filter { $0.server != nil }) { session in
-                        Button { selection.selected = session.id } label: {
-                            HStack(alignment: .top) {
-                                Image(systemName: selection.selected == session.id ? "largecircle.fill.circle" : "circle")
-                                Text(session.label + " · " + (session.server?.host ?? "")).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                                Spacer()
-                            }.contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                    }
-                    if !workspace.sessions.contains(where: { $0.server != nil }) {
-                        Text("当前没有 SSH 标签。请先打开需要分析的会话。")
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.scrollIndicators(.visible).frame(minHeight: 100, maxHeight: 220)
-            Toggle("接入时读取已有输出", isOn: $selection.includeHistory)
-            Text("默认关闭：接入后等待你的任务，从后续命令开始分析。需要回溯排查时再开启；不影响执行命令的完整输出读取。")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if selection.includeHistory { CodexHistoryLimits(bridge: bridge) }
-            Toggle("允许执行 SSH 命令", isOn: $selection.execute)
-            if selection.execute {
-                CodexExecutionSettings(limits: $bridge.launchExecutionSettings)
-            }
-            Text("默认启用命令执行；取消勾选可保持只读。请核对审批模式。独立通道不共享当前终端目录或 tmux 状态。")
-                .font(.caption).fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("确认并启动") {
-                    guard bridge.configurationIssue == nil else { bridge.message = bridge.configurationIssue ?? ""; return }
-                    if !bridge.enabled { bridge.start() }
-                    bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory, execute: selection.execute, limits: bridge.launchExecutionSettings)
-                }.keyboardShortcut(.defaultAction)
-                    .disabled(bridge.busy || (selection.execute && (try? bridge.launchExecutionSettings.validate()) == nil) || !workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }))
-            }
-        }.padding(24) }.scrollIndicators(.visible).frame(width: 510, height: 540)
-            .environment(\.locale, language.locale)
-            .onReceive(bridge.$launchGeneration.dropFirst()) { _ in dismiss() }
-            .onAppear { selection.selected = nil; selection.includeHistory = false; selection.execute = true }
-    }
-}
-
 final class CodexChooserState: ObservableObject {
     @Published var presented = false
     @Published var selected: UUID?
     @Published var includeHistory = false
     @Published var execute = true
+    @Published var resume = false
 }
 
 struct CodexHistoryLimits: View {

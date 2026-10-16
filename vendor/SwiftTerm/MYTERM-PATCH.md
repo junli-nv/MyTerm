@@ -19,3 +19,6 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 
 - Expose the read-only `Terminal.isDisplayBufferAlternate` state and macOS `scrollWheel(with:)` as open for MyTerm’s full-screen trackpad speed and opt-in page navigation. The upstream default scroll algorithm remains unchanged.
 - 公开只读 `Terminal.isDisplayBufferAlternate` 状态和 macOS `scrollWheel(with:)` 覆盖入口，供 MyTerm 全屏触摸板加速及可选按页导航使用；上游默认滚动算法不变。
+
+- Sending input resumes normal-buffer output following even when selection paused scrolling with the caret still visible. Completed or empty IME preedit clears Kitty composition state before later keyboard-protocol negotiation. Expose macOS `keyUp` and `becomeFirstResponder` for opt-in metadata diagnostics; no key contents are recorded.
+- 输入时即使光标仍在视口内，也解除选中文本造成的滚动暂停；组合输入提交或清空时重置 Kitty 组合状态。开放 macOS `keyUp` 和 `becomeFirstResponder` 供可选的元数据诊断使用，不记录按键正文。

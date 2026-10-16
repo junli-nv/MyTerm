@@ -1317,7 +1317,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     //
     // NSTextInputClient protocol implementation
     //
-    public override func becomeFirstResponder() -> Bool {
+    open override func becomeFirstResponder() -> Bool {
         let response = super.becomeFirstResponder()
         if response {
             hasFocus = true
@@ -1740,7 +1740,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         interpretKeyEvents([event])
     }
 
-    public override func keyUp(with event: NSEvent) {
+    open override func keyUp(with event: NSEvent) {
         let flags = terminal.keyboardEnhancementFlags
         if flags.contains(.reportEvents) {
             let hasAltOrCtrl = event.modifierFlags.contains(.control) || (optionAsMetaKey && event.modifierFlags.contains(.option))
@@ -1882,6 +1882,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     func insertText(_ string: Any, replacementRange: NSRange, isPaste: Bool) {
         markedTextStorage = nil
         markedSelectedRange = NSRange(location: NSNotFound, length: 0)
+        // Committing preedit ends composition even before an application has
+        // negotiated enhanced keyboard reporting (or when pasting).
+        kittyIsComposing = false
         updateMarkedTextOverlay()
         if let str = string as? NSString {
             if !terminal.keyboardEnhancementFlags.isEmpty {
@@ -1965,7 +1968,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             markedTextStorage = nil
         }
         markedSelectedRange = selectedRange
-        kittyIsComposing = true
+        kittyIsComposing = markedTextStorage != nil
         updateMarkedTextOverlay()
     }
 
@@ -3468,7 +3471,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         let realCaret = displayBuffer.y + displayBuffer.yBase
         let viewportEnd = displayBuffer.yDisp + displayBuffer.rows
         
-        if realCaret >= viewportEnd || realCaret < displayBuffer.yDisp {
+        // Selection can pause following while the caret is still visible.
+        // Sending input must clear that pause, not just move an offscreen caret.
+        if userScrolling || terminal.userScrolling || realCaret >= viewportEnd || realCaret < displayBuffer.yDisp {
             scrollTo (row: displayBuffer.yBase)
         }
     }

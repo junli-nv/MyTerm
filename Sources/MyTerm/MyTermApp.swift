@@ -8,7 +8,7 @@ struct MyTermApp {
         if CommandLine.arguments.contains("--smoke-test"),
            let index = CommandLine.arguments.firstIndex(of: "--codex-launch-arguments"),
            CommandLine.arguments.indices.contains(index + 1),
-           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1], localDirectory: CommandLine.arguments.contains("--codex-local-work") ? FileManager.default.temporaryDirectory.path : nil, association: CommandLine.arguments.contains("--codex-scoped-check") ? UUID(uuidString: "11111111-2222-3333-4444-555555555555") : nil),
+           let args = try? CodexConnection.launchArguments(appExecutable: CommandLine.arguments[index + 1], localDirectory: CommandLine.arguments.contains("--codex-local-work") ? FileManager.default.temporaryDirectory.path : nil, association: CommandLine.arguments.contains("--codex-scoped-check") ? UUID(uuidString: "11111111-2222-3333-4444-555555555555") : nil, resume: CommandLine.arguments.contains("--codex-resume")),
            let data = try? JSONSerialization.data(withJSONObject: args) {
             print(String(decoding: data, as: UTF8.self)); return
         }
@@ -223,9 +223,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.addItem(withTitle: L10n.text("缩放"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
         systemMenuLocalizer.attach(edit: edit, window: windows)
         NSApp.windowsMenu = windows
+        let help = submenu("帮助")
+        help.addItem(withTitle: L10n.text("终端诊断…"), action: #selector(showTerminalDiagnostics), keyEquivalent: "").target = self
         NSApp.mainMenu = menu
     }
 
+    @objc private func showTerminalDiagnostics() { TerminalDiagnostics.shared.present(workspace: workspace) }
     @objc private func showAbout() {
         // Load the bundled artwork directly, avoiding a stale Launch Services icon.
         var options: [NSApplication.AboutPanelOptionKey: Any] = [:]

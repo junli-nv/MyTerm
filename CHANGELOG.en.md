@@ -4,6 +4,34 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.6"></a>
+
+# MyTerm 3.2.6
+
+- Fill the Codex execution bar with a consistent background: status left, authorization controls in the middle, settings right, with narrow-pane scrolling.
+- Resume Codex conversations through the native picker while binding the current SSH UUID and fresh authorization; reject stale UUIDs with rediscovery guidance.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.6.md).
+
+<a id="version-3.2.5"></a>
+
+# MyTerm 3.2.5
+
+- Keep Codex SSH launch settings in the session chooser, preserving saved values and removing the duplicate access-page form.
+- Enlarge the launch form and keep Cancel and Confirm and launch outside its scrolling content.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.5.md).
+
+<a id="version-3.2.4"></a>
+
+# MyTerm 3.2.4
+
+- Add opt-in terminal diagnostics with bounded in-memory captures, incident markers, and metadata-only ZIP export; no terminal text or credentials are collected.
+- Resume output following when input resumes after selection, even if the caret remains visible.
+- Clear stale composition state that could affect enhanced Enter encoding; the reported ordinary-English double-Enter issue remains unconfirmed.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.4.md).
+
 <a id="version-3.2.3"></a>
 
 # MyTerm 3.2.3

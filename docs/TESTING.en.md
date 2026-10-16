@@ -85,3 +85,9 @@ These are feature regressions, not 100% line/branch coverage or exhaustive combi
 Keep protocol/persistence in `MyTermCore`, windows/interactions in `MyTerm`, and gestures separate from session/group mutations. Extract focused responsibilities, not arbitrary file fragments. Timers and child processes need shutdown paths; asynchronous results must check connection identity; pagination and recursion need bounds. Reproduce defects before checking fixes.
 
 `MyTermApp` and `CodexBridge` still carry substantial UI orchestration. Prefer focused modules for new behavior and retain regression entry points during extraction. Record third-party SwiftTerm changes in `vendor/SwiftTerm/MYTERM-PATCH.md`; preserve upstream licenses.
+
+Terminal diagnostics checks cover opt-in recording, 15-minute expiry, ring capacity, concurrent writes, clearing, and exported ZIP round trips. Terminal input checks cover output following after selection and resumed input, keyboard-protocol changes after composition ends, and the first ASCII Return press in normal/alternate buffers with multiple keyboard modes. Synthetic events do not replace physical-device or long-running real Codex interaction checks.
+
+Codex launch-form checks expand all settings in Chinese and English at 640×480 and 800×700, verifying that Cancel and launch buttons remain fully visible outside the scroll view.
+
+Resume regressions cover native history-picker arguments, binding a new SSH UUID, rejecting old UUIDs, and authorization/association cleanup. Control-bar checks cover full-width layout and scrolling in narrow windows. `scripts/codex-resume-check.py /path/to/MyTerm.app` uses the real Codex CLI with isolated configuration and a synthetic conversation to verify restored text and fresh MCP initialization, without reading private conversations or calling a model. Release packaging runs this check; it does not replace real-account or model-behavior testing.

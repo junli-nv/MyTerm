@@ -213,7 +213,12 @@ Confirming startup authorizes SSH execution when selected with an adjustable dur
 
 Codex HTTP/SOCKS5 proxies are separate from SSH proxies. Internal startup prompts automatically include the selected live session ID; no manual copying is needed. External clients discover authorized sessions through `list_sessions`. External MCP adapters belong to their Codex/IDE caller and exit when their communication pipe closes; their presence alone does not mean the GUI is still running.
 
-In **Codex Integration → SSH Session Access → SSH execution defaults**, or the session chooser when starting a tab, configure command length (256–32768 UTF-8 bytes), timeout (1–3600 seconds), output capacity (1–8 MiB) and approval mode (per-command / session Always Allow). Initial defaults remain 4096 bytes, 60 seconds, 1 MiB and per-command approval. Valid defaults are saved automatically and included in preferences backups. Defaults affect new tabs only. For an existing tab, open Execution Settings and choose Apply and Renew to cancel the current command, reset the budget and apply changes. Ordinary renewal retains that tab’s limits and mode. Larger output capacities consume more memory and model context.
+In the session chooser under **Codex Integration → SSH Session Access → Open Codex tab**, configure command length (256–32768 UTF-8 bytes), timeout (1–3600 seconds), output capacity (1–8 MiB) and approval mode (per-command / session Always Allow). Initial defaults remain 4096 bytes, 60 seconds, 1 MiB and per-command approval. Valid defaults are saved automatically and included in preferences backups. Execution settings are no longer duplicated on the access page; the launch form scrolls while Cancel and Confirm and launch remain visible in a fixed footer. Defaults affect new tabs only. For an existing tab, open Execution Settings and choose Apply and Renew to cancel the current command, reset the budget and apply changes. Ordinary renewal retains that tab’s limits and mode. Larger output capacities consume more memory and model context.
+
+To resume troubleshooting, reopen SSH, select the current SSH tab in the launch chooser, enable **Resume an existing Codex conversation**, then select the saved conversation in Codex’s native history picker. MyTerm reuses its configured proxy. This restores the Codex conversation, not the old SSH transport. A fresh association binds to the current SSH UUID, even after MyTerm restarts. `list_sessions` returns the current UUID, connection instructions and authorization status; requests using an old UUID are rejected with rediscovery guidance. Old authorizations, job IDs and unfinished commands are not reused as current jobs. Check the target before asking to continue. Output already in the conversation remains historical context; **Read existing output when connecting** only controls the intent to read the current SSH terminal’s history. Codex manages the conversation list and storage; MyTerm does not copy conversation files. This requires a CLI supporting `codex resume --all`. See the [official Codex resume reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-resume).
+
+The execution bar fills its pane with one background: SSH Execution on the left, authorization status/renewal/approval controls in the middle, and Execution Settings on the right. Narrow split panes retain horizontal scrolling.
+
 
 Renewal, approval mode and settings appear on one row, with horizontal scrolling in narrow windows or split panes. The expandable execution history and permanent Stop button are removed; Cancel Current Command appears while work is running or queued. Closing the Codex tab ends its authorization. Cancelling the independent channel may not stop detached remote background processes. Incomplete output still blocks subsequent commands; `incomplete_reason` distinguishes `output_limit`, `timeout`, `cancelled` and `output_read_error`. Explain missing output, then narrow the query or adjust limits and renew; do not ignore the incomplete flag.
 
@@ -346,3 +351,15 @@ bash scripts/check.sh
 - `Tests/MyTermCoreTests`, `scripts/`: core/integration checks, packaging and installation validation.
 
 Version changes belong in the [release history](CHANGELOG.en.md). README documents usage and limits without hardcoding a latest-version number.
+
+## Diagnosing terminal issues
+
+For intermittent scrolling or Enter-key problems, open **Help → Terminal Diagnostics…**:
+
+1. Click **Start New Capture** before reproducing the issue, then return to the affected tab.
+2. After the issue occurs, click **Mark Incident**, then **Stop Recording**.
+3. Choose **Export Diagnostics…** and share the ZIP with the incident time, reproduction steps, and expected versus actual behavior. Also specify the Codex CLI version (`codex --version`), input method, and whether tmux was involved.
+
+Recording is off by default. Each capture lasts up to 15 minutes and retains the latest 5,000 events in memory. Quitting clears it; starting a new capture replaces the previous one. Closing the diagnostic window does not stop recording. Nothing is uploaded automatically. Exports contain app/macOS versions, process peak resident memory, anonymous terminal identifiers/types, scrolling/selection/focus state, keyboard protocol flags, Return events, and byte counts. They exclude input/output text, passwords, tokens, hostnames, and configuration files. Output events are sampled and aggregated, not a complete traffic count.
+
+This helps determine whether MyTerm received Return, reached its send path, and followed output. It cannot prove that Codex processed a key or establish a memory leak from one snapshot. Diagnostics do not replace optional session text logs; review any separate screenshots or text logs for sensitive information before sharing them.

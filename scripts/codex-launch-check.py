@@ -15,6 +15,9 @@ codex = shutil.which("codex")
 if not codex:
     raise SystemExit("Codex CLI is required for the release MCP launch check")
 with tempfile.TemporaryDirectory(prefix="myterm-codex-launch-") as directory:
+    resumed = json.loads(subprocess.check_output([str(binary), "--smoke-test", "--codex-launch-arguments", str(binary), "--codex-scoped-check", "--codex-resume"], text=True))
+    assert resumed[-2:] == ["resume", "--all"], "Resume must open the picker without an accidental positional prompt"
+    subprocess.run([codex, *resumed, "--help"], stdout=subprocess.DEVNULL, check=True, timeout=15)
     alias = pathlib.Path(directory) / 'My Term "quoted" 中文' / "MyTerm"
     alias.parent.mkdir()
     alias.symlink_to(binary)

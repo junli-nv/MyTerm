@@ -33,8 +33,9 @@ struct CodexExecutionBar: View {
     var body: some View {
         ScrollView(.horizontal) {
             CodexInlineExecutionView(bridge: bridge, sessionID: sessionID, codexTabID: codexTabID)
-                .frame(minWidth: 760)
+                .containerRelativeFrame(.horizontal) { width, _ in max(760, width) }
         }.fixedSize(horizontal: false, vertical: true)
+            .background(Color(nsColor: .controlBackgroundColor))
     }
 }
 
@@ -52,15 +53,16 @@ struct CodexInlineExecutionView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text(L10n.text("SSH 执行")).fontWeight(.semibold).fixedSize()
+                Spacer(minLength: 0)
                 if let deadline = bridge.executionGrants[executionID] {
                     Text(deadline.formatted(date: .omitted, time: .standard)).monospacedDigit()
                         .help(L10n.text("执行授权有效至：") + deadline.formatted(date: .omitted, time: .standard))
                 } else { Text(L10n.text(bridge.executionIsExpired(executionID) ? "授权已到期" : "只读")).foregroundStyle(.secondary).fixedSize() }
                 Text("\(bridge.remainingExecutionCommands(executionID))/\(bridge.limitsForExecution(executionID).commands)").monospacedDigit().help(L10n.text("剩余命令额度"))
-                Spacer(minLength: 0)
                 Button(L10n.text("继续授权")) { bridge.renewExecution(executionID, owner: codexTabID) }
                     .disabled(!bridge.enabled).help("\(bridge.limitsForExecution(executionID).minutes) min / \(bridge.limitsForExecution(executionID).commands)").fixedSize()
                 CodexExecutionApprovalMode(bridge: bridge, associationID: executionID).frame(width: 340)
+                Spacer(minLength: 0)
                 Button {
                     editor.limits = bridge.limitsForExecution(executionID); editor.presented = true
                 } label: { Image(systemName: "slider.horizontal.3") }
