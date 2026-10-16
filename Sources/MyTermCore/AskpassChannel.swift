@@ -38,12 +38,12 @@ private enum SocketWire {
     }
     static func receive<T: Decodable>(_ fd: Int32) throws -> T {
         let length = try read(fd, count: 4).reduce(0) { ($0 << 8) | Int($1) }
-        guard length > 0, length <= 65536 else { throw ConfigurationError.invalid("认证请求大小无效。") }
+        guard length > 0, length <= 262144 else { throw ConfigurationError.invalid("认证请求大小无效。") }
         return try JSONDecoder().decode(T.self, from: read(fd, count: length))
     }
     static func send<T: Encodable>(_ value: T, fd: Int32) throws {
         let body = try JSONEncoder().encode(value)
-        guard body.count <= 65536 else { throw ConfigurationError.invalid("认证响应过长。") }
+        guard body.count <= 262144 else { throw ConfigurationError.invalid("认证响应过长。") }
         var length = UInt32(body.count).bigEndian
         var data = withUnsafeBytes(of: &length) { Data($0) }; data.append(body)
         var offset = 0

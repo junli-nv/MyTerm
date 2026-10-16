@@ -8,6 +8,16 @@ func checkCodexExecution() throws {
     checkThrows(try CodexExecutionLimits(commands: 0).validate())
     checkThrows(try CodexExecutionLimits(commands: 10001).validate())
     checkEqual(CodexExecutionLimits().commands, 300)
+    let custom = CodexExecutionLimits(commandBytes: 32768, timeoutSeconds: 3600, outputMiB: 8, alwaysAllow: true)
+    try custom.validate()
+    checkEqual(try JSONDecoder().decode(CodexExecutionLimits.self, from: JSONEncoder().encode(custom)), custom)
+    for invalid in [CodexExecutionLimits(commandBytes: 255), CodexExecutionLimits(commandBytes: 32769), CodexExecutionLimits(timeoutSeconds: 0), CodexExecutionLimits(timeoutSeconds: 3601), CodexExecutionLimits(outputMiB: 0), CodexExecutionLimits(outputMiB: 9)] {
+        checkThrows(try invalid.validate())
+    }
+    let long = String(repeating: "中", count: 10000)
+    try CodexExecutionPolicy.validate(long, maximumBytes: 32768)
+    checkThrows(try CodexExecutionPolicy.validate(long, maximumBytes: 8192))
+    checkEqual(try CodexExecutionPolicy.arguments(controlPath: "/tmp/test", host: "localhost", command: long, maximumBytes: 32768).last, long)
     checkEqual(CodexExecutionPolicy.diagnostics.contains("uptime"), true)
     for value in ["uptime; touch /tmp/unsafe", "python -c 'print(1)'", "df -h > file", "env uptime", "$(uptime)"] {
         checkEqual(CodexExecutionPolicy.diagnostics.contains(value), false)
@@ -34,6 +44,19 @@ func checkCodexExecution() throws {
         }
         job.cancel(); throw ConfigurationError.invalid("Command fixture timed out")
     }
+    // A raised output cap must survive paging past the former 1 MiB ceiling.
+    let expanded = try CodexCommandProcess(executable: "/usr/bin/perl", arguments: ["-e", "print 'x' x 1100000"], maximumOutputBytes: 2097152)
+    let expandedResult = try finish(expanded)
+    checkEqual(expandedResult["incomplete"] as? Bool, false)
+    checkEqual(expandedResult["total_bytes"] as? Int, 1100000)
+    checkEqual(try expanded.snapshot(offset: 1099999)["output"] as? String, "x")
+    let reduced = try CodexCommandProcess(executable: "/usr/bin/perl", arguments: ["-e", "print 'x' x 5000"], maximumOutputBytes: 4096)
+    checkEqual(try finish(reduced)["incomplete_reason"] as? String, "output_limit")
+    let timed = try CodexCommandProcess(executable: "/bin/sleep", arguments: ["2"], timeout: 0.05)
+    checkEqual(try finish(timed)["incomplete_reason"] as? String, "timeout")
+    let cancelled = try CodexCommandProcess(executable: "/bin/sleep", arguments: ["2"])
+    cancelled.cancel()
+    checkEqual(try finish(cancelled)["incomplete_reason"] as? String, "cancelled")
     let missing = try CodexCommandProcess(arguments: args)
     checkEqual(try finish(missing)["exit_code"] as? Int32, 255)
     let job = try CodexCommandProcess(executable: "/bin/bash", arguments: ["--noprofile", "--norc", "-c", "printf 'first\\n'; printf 'error\\n' >&2; exit 7"])

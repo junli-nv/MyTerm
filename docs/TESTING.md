@@ -2,6 +2,8 @@
 
 简体中文 · [English](TESTING.en.md) · [README](../README.md)
 
+Codex 执行配置回归覆盖命令字节数上下界、设置序列化与备份验证、较大请求的嵌套 JSON 传输、超过 1 MiB 的输出分页、不完整原因、审批模式与续期隔离，并检查中英文控制栏和可滚动配置表单。
+
 ## 完整回归入口
 
 在仓库根目录运行。需要 macOS 图形会话、Swift、系统 OpenSSH/SFTP、Codex CLI、tmux、lrzsz，以及安装了 `scripts/requirements-password-test.txt` 的独立 Python 虚拟环境。缺少依赖会失败，不会静默跳过。

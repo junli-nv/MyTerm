@@ -25,52 +25,18 @@ final class CodexExecutionRecord: Identifiable {
     }
 }
 
-struct CodexExecutionView: View {
+/// Keep controls reachable in narrow windows and split panes without wrapping buttons.
+struct CodexExecutionBar: View {
     @ObservedObject var bridge: CodexBridge
-    @ObservedObject var language = LanguagePreferences.shared
-    var associationID: UUID? = nil
+    let sessionID: UUID
+    var codexTabID: UUID? = nil
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 14) {
-                Text(L10n.text("Codex SSH 执行控制")).font(.title2.bold())
-                Text(L10n.text("独立执行通道不共享终端的目录、环境变量或 tmux 状态。授权时长和命令额度在启动 Codex 标签时设置，可在原标签继续授权；单条最多 60 秒，输出最多 1 MB。停止会关闭执行通道，但远端已脱离会话的后台进程可能继续运行。"))
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(L10n.text(associationID == nil ? "停止全部执行并撤销授权" : "停止执行并撤销授权")) {
-                    if let associationID { bridge.revokeExecution(associationID) } else { bridge.revokeAllExecution() }
-                }
-                ForEach(bridge.executionGrants.keys.filter { associationID == nil || $0 == associationID }.sorted { $0.uuidString < $1.uuidString }, id: \.self) { id in
-                    Text(bridge.executionRecords.first(where: { $0.associationID == id })?.label ?? id.uuidString).font(.headline)
-                    CodexExecutionApprovalMode(bridge: bridge, associationID: id)
-                }
-                ForEach(bridge.executionRecords.filter { associationID == nil || $0.associationID == associationID }.reversed()) { record in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(record.label).font(.headline)
-                        if !record.reason.isEmpty { Text(record.reason).fixedSize(horizontal: false, vertical: true) }
-                        Text(record.command).font(.body.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        let result = try? record.snapshot()
-                        Text(L10n.text(result?["state"] as? String ?? record.state))
-                        if result?["truncated"] as? Bool == true {
-                            Text(L10n.text("输出超限，结果不完整；已阻止自动执行下一条命令。")).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
-                        }
-                        if let exit = result?["exit_code"] as? Int { Text("exit=\(exit)") }
-                        if record.state == "awaiting_approval" {
-                            HStack {
-                                Button(L10n.text("允许执行此命令")) { bridge.approveExecution(record) }
-                                Button(L10n.text("拒绝")) { bridge.cancelExecution(record) }
-                            }
-                        } else if ["running", "queued"].contains(result?["state"] as? String ?? "") {
-                            Button(L10n.text("停止")) { bridge.cancelExecution(record) }
-                        }
-                        Text(result?["output"] as? String ?? "").font(.caption.monospaced()).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        Text(L10n.text("界面显示输出开头；Codex 可按偏移读取全部保留输出。记录仅保存在内存中。"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(.quaternary).cornerRadius(8)
-                }
-            }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-        }.scrollIndicators(.visible).environment(\.locale, language.locale)
+        ScrollView(.horizontal) {
+            CodexInlineExecutionView(bridge: bridge, sessionID: sessionID, codexTabID: codexTabID)
+                .frame(minWidth: 760)
+        }.fixedSize(horizontal: false, vertical: true)
     }
 }
-
 
 /// App-owned approval buttons stay beside the Codex TUI. Never inject bytes into
 /// the terminal buffer or interpret remote/TUI text as an approval gesture.
@@ -79,7 +45,7 @@ struct CodexInlineExecutionView: View {
     @ObservedObject var bridge: CodexBridge
     let sessionID: UUID
     var codexTabID: UUID? = nil
-    @StateObject private var presentation = CodexInlinePresentation()
+    @StateObject private var editor = CodexExecutionEditor()
     private var executionID: UUID { bridge.executionID(for: sessionID, tab: codexTabID) }
     private var records: [CodexExecutionRecord] { bridge.executionRecords.filter { $0.associationID == executionID } }
     var body: some View {
@@ -94,11 +60,12 @@ struct CodexInlineExecutionView: View {
                 Spacer(minLength: 0)
                 Button(L10n.text("继续授权")) { bridge.renewExecution(executionID, owner: codexTabID) }
                     .disabled(!bridge.enabled).help("\(bridge.limitsForExecution(executionID).minutes) min / \(bridge.limitsForExecution(executionID).commands)").fixedSize()
-                Button(L10n.text(presentation.showHistory ? "收起" : "记录")) { presentation.showHistory.toggle() }.fixedSize()
-                Button(L10n.text("停止")) { bridge.revokeExecution(executionID) }
-                    .disabled(bridge.executionGrants[executionID] == nil).help(L10n.text("停止执行并撤销授权")).fixedSize()
+                CodexExecutionApprovalMode(bridge: bridge, associationID: executionID).frame(width: 340)
+                Button {
+                    editor.limits = bridge.limitsForExecution(executionID); editor.presented = true
+                } label: { Image(systemName: "slider.horizontal.3") }
+                    .help(L10n.text("执行设置"))
             }
-            CodexExecutionApprovalMode(bridge: bridge, associationID: executionID)
             if bridge.executionGrants[executionID] != nil && bridge.remainingExecutionCommands(executionID) == 0 {
                 Text(L10n.text("命令额度已用尽，请点击继续授权。")).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
@@ -123,16 +90,31 @@ struct CodexInlineExecutionView: View {
             } else if records.contains(where: { $0.state == "queued" }) {
                 Text(L10n.text("命令已获准，等待同一 SSH 会话中的其他命令结束。")).foregroundStyle(.secondary)
             }
-            if presentation.showHistory {
-                CodexExecutionView(bridge: bridge, associationID: executionID).frame(height: 200)
+            if let active = records.first(where: { ["running", "queued"].contains($0.process?.progress.state ?? $0.state) }) {
+                HStack {
+                    Text(L10n.text("命令执行中"))
+                    Spacer()
+                    Button(L10n.text("取消当前命令")) { bridge.cancelExecution(active) }
+                }
             }
         }.font(.caption).controlSize(.small).padding(6).background(Color(nsColor: .controlBackgroundColor))
             .environment(\.locale, language.locale)
+            .sheet(isPresented: $editor.presented) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(L10n.text("执行设置")).font(.headline)
+                    CodexExecutionSettings(limits: $editor.limits)
+                    Text(L10n.text("应用会取消当前命令并重置授权额度。"))
+                    HStack {
+                        Button(L10n.text("取消")) { editor.presented = false }
+                        Spacer()
+                        Button(L10n.text("应用并继续授权")) {
+                            bridge.renewExecution(executionID, owner: codexTabID, limits: editor.limits)
+                            editor.presented = false
+                        }.disabled((try? editor.limits.validate()) == nil)
+                    }
+                }.padding(20).frame(width: 520)
+            }
     }
-}
-
-final class CodexInlinePresentation: ObservableObject {
-    @Published var showHistory = false
 }
 
 struct CodexExecutionApprovalMode: View {
@@ -143,8 +125,13 @@ struct CodexExecutionApprovalMode: View {
         Picker(L10n.text("命令审批"), selection: Binding(get: { bridge.alwaysAllowedExecution.contains(associationID) }, set: { bridge.setAlwaysAllowExecution(associationID, enabled: $0) })) {
             Text(L10n.text("每条命令确认")).tag(false)
             Text(L10n.text("本会话始终允许")).tag(true)
-        }.pickerStyle(.segmented)
+        }.pickerStyle(.segmented).labelsHidden()
             .disabled(bridge.executionGrants[associationID] == nil)
-            .help(L10n.text("仅作用于当前 Codex 标签的有效授权；切回逐条确认不会中断已经开始的命令。授权结束后恢复逐条确认。"))
+            .help(L10n.text("仅作用于当前 Codex 标签；切回逐条确认不会中断已经开始的命令。继续授权沿用当前选择。"))
     }
+}
+
+final class CodexExecutionEditor: ObservableObject {
+    @Published var presented = false
+    @Published var limits = CodexExecutionLimits()
 }

@@ -1041,3 +1041,31 @@
 "GitHub API 暂不可用，已通过公开发布页检查。完整更新说明请点击“发布页面”。" = "The GitHub API is unavailable; the public release page was used. Click Release Page for full release notes.";
 
 "更新安装进程未准备就绪；当前应用将保持运行。" = "The installer did not become ready; the current app will keep running.";
+
+"单条命令长度（UTF-8 字节）" = "Command length (UTF-8 bytes)";
+
+"单条执行超时（秒）" = "Command timeout (seconds)";
+
+"单条输出容量（MiB）" = "Output per command (MiB)";
+
+"继续授权沿用本标签的配置与审批模式。修改默认配置仅影响新标签；当前标签可通过执行设置修改并继续授权。" = "Renewal retains this tab’s limits and approval mode. Defaults affect new tabs only; use Execution Settings in an existing tab to change its limits and renew.";
+
+"请将执行限制填写在标示范围内。" = "Enter execution limits within the displayed ranges.";
+
+"SSH 执行默认配置" = "SSH execution defaults";
+
+"执行设置" = "Execution Settings";
+
+"应用会取消当前命令并重置授权额度。" = "Applying cancels the current command and resets the authorization budget.";
+
+"应用并继续授权" = "Apply and Renew";
+
+"命令执行中" = "Command in progress";
+
+"取消当前命令" = "Cancel Current Command";
+
+"仅作用于当前 Codex 标签；切回逐条确认不会中断已经开始的命令。继续授权沿用当前选择。" = "Applies to this Codex tab only. Switching to per-command approval does not interrupt commands already started. Renewal retains your selection.";
+
+"选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行，也可选择只读。审批方式由执行配置决定，可在会话中调整。" = "Select an open SSH session for Codex analysis. Local shells are not attached. Command execution is enabled by default; read-only access is optional. Execution settings determine the approval mode, which can be changed in the tab.";
+
+"默认启用命令执行；取消勾选可保持只读。请核对审批模式。独立通道不共享当前终端目录或 tmux 状态。" = "Command execution is enabled by default; uncheck for read-only access. Review the approval mode. The independent channel does not share the terminal directory or tmux state.";

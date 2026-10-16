@@ -2,6 +2,8 @@
 
 [简体中文](TESTING.md) · English · [README](../README.en.md)
 
+Codex execution configuration regression checks cover command byte bounds, settings serialization and backup validation, nested JSON transport for larger requests, output paging beyond 1 MiB, incomplete reasons, approval modes and renewal isolation, plus bilingual control rows and scrolling configuration forms.
+
 ## Full regression entry point
 
 Run from the repository root. Requires a macOS GUI session, Swift, system OpenSSH/SFTP, Codex CLI, tmux, lrzsz, and a separate Python environment with `scripts/requirements-password-test.txt` installed. Missing dependencies fail rather than silently skipping suites.

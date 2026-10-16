@@ -132,7 +132,7 @@ struct CodexSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
     }
     @ViewBuilder private var sshConfiguration: some View {
-        Text("选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行并逐条确认，也可选择只读。审批方式可在会话中调整。")
+        Text("选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行，也可选择只读。审批方式由执行配置决定，可在会话中调整。")
             .fixedSize(horizontal: false, vertical: true)
                 Text("Codex 配置依赖").font(.headline)
                 if let issue = bridge.configurationIssue {
@@ -147,6 +147,9 @@ struct CodexSettingsView: View {
                     }
                 }
                 Text("配置修改仅用于新启动的 Codex 标签；代理测试用于诊断，不是启动前的必选步骤。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Divider()
+                Text(L10n.text("SSH 执行默认配置")).font(.headline)
+                CodexExecutionSettings(limits: $bridge.launchExecutionSettings)
                 Divider()
                 Text("SSH 会话分析").font(.headline)
                 HStack {
@@ -203,20 +206,9 @@ struct CodexSessionChooser: View {
             if selection.includeHistory { CodexHistoryLimits(bridge: bridge) }
             Toggle("允许执行 SSH 命令", isOn: $selection.execute)
             if selection.execute {
-                HStack {
-                    Text("授权时长（分钟）")
-                    TextField("1–1440", value: $bridge.launchExecutionMinutes, format: .number).frame(width: 95)
-                    Stepper("", value: $bridge.launchExecutionMinutes, in: 1...1440).labelsHidden()
-                }
-                HStack {
-                    Text("每次授权命令额度")
-                    TextField("1–10000", value: $bridge.launchExecutionCommands, format: .number).frame(width: 95)
-                    Stepper("", value: $bridge.launchExecutionCommands, in: 1...10000).labelsHidden()
-                }
-                Text("到期或额度用尽后可在当前标签继续授权，重置额度并恢复逐条确认；如需持续允许，请再次选择。")
-                    .font(.caption).fixedSize(horizontal: false, vertical: true)
+                CodexExecutionSettings(limits: $bridge.launchExecutionSettings)
             }
-            Text("默认启用命令执行，执行前逐条确认；取消勾选可保持只读。可在 Codex 标签中切换为本会话始终允许。独立通道不共享当前终端目录或 tmux 状态。")
+            Text("默认启用命令执行；取消勾选可保持只读。请核对审批模式。独立通道不共享当前终端目录或 tmux 状态。")
                 .font(.caption).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -224,9 +216,9 @@ struct CodexSessionChooser: View {
                 Button("确认并启动") {
                     guard bridge.configurationIssue == nil else { bridge.message = bridge.configurationIssue ?? ""; return }
                     if !bridge.enabled { bridge.start() }
-                    bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory, execute: selection.execute, limits: MyTermCore.CodexExecutionLimits(minutes: bridge.launchExecutionMinutes, commands: bridge.launchExecutionCommands))
+                    bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory, execute: selection.execute, limits: bridge.launchExecutionSettings)
                 }.keyboardShortcut(.defaultAction)
-                    .disabled(bridge.busy || !workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }))
+                    .disabled(bridge.busy || (selection.execute && (try? bridge.launchExecutionSettings.validate()) == nil) || !workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }))
             }
         }.padding(24) }.scrollIndicators(.visible).frame(width: 510, height: 540)
             .environment(\.locale, language.locale)

@@ -180,9 +180,14 @@ final class CredentialTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         let channel = try AskpassChannel(path: directory.appendingPathComponent("socket").path) { request, reply in
-            reply(request.prompt == "fixture" ? "test-response" : nil)
+            if request.hint == "myterm-mcp" { reply(request.prompt) } else { reply(request.prompt == "fixture" ? "test-response" : nil) }
         }
         defer { channel.stop() }
+        // Nested JSON escaping for a maximum-length command exceeds the old 64 KiB frame.
+        let command = String(repeating: "\\\"\t", count: 10000)
+        try CodexExecutionPolicy.validate(command, maximumBytes: 32768)
+        let request = String(decoding: try JSONSerialization.data(withJSONObject: ["command": command]), as: UTF8.self)
+        checkEqual(try AskpassChannel.answer(path: channel.path, token: channel.token, prompt: request, hint: "myterm-mcp"), request)
         checkEqual(try AskpassChannel.answer(path: channel.path, token: channel.token, prompt: "fixture", hint: nil), "test-response")
         checkEqual(try AskpassChannel.answer(path: channel.path, token: channel.token, prompt: "cancel", hint: nil), nil)
         checkThrows(try AskpassChannel.answer(path: channel.path, token: "invalid", prompt: "fixture", hint: nil))

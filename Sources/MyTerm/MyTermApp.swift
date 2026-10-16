@@ -494,11 +494,7 @@ struct TerminalPane: View {
                 }
             }
             if let bridge = session.codexExecutionBridge, let target = session.codexTargetSessionID {
-                if isSplit {
-                    ScrollView(.horizontal) {
-                        CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id).frame(minWidth: 560)
-                    }.fixedSize(horizontal: false, vertical: true)
-                } else { CodexInlineExecutionView(bridge: bridge, sessionID: target, codexTabID: session.id) }
+                CodexExecutionBar(bridge: bridge, sessionID: target, codexTabID: session.id)
             }
             if let bridge = session.terminal.zmodem { ZmodemStatusView(bridge: bridge) }
             if session.statusBarVisible || !session.isRunning {

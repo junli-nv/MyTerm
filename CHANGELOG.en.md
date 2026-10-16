@@ -4,6 +4,18 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.3"></a>
+
+# MyTerm 3.2.3
+
+- Configurable Codex SSH command length, timeout, output capacity and default approval mode, retaining initial defaults.
+- Saved launch defaults and per-tab execution settings; renewal retains that tab’s choices.
+- A single control row replaces expandable history and the permanent Stop button; active/queued commands remain cancellable.
+- MCP reports incomplete-output reasons and supports larger command transport and output paging beyond 1 MiB.
+
+
+[Release notes](packaging/RELEASE-NOTES-3.2.3.md).
+
 <a id="version-3.2.2"></a>
 
 # MyTerm 3.2.2

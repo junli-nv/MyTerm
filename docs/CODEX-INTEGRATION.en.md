@@ -4,7 +4,7 @@
 
 For first-time setup, follow the [macOS installation steps](../README.en.md#install-and-build) for Homebrew/Codex CLI installation and the first MyTerm launch.
 
-This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. For SSH analysis, command execution is selected by default and authorized on startup confirmation, with per-command approval. Uncheck it for read-only access.
+This guide describes MyTerm's implementation. See the [release history](../CHANGELOG.en.md) for version changes. For SSH analysis, command execution is selected by default and authorized on startup confirmation, using the configured approval mode. Uncheck it for read-only access.
 
 The connection window uses a vertical sidebar: **Codex Configuration** contains the executable, proxy, login and external MCP settings; **SSH Session Access** starts SSH analysis; **Local Work** chooses a directory and starts local Codex directly. The window is resizable and its content scrolls.
 
@@ -13,7 +13,7 @@ The connection window uses a vertical sidebar: **Codex Configuration** contains 
 | Startup selection | Working directory, default home | An open SSH session |
 | MyTerm MCP | Disabled for this launch; no registration needed | Automatically configured to read the selected session |
 | Execution and approval | Codex native tools, workspace-write / on-request | MyTerm independent SSH channel and session authorization |
-| Command size and timeout | Managed by Codex | 4096 bytes, 60 seconds, 1 MiB output |
+| Command size and timeout | Managed by Codex | Defaults: 4096 bytes, 60 seconds, 1 MiB output; configurable |
 | Codex network proxy | Reuses Codex Configuration | Reuses the same configuration, independent of SSH proxy |
 
 The default Codex executable is `/opt/homebrew/bin/codex`; saved custom paths are preserved.
@@ -63,21 +63,25 @@ Manage execution authorization, command approvals and stopping in the associated
 
 Removing background monitoring does **not** disable autonomous multi-step troubleshooting. After you give a task and authorize SSH execution, Codex can run commands, collect every output page, and choose the next check. Per-command approval and session-wide Always allow remain available. Explicit periodic-check tasks can also run within authorization, with an agreed interval and duration/count. This differs from automatically sampling an idle terminal with no task.
 
-Execution is selected by default and authorized when startup is confirmed; individual commands still require approval. Uncheck it for read-only access. Configure a duration of 1–1440 minutes and a budget of 1–10000 commands; defaults are 60 minutes and 300 commands. Renew within the same tab after expiry or exhaustion.
+Execution is selected by default and authorized when startup is confirmed; commands follow the configured approval mode. Uncheck it for read-only access. Configure a duration of 1–1440 minutes and a budget of 1–10000 commands; defaults are 60 minutes and 300 commands. Renew within the same tab after expiry or exhaustion.
 
-- Plans appear only in the Codex terminal; MyTerm does not capture or duplicate them. Ask Codex to revise or stop a plan, or reject the pending command in per-command mode. In Always allow mode, use Stop to revoke execution.
+- Plans appear only in the Codex terminal; MyTerm does not capture or duplicate them. Ask Codex to revise or stop a plan, or reject the pending command in per-command mode. In Always allow mode, cancel the current command or close the Codex tab to end authorization.
 - Each command requires approval by default. The UI shows target, exact command and reason; choose Allow Once, Always Allow, or the session approval-mode selector. There is no Y/y shortcut.
-- Switch modes at any time. Returning to per-command approval affects future submissions, not already approved queued or running commands; use Stop to interrupt it.
-- Always Allow belongs only to the current Codex tab authorization and is not persisted. Revocation, disconnection or expiry clears it. Renewal resets the budget, rejects old pending commands and restores per-command approval.
+- Switch modes at any time. Returning to per-command approval affects future submissions, not already approved queued or running commands; use Cancel Current Command to interrupt it.
+- Active authorization belongs only to the current Codex tab and is not persisted. Disconnection, expiry or closing the tab invalidates it. The default approval mode can be saved; runtime changes apply only to the current tab. Renewal retains that tab’s limits and mode, resets the budget and cancels old pending or running commands.
 - One SSH tab can be associated with multiple Codex tabs. Each Codex tab has independent authorization duration, command budget, approval mode, records and output delivery progress. Starting, renewing, stopping or closing one does not replace another tab's authorization. Approved commands run serially on the same SSH transport in submission order; `queued` means approved and waiting, with no need to resubmit or re-authorize. Closing or disconnecting SSH invalidates all associated execution grants. External MCP clients can read shared sessions but cannot borrow an internal Codex tab's execution authorization.
 
 The `execution_authorization` field reports the current UI-selected mode. With Always Allow, a submission returning a running job is expected; only `awaiting_approval` requires the approval buttons. If an older conversation still insists on default per-command approval, tell Codex that you selected Always Allow in MyTerm and want it to continue under that mode. Separate explicit task restrictions still apply. MCP tools cannot change approval mode themselves.
 
 Commands run through an independent noninteractive channel on the authenticated SSH ControlMaster, reusing SSH jumps/proxies. Reuse failure does not open another connection. This path does not use the Codex proxy or share the terminal's working directory, temporary environment or tmux state.
 
-Multiline shell scripts are supported with LF newlines and tab indentation, up to 4096 UTF-8 bytes per submission. The entire script is displayed, approved and executed unchanged, consuming one command allowance; per-command approval covers the whole script rather than each line. Other control characters such as NUL, ESC and CR remain rejected; convert Windows CRLF text to LF first. Use syntax supported by the remote login shell or explicitly invoke the required interpreter.
+In **Codex Integration → SSH Session Access → SSH execution defaults**, or the session chooser when starting a tab, configure command length (256–32768 UTF-8 bytes), timeout (1–3600 seconds), output capacity (1–8 MiB) and approval mode (per-command / session Always Allow). Initial defaults remain 4096 bytes, 60 seconds, 1 MiB and per-command approval. Valid defaults are saved automatically and included in preferences backups. Defaults affect new tabs only. For an existing tab, open Execution Settings and choose Apply and Renew to cancel the current command, reset the budget and apply changes. Ordinary renewal retains that tab’s limits and mode. Larger output capacities consume more memory and model context.
 
-Each command is limited to 60 seconds and 1 MiB of retained output. Read `command_status` pages using `next_offset`; skipping pages or submitting another command before complete delivery is rejected. `all_output_delivered=true` means retained output has been returned, not that the model still retains all context. Timeout, cancellation or capacity overflow marks output `incomplete`: stop, explain, renew authorization and narrow the query. Stop closes the execution channel; detached remote background processes may continue. At most 50 execution records are kept in memory.
+Renewal, approval mode and settings appear on one row, with horizontal scrolling in narrow windows or split panes. The expandable execution history and permanent Stop button are removed; Cancel Current Command appears while work is running or queued. Closing the Codex tab ends its authorization. Cancelling the independent channel may not stop detached remote background processes. Incomplete output still blocks subsequent commands; `incomplete_reason` distinguishes `output_limit`, `timeout`, `cancelled` and `output_read_error`. Explain missing output, then narrow the query or adjust limits and renew; do not ignore the incomplete flag.
+
+Multiline shell scripts are supported with LF newlines and tab indentation, up to 4096 UTF-8 bytes per submission by default (configurable). The entire script is displayed, approved and executed unchanged, consuming one command allowance; per-command approval covers the whole script rather than each line. Other control characters such as NUL, ESC and CR remain rejected; convert Windows CRLF text to LF first. Use syntax supported by the remote login shell or explicitly invoke the required interpreter.
+
+Each command defaults to 60 seconds and 1 MiB of retained output; both are configurable. The remaining authorization time also bounds the timeout. Read `command_status` pages using `next_offset`; skipping pages or submitting another command before complete delivery is rejected. `all_output_delivered=true` means retained output has been returned, not that the model still retains all context. Timeout, cancellation or capacity overflow marks output `incomplete`: stop, explain, renew authorization and narrow the query. Cancellation closes the execution channel; detached remote background processes may continue. At most 50 execution records are kept in memory.
 
 ### Command states
 
@@ -89,7 +93,7 @@ Each command is limited to 60 seconds and 1 MiB of retained output. Read `comman
 | `completed` | Finished; read all pages and check the exit code and `incomplete`. |
 | `rejected` / `cancelled` / `failed` | Not executed, cancelled or failed to start; inspect the reason before continuing. |
 
-Switching back to per-command approval does not withdraw approval from queued work. Cancel it using Stop in the current tab or the execution record. Each client must finish reading its own previous command output, without waiting for other clients to consume theirs. Expiry rejects queued jobs; renew in the existing tab before submitting them again.
+Switching back to per-command approval does not withdraw approval from queued work. Use Cancel Current Command in the current tab to cancel it. Each client must finish reading its own previous command output, without waiting for other clients to consume theirs. Expiry rejects queued jobs; renew in the existing tab before submitting them again.
 
 ## MCP tools and approval layers
 

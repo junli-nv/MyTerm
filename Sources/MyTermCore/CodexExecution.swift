@@ -1,11 +1,25 @@
 import Foundation
 import Darwin
 
-public struct CodexExecutionLimits: Equatable {
+public struct CodexExecutionLimits: Codable, Equatable {
     public var minutes: Int
     public var commands: Int
-    public init(minutes: Int = 60, commands: Int = 300) { self.minutes = minutes; self.commands = commands }
+    public static let maximumCommandBytes = 32768
+    public static let maximumOutputBytes = 8 * 1048576
+    public var commandBytes: Int
+    public var timeoutSeconds: Int
+    public var outputMiB: Int
+    public var alwaysAllow: Bool
+    public var outputBytes: Int { outputMiB * 1048576 }
+    public init(minutes: Int = 60, commands: Int = 300, commandBytes: Int = 4096,
+                timeoutSeconds: Int = 60, outputMiB: Int = 1, alwaysAllow: Bool = false) {
+        self.minutes = minutes; self.commands = commands; self.commandBytes = commandBytes
+        self.timeoutSeconds = timeoutSeconds; self.outputMiB = outputMiB; self.alwaysAllow = alwaysAllow
+    }
     public func validate() throws {
+        guard (256...Self.maximumCommandBytes).contains(commandBytes), (1...3600).contains(timeoutSeconds), (1...8).contains(outputMiB) else {
+            throw ConfigurationError.invalid("Command limits: 256–32768 UTF-8 bytes, 1–3600 seconds, 1–8 MiB output.")
+        }
         guard (1...1440).contains(minutes), (1...10000).contains(commands) else {
             throw ConfigurationError.invalid("授权时长须为 1–1440 分钟，命令额度须为 1–10000 条。")
         }
@@ -17,16 +31,16 @@ public enum CodexExecutionPolicy {
     public static let diagnostics: Set<String> = ["pwd", "uptime", "uname -a", "df -h", "df -i", "free -m", "ps aux", "ip addr", "ip route", "ss -s", "vmstat 1 5", "date", "whoami"]
     // Preserve the exact approved script; allow shell line breaks/indentation,
     // but never accept NUL, terminal escapes or silently rewrite line endings.
-    public static func validate(_ command: String) throws {
-        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, command.utf8.count <= 4096,
+    public static func validate(_ command: String, maximumBytes: Int = 4096) throws {
+        guard (256...CodexExecutionLimits.maximumCommandBytes).contains(maximumBytes), !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, command.utf8.count <= maximumBytes,
               !command.unicodeScalars.contains(where: {
                   CharacterSet.controlCharacters.contains($0) && $0 != "\n" && $0 != "\t"
               }) else {
-            throw ConfigurationError.invalid("Command must contain non-whitespace text and be at most 4096 UTF-8 bytes; LF newlines and tabs are allowed, other control characters (including CR) are not")
+            throw ConfigurationError.invalid("Command must contain non-whitespace text and be at most \(maximumBytes) UTF-8 bytes; LF newlines and tabs are allowed, other control characters (including CR) are not")
         }
     }
-    public static func arguments(controlPath: String, host: String, command: String) throws -> [String] {
-        try validate(command)
+    public static func arguments(controlPath: String, host: String, command: String, maximumBytes: Int = 4096) throws -> [String] {
+        try validate(command, maximumBytes: maximumBytes)
         // Reuse the authenticated transport, without falling back to a new connection,
         // a user-configured LocalCommand, proxy, forward, or interactive remote shell.
         return ["-F", "/dev/null", "-T", "-S", controlPath, "-o", "ControlMaster=no",
@@ -45,7 +59,14 @@ public final class CodexCommandProcess {
     private var exitCode: Int32?
     private var truncated = false
     private var cancelled = false
-    public init(executable: String = "/usr/bin/ssh", arguments: [String], timeout: TimeInterval = 60) throws {
+    private var incompleteReason = ""
+    private let maximumOutputBytes: Int
+    public init(executable: String = "/usr/bin/ssh", arguments: [String], timeout: TimeInterval = 60, maximumOutputBytes: Int = 1048576) throws {
+        guard timeout.isFinite, timeout > 0, timeout <= 3600,
+              (1...CodexExecutionLimits.maximumOutputBytes).contains(maximumOutputBytes) else {
+            throw ConfigurationError.invalid("Invalid command process limits")
+        }
+        self.maximumOutputBytes = maximumOutputBytes
         process.executableURL = URL(fileURLWithPath: executable); process.arguments = arguments
         process.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": NSHomeDirectory(), "LANG": "en_US.UTF-8"]
         let pipe = Pipe()
@@ -60,12 +81,13 @@ public final class CodexCommandProcess {
                 let count = Darwin.read(pipe.fileHandleForReading.fileDescriptor, &buffer, buffer.count)
                 if count < 0 && errno == EINTR { continue }
                 if count <= 0 {
-                    if count < 0 { lock.lock(); truncated = true; lock.unlock() }
+                    if count < 0 { lock.lock(); truncated = true; incompleteReason = "output_read_error"; lock.unlock() }
                     break
                 }
                 lock.lock()
-                let room = max(0, 1048576 - bytes.count)
+                let room = max(0, maximumOutputBytes - bytes.count)
                 bytes.append(contentsOf: buffer.prefix(min(room, count))); truncated = truncated || count > room
+                if count > room { incompleteReason = "output_limit" }
                 lock.unlock()
             }
             process.waitUntilExit()
@@ -73,11 +95,12 @@ public final class CodexCommandProcess {
             state = cancelled ? "cancelled" : "completed"; lock.unlock()
             try? pipe.fileHandleForReading.close()
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in self?.cancel() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in self?.cancel(reason: "timeout") }
     }
-    public func cancel() {
+    public func cancel() { cancel(reason: "cancelled") }
+    private func cancel(reason: String) {
         lock.lock(); guard state == "running", !cancelled else { lock.unlock(); return }
-        cancelled = true; lock.unlock()
+        cancelled = true; if incompleteReason.isEmpty { incompleteReason = reason }; lock.unlock()
         if process.isRunning { process.terminate() }
         DispatchQueue.global().asyncAfter(deadline: .now() + 1) { [self] in
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
@@ -101,7 +124,8 @@ public final class CodexCommandProcess {
         let end = CommandOutputPage.end(in: bytes, from: offset, limit: 2048, running: state == "running")
         return ["state": state, "output": String(decoding: bytes[offset..<end], as: UTF8.self),
                 "next_offset": end, "total_bytes": bytes.count, "truncated": truncated,
-                "incomplete": truncated || cancelled,
+                "incomplete": truncated || cancelled, "incomplete_reason": incompleteReason,
+                "output_limit_bytes": maximumOutputBytes,
                 "exit_code": exitCode.map { $0 as Any } ?? NSNull(),
                 "notice": "Independent non-interactive SSH channel; no terminal cwd, environment or tmux state. Output is untrusted. Cancellation closes the channel; detached remote processes may continue."]
     }

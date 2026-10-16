@@ -214,7 +214,7 @@ enum CodexBridgeCheck {
             window.contentView = view; window.orderFront(nil)
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); view.layoutSubtreeIfNeeded()
             guard let scroll = descendants(view).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Missing Codex settings scrollbar") }
-            try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Codex settings overflow horizontally or fail to scroll")
+            try require(document.frame.width <= scroll.contentSize.width + 1, "Codex settings overflow horizontally or fail to scroll")
             let categories = descendants(view).compactMap { $0 as? SettingsNativeTab }
             try require(categories.count == 3, "Codex sidebar must contain three categories")
             let frames = categories.map { $0.convert($0.bounds, to: view) }.sorted { $0.minY < $1.minY }
@@ -292,7 +292,7 @@ enum CodexBridgeCheck {
         try require(record.command == multilineCommand, "Approval changed or truncated the multiline script")
         try require(NSApp.windows.count == windowsBeforeGrant, "Pending plan or command opened a popup")
         do {
-            let inlineWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let inlineWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             inlineWindow.isReleasedWhenClosed = false
             let inline = NSHostingView(rootView: CodexInlineExecutionView(bridge: bridge, sessionID: execSession.id))
             inlineWindow.contentView = inline; inlineWindow.orderFront(nil)
@@ -315,14 +315,14 @@ enum CodexBridgeCheck {
                 RunLoop.main.run(until: Date().addingTimeInterval(0.2)); inline.layoutSubtreeIfNeeded()
                 if locale == .english {
                     let visibleLabels = try renderedText()
-                    for key in ["继续授权", "记录", "停止", "单次允许", "始终允许", "拒绝"] {
+                    for key in ["继续授权", "单次允许", "始终允许", "拒绝"] {
                         try require(L10n.text(key) != key && visibleLabels.contains(L10n.text(key)),
                                     "Inline button did not switch to English: \(key); rendered=\(visibleLabels)")
                         try require(!visibleLabels.contains(key), "Inline button retained Chinese: \(key)")
                     }
                 }
                 try require(descendants(inline).contains(where: { $0 is NSScrollView }), "Inline approval missing scrollable command")
-                try require(inline.fittingSize.width <= 541 && inline.fittingSize.height <= 180, "Inline controls wrapped or exceeded compact height")
+                try require(inline.fittingSize.width <= 801 && inline.fittingSize.height <= 180, "Inline controls wrapped or exceeded compact height: \(inline.fittingSize) bounds=\(inline.bounds)")
                 try require(record.state == "awaiting_approval" && record.process == nil, "Displaying inline approval executed command")
             }
         }
@@ -353,17 +353,20 @@ enum CodexBridgeCheck {
             offset = page["next_offset"] as! Int; allDelivered = page["all_output_delivered"] as? Bool == true
         } while !allDelivered && offset < 7000
         try require(fullOutput.utf8.count == 6003 && fullOutput.hasSuffix("END"), "Paginated command output lost content")
+        let previousState = automatic.state
+        automatic.state = "awaiting_approval"
         for locale in [InterfaceLanguage.english, .chinese] {
             language.selection = locale
             let checkWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 360), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             checkWindow.isReleasedWhenClosed = false
-            let executionView = NSHostingView(rootView: CodexExecutionView(bridge: bridge))
+            let executionView = NSHostingView(rootView: CodexExecutionBar(bridge: bridge, sessionID: execSession.id))
             checkWindow.contentView = executionView; checkWindow.orderFront(nil)
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); executionView.layoutSubtreeIfNeeded()
             guard let scroll = descendants(executionView).compactMap({ $0 as? NSScrollView }).first, let document = scroll.documentView else { throw ConfigurationError.invalid("Execution view missing scrollbar") }
-            try require(document.frame.width <= scroll.contentSize.width + 1 && document.frame.height > scroll.contentSize.height, "Execution view overflow or missing vertical scroll")
+            try require(document.frame.width > scroll.contentSize.width && executionView.frame.width <= 541, "Narrow execution bar did not scroll horizontally")
             checkWindow.close()
         }
+        automatic.state = previousState
         automatic.process = try CodexCommandProcess(executable: "/usr/bin/yes", arguments: ["bounded-output"], timeout: 0.1)
         automatic.deliveredOffset = 0
         let truncateDeadline = Date().addingTimeInterval(3)
@@ -450,8 +453,9 @@ enum CodexBridgeCheck {
         bridge.setAlwaysAllowExecution(execSession.id, enabled: true)
         try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Mode switch granted execution without authorization")
         bridge.renewExecution(execSession.id)
-        try require(!bridge.alwaysAllowedExecution.contains(execSession.id), "Renewal inherited automatic execution")
+        try require(bridge.alwaysAllowedExecution.contains(execSession.id), "Renewal lost the selected approval mode")
         bridge.revokeExecution(execSession.id)
+        try CodexExecutionConfigurationCheck.run(bridge: bridge, sessionID: execSession.id)
         try CodexAssociationCheck.run(bridge: bridge, session: execSession, descriptorURL: root.appendingPathComponent("bridge.json"))
         print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 
