@@ -91,3 +91,5 @@ Terminal diagnostics checks cover opt-in recording, 15-minute expiry, ring capac
 Codex launch-form checks expand all settings in Chinese and English at 640×480 and 800×700, verifying that Cancel and launch buttons remain fully visible outside the scroll view.
 
 Resume regressions cover native history-picker arguments, binding a new SSH UUID, rejecting old UUIDs, and authorization/association cleanup. Control-bar checks cover full-width layout and scrolling in narrow windows. `scripts/codex-resume-check.py /path/to/MyTerm.app` uses the real Codex CLI with isolated configuration and a synthetic conversation to verify restored text and fresh MCP initialization, without reading private conversations or calling a model. Release packaging runs this check; it does not replace real-account or model-behavior testing.
+
+Disconnected SSH status-bar checks resize through wide and narrow pane widths in both languages, verifying full-width content or horizontal scrolling.

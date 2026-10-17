@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import SwiftTerm
 import MyTermCore
 
@@ -45,6 +46,27 @@ enum SSHDisconnectCheck {
         root.addSubview(editor); window.makeFirstResponder(editor)
         try require(!view.handleReconnectEvent(event("r")), "Editor typing consumed")
         try require(reconnects == 2, "Reconnect invoked more than once per key")
+        let language = LanguagePreferences.shared
+        let previousLanguage = language.selection
+        defer { language.selection = previousLanguage }
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        for locale in [InterfaceLanguage.english, .chinese] {
+            language.selection = locale
+            let bar = NSHostingView(rootView: TerminalStatusBar(session: session).environment(\.locale, language.locale))
+            window.contentView = bar
+            for width in [1400.0, 400.0, 1000.0] {
+                window.setContentSize(NSSize(width: width, height: 40))
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15)); bar.layoutSubtreeIfNeeded()
+                guard let scroll = descendants(bar).compactMap({ $0 as? NSScrollView }).first,
+                      let document = scroll.documentView else { throw ConfigurationError.invalid("Missing SSH status scrollbar") }
+                if width >= 760 {
+                    try require(abs(document.frame.width - scroll.contentSize.width) < 2, "Disconnected status bar did not fill the pane")
+                } else {
+                    try require(document.frame.width > scroll.contentSize.width && bar.frame.width <= width + 1, "Narrow status bar did not scroll")
+                }
+            }
+        }
+        print("PASS: disconnected SSH status bar fills wide panes and scrolls in narrow panes in both languages")
         print("PASS: SSH disconnect: normal/full-screen output retained, visible hint, display modes reset, R/r with control focus, hidden/editor shortcut isolation")
     }
 }

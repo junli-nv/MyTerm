@@ -4,6 +4,14 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.7"></a>
+
+# MyTerm 3.2.7
+
+- Fix the partially filled status bar after SSH disconnection. The background fills its pane, controls span wide windows, and narrow split panes scroll horizontally.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.7.md).
+
 <a id="version-3.2.6"></a>
 
 # MyTerm 3.2.6
