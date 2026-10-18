@@ -11,8 +11,8 @@ final class SSHAuthentication {
     private var alert: NSAlert?
     private var stopped = false
     private let report: (String) -> Void
-    init(server: Server, credentialServer: Server? = nil, context: SSHLaunchContext, terminal: MouseTerminalView, report: @escaping (String) -> Void) throws {
-        self.memory = try SSHPasswordMemory(server: server, credentialServer: credentialServer)
+    init(server: Server, credentialServer: Server? = nil, destinationPasswordAccount: String? = nil, store: PasswordStore = SQLitePasswordStore(), context: SSHLaunchContext, terminal: MouseTerminalView, report: @escaping (String) -> Void) throws {
+        self.memory = try SSHPasswordMemory(server: server, credentialServer: credentialServer, destinationPasswordAccount: destinationPasswordAccount, store: store)
         self.context = context; self.terminal = terminal; self.label = server.displayName; self.report = report
         channel = try AskpassChannel(path: context.directory.appendingPathComponent("auth").path) { [weak self] request, reply in
             DispatchQueue.main.async {
@@ -66,6 +66,8 @@ final class SSHAuthentication {
         }
         if !isConfirmation { alert.window.makeFirstResponder(field) }
     }
+    // Probes confirm authentication using their private OpenSSH control socket.
+    func confirmAuthenticated() throws { try memory.authenticated() }
     func stop() {
         stopped = true; timer?.invalidate(); timer = nil
         if FileManager.default.fileExists(atPath: context.controlPath) {

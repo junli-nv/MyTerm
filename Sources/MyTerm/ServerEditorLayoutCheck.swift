@@ -32,7 +32,7 @@ enum ServerEditorLayoutCheck {
         try require(workspace.save(draft.server), "Cannot save edited fixture")
         try require(workspace.servers.first?.identityFile == keyed.identityFile && workspace.servers.first?.authentication == .key,
                     "Editing discarded the private key or authentication mode")
-        try require(workspace.servers.first?.jumpServers == keyed.jumpServers, "Editing discarded jump keys")
+        try require(zip(workspace.servers.first?.jumpServers ?? [], keyed.jumpServers ?? []).allSatisfy { SharedSSHJumps.sameDefinition($0, $1) }, "Editing discarded jump keys")
         let migrated = try SSHPasswordMemory.scopeIdentifier(for: draft.server) + ":fixture"
         try require(try credentials.read(migrated) == "fixture-only" && credentials.read(oldAccount) == nil,
                     "Saving edited configuration orphaned legacy credentials")
@@ -71,6 +71,14 @@ enum ServerEditorLayoutCheck {
         destination.authentication = .password; destination.user = ""
         try require(!workspace.save(destination, password: "invalid"), "Destination password without username accepted")
         try require(workspace.servers.first(where: { $0.id == destination.id })?.user == "dev", "Invalid save mutated destination")
+        let sharedBefore = workspace.servers.first(where: { $0.id == passwordServer.id })!
+        let sharedID = sharedBefore.jumpServers![0].profileID!
+        try require(workspace.jumpReferences(sharedID).count == 2, "Shared profile reference list missing")
+        var sharedEdit = sharedBefore; sharedEdit.jumpServers![0].identityFile = "/tmp/shared-key"
+        try require(workspace.save(sharedEdit), "Shared profile update failed")
+        try require(workspace.servers.first(where: { $0.id == copyDraft.server.id })?.jumpServers?[0].identityFile == "/tmp/shared-key", "Shared update did not reach referencing session")
+        let reloaded = Workspace(applicationSupportDirectory: directory)
+        try require(reloaded.servers == workspace.servers, "Shared definitions did not survive reload")
         let savedJSON = try String(contentsOf: directory.appendingPathComponent("MyTerm/servers.json"), encoding: .utf8)
         try require(!savedJSON.contains("fixture-destination") && !savedJSON.contains("fixture-replacement"), "Destination password leaked into JSON")
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
@@ -78,6 +86,18 @@ enum ServerEditorLayoutCheck {
         authenticationDraft.password = "draft-only-password"
         let authenticationHost = NSHostingView(rootView: ServerAuthenticationEditor(draft: authenticationDraft))
         authenticationHost.frame = NSRect(x: 0, y: 0, width: 590, height: 200)
+        let revealState = PasswordEntryState()
+        let revealWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        revealWindow.isReleasedWhenClosed = false
+        defer { revealWindow.close() }
+        let revealHost = NSHostingView(rootView: PasswordEntryField(text: Binding(get: { authenticationDraft.password }, set: { authenticationDraft.password = $0 }), state: revealState))
+        revealWindow.contentView = revealHost
+        for revealed in [false, true, false] {
+            revealState.revealed = revealed
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1)); revealHost.layoutSubtreeIfNeeded()
+            let fields = descendants(revealHost).compactMap { $0 as? NSTextField }.filter { $0.stringValue == "draft-only-password" }
+            try require(!fields.isEmpty && fields.contains(where: { $0 is NSSecureTextField }) == !revealed, "Password reveal/hide did not preserve masking and draft text")
+        }
         for locale in [InterfaceLanguage.chinese, .english] {
             language.selection = locale
             for mode in [AuthenticationMode.password, .key, .automatic, .password] {

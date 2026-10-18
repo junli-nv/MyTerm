@@ -22,6 +22,9 @@ final class Workspace: ObservableObject {
     private var sessionsLoadFailed = false
     @Published var search = ""
     @Published var servers: [Server] = []
+    @Published var jumpProfiles: [SSHJumpServer] = []
+    lazy var jumpTest = JumpConnectionTest()
+    func showJumpManager() { MouseSettingsController.shared.present(page: .jumps, workspace: self) }
     @Published var sessions: [TerminalSession] = []
     var paneFractions: [UUID: CGFloat] = [:]
     @Published var broadcastTabID: UUID?
@@ -36,10 +39,13 @@ final class Workspace: ObservableObject {
     }
     @Published var editor: Server?
     @Published var error: String?
-    private var loadFailed = false
+    var loadFailed = false
     private var restoredBackup = false
+    lazy var sshConfigurationAudit = SSHConfigurationAuditWindow()
+    var auditCredentialStore: SQLitePasswordStore { credentialStore }
+    var auditKeyLibrary: SSHKeyLibrary { SSHKeyLibrary(directory: credentialStore.directory.deletingLastPathComponent().appendingPathComponent("Keys")) }
     private let credentialStore: SQLitePasswordStore
-    private let repository: ServerRepository
+    let repository: ServerRepository
 
     init(applicationSupportDirectory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]) {
         let directory = applicationSupportDirectory
@@ -48,12 +54,21 @@ final class Workspace: ObservableObject {
         history = HistoryModel(directory: directory.appendingPathComponent("MyTerm/History"))
         sessionRepository = SessionRepository(url: directory.appendingPathComponent("MyTerm/sessions.json"))
         repository = ServerRepository(fileURL: directory.appendingPathComponent("MyTerm/servers.json"))
-        do { servers = try repository.load() }
+        do { servers = try repository.load(); jumpProfiles = try repository.loadProfiles() }
         catch {
             loadFailed = true
             self.error = "无法读取服务器配置，原文件已保留：\(error.localizedDescription)"
         }
-        do { savedSessions = try sessionRepository.load() }
+        do {
+            savedSessions = try sessionRepository.load()
+            for index in savedSessions.indices {
+                for tab in savedSessions[index].tabs.indices {
+                    if let server = savedSessions[index].tabs[tab].server {
+                        savedSessions[index].tabs[tab].server = SharedSSHJumps.resolving(server, from: servers, profiles: jumpProfiles)
+                    }
+                }
+            }
+        }
         catch { sessionsLoadFailed = true; self.error = "无法读取保存的会话：\(error.localizedDescription)" }
         groups = groupRepository.loadForStartup()
         groupRecoveryRequired = (try? groupRepository.load()) == nil
@@ -80,16 +95,17 @@ final class Workspace: ObservableObject {
         if !sessions.isEmpty, sessions.count <= 100 {
             saved.append(sessionSnapshot(named: "备份时的会话"))
         }
-        return ["servers.json": try encoder.encode(servers), "groups.json": try encoder.encode(groups), "sessions.json": try encoder.encode(saved)]
+        return ["servers.json": try SharedSSHJumps.encode(servers, profiles: jumpProfiles), "groups.json": try encoder.encode(groups), "sessions.json": try encoder.encode(saved)]
     }
     func acceptRestoredConfiguration(servers: [Server], groups: [SessionGroup], saved: [SavedSession]) {
         self.sessions = []; selectedID = nil; paneLayouts = [:]; paneFractions = [:]; paneFocus = [:]; splitRequest = nil
         self.servers = servers; self.groups = groups; savedSessions = saved
+        jumpProfiles = (try? repository.loadProfiles()) ?? []
         loadFailed = false; groupsLoadFailed = false; groupRecoveryRequired = false; sessionsLoadFailed = false; restoredBackup = true
     }
 
     private var configurationArchive: SessionArchive {
-        SessionArchive(servers: servers, groups: groups, sessions: savedSessions)
+        SessionArchive(servers: servers, groups: groups, sessions: savedSessions, jumpProfiles: jumpProfiles)
     }
 
     func exportSessions() {
@@ -106,8 +122,12 @@ final class Workspace: ObservableObject {
         catch { self.error = "导出失败：\(error.localizedDescription)" }
     }
 
-    func exportOpenSSH() {
-        guard !loadFailed, !servers.isEmpty else { error = "没有可导出的服务器配置。"; return }
+    func showSSHConfigurationAudit() {
+        sshConfigurationAudit.show(workspace: self, export: { [weak self] values in self?.exportCheckedOpenSSH(values) })
+    }
+
+    private func exportCheckedOpenSSH(_ values: [Server]) {
+        guard !loadFailed, !values.isEmpty else { error = "没有可导出的服务器配置。"; return }
         let panel = NSSavePanel(); panel.title = L10n.text("导出 OpenSSH 配置")
         panel.nameFieldStringValue = "myterm_ssh_config"
         panel.message = "导出侧栏服务器。引用现有 ~/.ssh/config、密钥路径及代理辅助程序；请保存为独立文件，使用 ssh -F 指定。"
@@ -116,7 +136,6 @@ final class Workspace: ObservableObject {
         guard url.resolvingSymlinksInPath().standardizedFileURL != original.resolvingSymlinksInPath().standardizedFileURL else {
             error = "请另存为独立文件，避免覆盖被引用的 ~/.ssh/config。"; return
         }
-        let values = servers
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
                 let resolved = try values.map { try SSHConfigurationResolver.resolvingJump($0) }
@@ -146,7 +165,7 @@ final class Workspace: ObservableObject {
             let urls = [repository.fileURL, groupRepository.url, sessionRepository.url]
             let originals: [Data?] = try urls.map { FileManager.default.fileExists(atPath: $0.path) ? try Data(contentsOf: $0) : nil }
             do {
-                try repository.save(merged.servers)
+                try repository.save(merged.servers, profiles: merged.jumpProfiles)
                 try groupRepository.save(merged.groups)
                 try sessionRepository.save(merged.sessions)
             } catch {
@@ -162,7 +181,7 @@ final class Workspace: ObservableObject {
                 }
                 throw writeError
             }
-            servers = merged.servers; groups = merged.groups; groupRecoveryRequired = false; savedSessions = merged.sessions
+            servers = try repository.load(); jumpProfiles = try repository.loadProfiles(); groups = merged.groups; groupRecoveryRequired = false; savedSessions = merged.sessions
             let alert = NSAlert(); alert.messageText = L10n.text("导入完成")
             alert.informativeText = "新增 \(addedServers) 个服务器、\(addedGroups) 个分组、\(addedSessions) 个保存会话。相同记录已跳过。"
             alert.runModal()
@@ -265,7 +284,7 @@ final class Workspace: ObservableObject {
 
     func connect(_ server: Server) {
         do {
-            let server = try server.validated()
+            let server = try SharedSSHJumps.resolving(server, from: servers, profiles: jumpProfiles).validated()
             add(TerminalSession(label: server.displayName, executable: "/usr/bin/ssh", arguments: [], server: server))
         } catch { self.error = error.localizedDescription }
     }
@@ -355,9 +374,8 @@ final class Workspace: ObservableObject {
                     try SSHPasswordMemory.migrateLegacy(for: resolved, store: credentialStore)
                 }
             }
-            var updated = servers
-            if let index = updated.firstIndex(where: { $0.id == server.id }) { updated[index] = server }
-            else { updated.append(server) }
+            _ = try SharedSSHJumps.normalized([server]) // Reject contradictory references in the edited form.
+            let updated = try SharedSSHJumps.normalized(SharedSSHJumps.applying(server, to: servers))
             try repository.save(updated)
             do { try credentialStore.saveBatch(credentials) }
             catch {
@@ -365,6 +383,8 @@ final class Workspace: ObservableObject {
                 throw error
             }
             servers = updated
+            jumpProfiles = try repository.loadProfiles()
+            for session in sessions { session.updateSharedJumps(from: servers, profiles: jumpProfiles) }
             return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -381,7 +401,7 @@ final class Workspace: ObservableObject {
         do {
             var updated = servers
             for server in imported where !updated.contains(where: { $0.host == server.host }) { updated.append(try server.validated()) }
-            try repository.save(updated); servers = updated; return true
+            try repository.save(updated); servers = try repository.load(); jumpProfiles = try repository.loadProfiles(); return true
         } catch { self.error = error.localizedDescription; return false }
     }
 
@@ -477,7 +497,10 @@ final class Workspace: ObservableObject {
         catch { self.error = error.localizedDescription }
     }
 
-    func stopAll() { sessions.forEach { $0.stop() } }
+    func stopAll() {
+        jumpTest.cancel()
+        sessions.forEach { $0.stop() }
+    }
 
     func archiveHistory(_ tabs: [TerminalSession]? = nil, wait: Bool = false) {
         guard !ProcessInfo.processInfo.arguments.contains("--smoke-test"), wait || !history.saving else { return }

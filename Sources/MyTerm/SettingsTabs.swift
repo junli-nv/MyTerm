@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable {
-    case language, theme, highlighting, terminal, passwords, keys
+    case language, theme, highlighting, terminal, jumps, passwords, keys
     var symbol: String {
         switch self {
         case .language: return "globe"
@@ -11,6 +11,7 @@ enum SettingsPage: String, CaseIterable {
         case .terminal: return "terminal"
         case .passwords: return "lock"
         case .keys: return "key"
+        case .jumps: return "point.3.connected.trianglepath.dotted"
         }
     }
     var title: String {
@@ -21,10 +22,14 @@ enum SettingsPage: String, CaseIterable {
         case .terminal: return "终端行为"
         case .passwords: return "SSH 密码"
         case .keys: return "SSH 密钥"
+        case .jumps: return "跳板机管理"
         }
     }
 }
-final class SettingsSelection: ObservableObject { @Published var page = SettingsPage.language }
+final class SettingsSelection: ObservableObject {
+    @Published var page = SettingsPage.language
+    @Published var workspace: Workspace?
+}
 
 /// Persistent sidebar navigation; all categories remain visible after locale changes.
 struct SettingsNavigationButton: NSViewRepresentable {

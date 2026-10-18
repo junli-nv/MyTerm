@@ -30,7 +30,7 @@ struct SSHJumpEditor: View {
             }
             if hop.authentication != .key {
                 Text("跳板机密码（可选）")
-                SecureField("留空使用已保存密码，否则连接时询问", text: $password)
+                PasswordEntryField(text: $password)
                 Text("填写密码需指定用户名。保存后，同一路径的跳板机共用加密密码；留空不会清除已有密码。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }

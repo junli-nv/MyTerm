@@ -30,7 +30,7 @@ enum SettingsTabsCheck {
             window.setContentSize(NSSize(width: locale == .english ? 940 : 1080, height: locale == .english ? 620 : 760))
             settle()
             let tabs = descendants(root).compactMap { $0 as? SettingsNativeTab }
-            try require(tabs.count == 6, "Six tabs must remain visible")
+            try require(tabs.count == SettingsPage.allCases.count, "All settings categories must remain visible")
             let frames = tabs.map { $0.convert($0.bounds, to: root) }.sorted { $0.minY < $1.minY }
             for index in 1..<frames.count {
                 try require(abs(frames[index].minX - frames[0].minX) < 1 && frames[index].minY >= frames[index - 1].maxY,
@@ -60,6 +60,10 @@ enum SettingsTabsCheck {
                         }
                     }
                 }
+                if page == .jumps {
+                    try require(controller.selection.workspace != nil, "Jump manager has no workspace")
+                    try require(descendants(root).contains(where: { $0 is NSScrollView }), "Jump manager is empty")
+                }
                 if page == .theme {
                     try require(descendants(root).contains(where: { $0 is NSScrollView }), "Theme page is empty")
                     if let index = CommandLine.arguments.firstIndex(of: "--theme-snapshots"), CommandLine.arguments.indices.contains(index + 1),
@@ -71,6 +75,6 @@ enum SettingsTabsCheck {
                 }
             }
         }
-        print("PASS: complete settings window: repeated live locale changes, six visible vertical categories, actual mouse clicks and retained selection")
+        print("PASS: complete settings window: repeated live locale changes, seven visible vertical categories, actual mouse clicks and retained selection")
     }
 }

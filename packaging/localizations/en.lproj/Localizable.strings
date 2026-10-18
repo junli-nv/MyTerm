@@ -1103,3 +1103,108 @@
 "恢复已有 Codex 对话" = "Resume an existing Codex conversation";
 
 "启动后在 Codex 历史列表中选择对话。恢复对话历史，但重新绑定本次选择的 SSH；旧 UUID、授权和命令任务不会复用。恢复后请确认目标，再继续任务。" = "Select a conversation in the Codex history picker after launch. Its history is restored, but it is bound to the SSH selected now. Old UUIDs, authorizations and command jobs are not reused. Confirm the target before continuing.";
+
+"选择后引用公共跳板机并替换当前路径和代理。修改公共配置会影响引用它的会话；可先解除关联再单独修改。" = "Select shared jump profiles and replace this route and proxy. Editing a shared profile affects its referencing sessions; save an independent profile first for separate changes.";
+
+"公共跳板机 · 引用会话：" = "Shared jump · Referenced by: ";
+
+"另存为独立跳板配置" = "Save as an independent jump profile";
+
+"更新公共跳板机？" = "Update shared jump profiles?";
+
+"以下会话将在下次连接时使用新配置，已连接的会话不会中断：" = "These sessions will use the new settings on their next connection. Active connections will not be interrupted:";
+
+"更新公共配置" = "Update shared profiles";
+
+"公共跳板机引用的配置不一致，未保存任何更改。" = "Shared jump references have conflicting settings. No changes were saved.";
+
+"公共跳板机配置版本不支持或编号重复。" = "Unsupported shared jump configuration version or duplicate profile IDs.";
+
+"会话引用的公共跳板机不存在，原文件已保留。" = "A referenced shared jump profile is missing. The original file has been preserved.";
+
+"显示密码" = "Show password";
+
+"添加公共跳板机" = "Add shared jump host";
+
+"切换公共跳板机" = "Switch shared jump host";
+
+"SSH 配置检查与导出" = "SSH Configuration Check & Export";
+
+"SSH 配置检查与导出…" = "SSH Configuration Check & Export…";
+
+"当前会话" = "Current session";
+
+"保存的快照" = "Saved snapshot";
+
+"无法读取密码元数据，密码状态未知。" = "Password metadata could not be read; password status is unknown.";
+
+"无法读取托管密钥列表，未关联密钥检查不可用。" = "The managed key list could not be read; unreferenced-key checks are unavailable.";
+
+"已保存密码（未验证有效性）" = "Password saved (validity not verified)";
+
+"未保存密码，连接时可能询问" = "No password saved; connection may prompt";
+
+"用户名由外部配置决定，凭据无法确认" = "Username comes from external configuration; credentials cannot be confirmed";
+
+"密钥模式，不使用密码" = "Key authentication; password not used";
+
+"密码状态未知" = "Password status unknown";
+
+"仅检查配置和凭据元数据，不读取密码或私钥正文、不连接服务器。导出只包含当前侧栏会话及其跳板；快照和已打开标签仅用于追踪引用。" = "Checks configuration and credential metadata only, without reading passwords/private key contents or connecting to servers. Export includes current sidebar sessions and their jumps; snapshots and open tabs only help trace references.";
+
+"外部 SSH 配置、Include、默认密钥和 SSH agent 未展开验证；文件存在及密码已保存不代表能成功登录。OpenSSH 文件不包含密码。" = "External SSH configuration, Include, default keys and SSH agent are not resolved or verified. An existing file or saved password does not guarantee login. OpenSSH exports contain no passwords.";
+
+"SSH 配置默认端口" = "port from SSH configuration";
+
+"目标服务器" = "Destination";
+
+"包含在本次 OpenSSH 导出中" = "Included in this OpenSSH export";
+
+"仅作为引用记录，不包含在本次导出中" = "Reference only; excluded from this export";
+
+"密钥文件存在且可读：" = "Key file exists and is readable: ";
+
+"密钥文件缺失或不可读：" = "Key file is missing or unreadable: ";
+
+"外部跳板定义（未解析）：" = "External jump definition (not resolved): ";
+
+"公共跳板 ID：" = "Shared jump ID: ";
+
+"导出引用的外部配置及代理命令（未执行）" = "External configuration and proxy commands referenced by export (not executed)";
+
+"未关联已知配置的托管密钥" = "Managed keys without known configuration references";
+
+"未关联已知会话的已保存密码" = "Saved passwords without known session references";
+
+"以下记录可能仍被外部配置使用，不会自动删除。" = "These entries may still be used by external configuration and will not be deleted automatically.";
+"跳板机管理" = "Jump Host Manager";
+"跳板机管理…" = "Manage Jump Hosts…";
+"管理全部跳板机，包括未使用、单会话使用和多会话共用的配置。" = "Manage all jump hosts: unused, used by one session, or shared by multiple sessions.";
+"搜索地址、用户名或引用会话" = "Search address, username or referencing session";
+"引用数量：" = "References: ";
+"引用会话" = "Referencing sessions";
+"尚未被任何会话引用" = "Not referenced by any session";
+"删除前请先解除所有引用。" = "Remove all references before deleting.";
+"选择跳板机进行编辑，或点击新增。" = "Select a jump host to edit, or click Add.";
+"更新跳板机配置？" = "Update jump host configuration?";
+"删除跳板机配置？" = "Delete jump host configuration?";
+"此跳板机仍被引用，请先在相关会话或快照中移除引用。" = "This jump host is still referenced. Remove it from the relevant sessions or snapshots first.";
+"配置读取失败，请修复后再保存。" = "Configuration could not be loaded. Repair it before saving.";
+"密码在 SSH 会话配置或连接时填写，沿用现有加密凭据管理。" = "Enter passwords in SSH session settings or when connecting; existing encrypted credential management is retained.";
+"测试路径" = "Test route";
+"直接连接（无前级跳板或代理）" = "Direct connection (no preceding hops or proxy)";
+"测试只验证 SSH 连接与认证，不执行远端命令，兼容 Windows 和受限跳板机。成功不保证转发策略或后续目标可达。" = "The test verifies SSH connectivity and authentication without running remote commands, supporting Windows and restricted jump hosts. Success does not guarantee forwarding permission or reachability of subsequent targets.";
+"测试连接" = "Test Connection";
+"取消测试" = "Cancel Test";
+"测试路径已变化，请重新选择。" = "The test route has changed. Select it again.";
+"正在测试 SSH 连接与认证（最多 45 秒）…" = "Testing SSH connectivity and authentication (up to 45 seconds)…";
+"测试超时，请检查网络、路径或认证提示。" = "Test timed out. Check the network, route or authentication prompt.";
+"测试失败：" = "Test failed: ";
+"测试成功：SSH 连接与认证通过；未测试向后续目标转发。" = "Test passed: SSH connectivity and authentication succeeded; forwarding to subsequent targets was not tested.";
+"SSH 测试成功，但保存密码失败：" = "SSH test passed, but saving the password failed: ";
+"测试已取消。" = "Test cancelled.";
+"选择已有跳板机" = "Choose Existing Jump Host";
+"更换跳板机" = "Change Jump Host";
+"公共跳板机编号重复。" = "Duplicate jump host identifiers.";
+"公共跳板机数量过多。" = "Too many jump host profiles.";
+"新增" = "Add";

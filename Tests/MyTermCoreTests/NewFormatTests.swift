@@ -47,7 +47,25 @@ func checkNewFormats() throws {
     checkEqual(rendered.contains("port 2222\n"), true)
     checkEqual(rendered.contains("compression yes\n"), true)
     checkEqual(rendered.contains("localforward [127.0.0.1]:8080 [127.0.0.1]:80"), true)
-    checkThrows(try OpenSSHExport.render([server, server]))
+    var other = server
+    other.id = UUID(); other.name = "另一个会话"; other.user = "bob"; other.port = "2203"
+    let firstAlias = "myterm-" + server.id.uuidString.lowercased()
+    let secondAlias = "myterm-" + other.id.uuidString.lowercased()
+    let duplicateExport = try OpenSSHExport.render([server, other], userConfig: root.appendingPathComponent("optional-config").path)
+    checkEqual(duplicateExport, try OpenSSHExport.render([server, other], userConfig: root.appendingPathComponent("optional-config").path))
+    try Data(duplicateExport.utf8).write(to: config)
+    for (alias, user, port) in [(firstAlias, "alice", "2222"), (secondAlias, "bob", "2203")] {
+        let options = try run("/usr/bin/ssh", ["-G", "-F", config.path, alias])
+        checkEqual(options.contains("hostname example.com\n"), true)
+        checkEqual(options.contains("user " + user + "\n"), true)
+        checkEqual(options.contains("port " + port + "\n"), true)
+        checkEqual(options.contains("identityfile " + server.identityFile + "\n"), true)
+    }
+    let collision = Server(host: firstAlias.uppercased())
+    let collisionExport = try OpenSSHExport.render([server, other, collision], userConfig: root.appendingPathComponent("optional-config").path)
+    checkEqual(collisionExport.contains("Host " + firstAlias + "-2\n"), true)
+    let repeated = try OpenSSHExport.render([server, server], userConfig: root.appendingPathComponent("optional-config").path)
+    checkEqual(repeated.contains("Host " + firstAlias + "-2\n"), true)
     checkFalse(rendered.contains("loglevel DEBUG3\n"))
     server.debugLogging = true
     let debugOptions = try run("/usr/bin/ssh", ["-G"] + server.sshArguments(configPath: "/dev/null"))

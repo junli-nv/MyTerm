@@ -6,11 +6,23 @@ public enum OpenSSHExport {
             guard !value.contains("\n"), !value.contains("\r"), !value.contains("\0") else { throw ConfigurationError.invalid("配置值包含换行符。") }
             return "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
         }
-        var seen = Set<String>(), blocks: [String] = [], jumpBlocks: [String] = []
-        for original in servers {
-            let server = try original.validated()
-            guard seen.insert(server.host.lowercased()).inserted else { throw ConfigurationError.invalid("多个会话使用相同主机或别名 \(server.host)，请先为它们设置不同的 SSH 别名再导出。") }
-            var lines = ["# " + server.displayName.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " "), "Host \(server.host)"]
+        let validated = try servers.map { try $0.validated() }
+        let counts = Dictionary(grouping: validated, by: { $0.host.lowercased() }).mapValues(\.count)
+        // Reserve every original destination before allocating aliases, including later entries.
+        var reserved = Set(validated.map { $0.host.lowercased() })
+        var blocks: [String] = [], jumpBlocks: [String] = []
+        for server in validated {
+            var alias = server.host
+            if counts[server.host.lowercased(), default: 0] > 1 {
+                let base = "myterm-" + server.id.uuidString.lowercased()
+                alias = base
+                var suffix = 2
+                while !reserved.insert(alias.lowercased()).inserted {
+                    alias = base + "-" + String(suffix); suffix += 1
+                }
+            }
+            var lines = ["# " + server.displayName.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " "), "Host \(alias)"]
+            if alias != server.host { lines.append("    HostName " + (try quote(server.host))) }
             let args = try server.connectionArguments()
             if server.debugLogging == true { lines.append("    LogLevel DEBUG3") }
             var index = 0
@@ -38,6 +50,6 @@ public enum OpenSSHExport {
                 jumpBlocks.append(String(jump[..<range.lowerBound]))
             }
         }
-        return "# MyTerm OpenSSH configuration. Use: ssh -F <this-file> <Host>\n# Keep referenced private keys, MyTermProxy (when used), and included SSH configs available.\n\n" + (blocks + jumpBlocks).joined(separator: "\n\n") + "\n\nHost *\n    Include \(try quote(userConfig))\n    Include /etc/ssh/ssh_config\n"
+        return "# MyTerm OpenSSH configuration. Use: ssh -F <this-file> <Host>\n# Keep referenced private keys, MyTermProxy (when used), and included SSH configs available.\n# Generated myterm-* aliases use the original destination as HostName. Host-specific settings\n# inherited from included configs must also match the generated alias; alias destinations\n# need their real HostName supplied on the destination machine.\n\n" + (blocks + jumpBlocks).joined(separator: "\n\n") + "\n\nHost *\n    Include \(try quote(userConfig))\n    Include /etc/ssh/ssh_config\n"
     }
 }

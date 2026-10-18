@@ -27,7 +27,7 @@ final class MousePreferences: ObservableObject {
     }
 }
 
-final class MouseSettingsController: NSWindowController {
+final class MouseSettingsController: NSWindowController, NSWindowDelegate {
     static let shared = MouseSettingsController()
     private var languageObserver: NSObjectProtocol?
     let selection = SettingsSelection()
@@ -40,6 +40,7 @@ final class MouseSettingsController: NSWindowController {
         window.contentMinSize = NSSize(width: 940, height: 620)
         window.collectionBehavior.insert(.fullScreenPrimary)
         super.init(window: window)
+        window.delegate = self
         window.contentView = NSHostingView(rootView: SettingsView(selection: selection))
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
             self?.window?.title = L10n.text("MyTerm 设置")
@@ -48,7 +49,11 @@ final class MouseSettingsController: NSWindowController {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func present() {
+    func windowWillClose(_ notification: Notification) { selection.workspace?.jumpTest.cancel() }
+
+    func present(page: SettingsPage? = nil, workspace: Workspace? = nil) {
+        if let active = workspace ?? (NSApp.delegate as? AppDelegate)?.workspace { selection.workspace = active }
+        if let page { selection.page = page }
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
     }
@@ -77,6 +82,8 @@ struct SettingsView: View {
                 case .terminal: MouseSettingsView()
                 case .passwords: CredentialSettingsView()
                 case .keys: SSHKeySettingsView()
+                case .jumps:
+                    if let workspace = selection.workspace { SharedJumpManagerView(workspace: workspace, test: workspace.jumpTest) }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.frame(minWidth: 940, minHeight: 620).preferredColorScheme(theme.scheme)

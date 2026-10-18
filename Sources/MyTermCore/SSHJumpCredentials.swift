@@ -50,7 +50,7 @@ public enum SSHJumpCredentials {
     }
 }
 
-/// Public connection information only. Selecting a route makes an independent copy.
+/// Public connection information only. New editor rows retain shared profile references.
 public struct SSHJumpPreset: Identifiable {
     public let id: UUID
     public let name: String

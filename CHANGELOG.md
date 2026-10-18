@@ -5,6 +5,48 @@
 保留仓库记录的各版本说明，按版本从新到旧排列。旧 Release 安装包清理后，本日志和各版本原始说明仍保留。历史说明中的安装路径、依赖及限制以对应版本为准。当前使用方法见 [README](README.md)，不要将历史版本的限制作为当前行为。英文入口提供各版本摘要，完整原始记录保留在本文件及各版本说明中。
 
 
+<a id="version-3.2.12"></a>
+
+# MyTerm 3.2.12
+
+- 跳板机管理移入设置左侧分类，SSH 编辑器快捷入口打开同一设置页。
+- 跳板测试改为无远端命令的 SSH 连接与认证验证，修复 Windows 和禁止远端执行命令的跳板误报失败；复用已保存密码，并将测试区域放在引用会话列表上方。
+
+[Release notes](packaging/RELEASE-NOTES-3.2.12.md).
+
+<a id="version-3.2.11"></a>
+
+# MyTerm 3.2.11
+
+- 新增独立跳板机管理，支持全部配置的增删改查、引用保护、会话选择、导入导出及备份；支持真实 SSH 直连或前级路径测试、失败提示和取消。
+- 合并 SSH 配置检查与 OpenSSH 导出入口，在同一窗口检查依赖并导出；取消文件选择后保留检查报告。
+
+[Release notes](packaging/RELEASE-NOTES-3.2.11.md).
+
+<a id="version-3.2.10"></a>
+
+# MyTerm 3.2.10
+
+- 新增 SSH 配置检查，关联当前会话、跳板、快照和打开的标签，检查密码元数据、显式密钥文件及未关联凭据；OpenSSH 导出前显示依赖预览，不读取秘密或自动删除记录。
+
+[Release notes](packaging/RELEASE-NOTES-3.2.10.md).
+
+<a id="version-3.2.9"></a>
+
+# MyTerm 3.2.9
+
+- 新增公共跳板机配置及已有配置的备份迁移，引用会话同步更新；新增独立副本与影响确认。SSH 目标和跳板机密码输入支持显示／隐藏。
+
+[Release notes](packaging/RELEASE-NOTES-3.2.9.md).
+
+<a id="version-3.2.8"></a>
+
+# MyTerm 3.2.8
+
+- 修复多个 SSH 会话使用同一主机时无法导出 OpenSSH 配置的问题；为冲突会话生成独立、稳定的别名，保留显式连接参数，不修改已保存会话。
+
+[Release notes](packaging/RELEASE-NOTES-3.2.8.md).
+
 <a id="version-3.2.7"></a>
 
 # MyTerm 3.2.7

@@ -43,7 +43,9 @@ public final class SSHPasswordMemory {
     }
     public static func legacyScopeIdentifier(for server: Server) throws -> String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-        return SHA256.hash(data: try encoder.encode(server)).map { String(format: "%02x", $0) }.joined()
+        var legacy = server
+        legacy.jumpServers = legacy.jumpServers?.map { var hop = $0; hop.profileID = nil; return hop }
+        return SHA256.hash(data: try encoder.encode(legacy)).map { String(format: "%02x", $0) }.joined()
     }
     public static func migrateLegacy(for server: Server, store: PasswordStore = SQLitePasswordStore()) throws {
         try store.migrateScope(from: legacyScopeIdentifier(for: server), to: scopeIdentifier(for: server))
@@ -52,13 +54,13 @@ public final class SSHPasswordMemory {
         guard !server.user.isEmpty else { throw ConfigurationError.invalid("保存 SSH 密码前请填写用户名。") }
         return try scopeIdentifier(for: server) + ":password"
     }
-    public init(server: Server, credentialServer: Server? = nil, store: PasswordStore = SQLitePasswordStore()) throws {
+    public init(server: Server, credentialServer: Server? = nil, destinationPasswordAccount: String? = nil, store: PasswordStore = SQLitePasswordStore()) throws {
         try Self.migrateLegacy(for: server, store: store)
         scope = try Self.scopeIdentifier(for: server)
         self.store = store
         self.server = server
         serverName = server.displayName
-        destinationAccount = try? Self.destinationAccount(for: credentialServer ?? server)
+        destinationAccount = destinationPasswordAccount ?? (try? Self.destinationAccount(for: credentialServer ?? server))
         try migrateJumpPasswords()
         if let destinationAccount {
             for prompt in destinationPrompts where matchesDestination(prompt) {

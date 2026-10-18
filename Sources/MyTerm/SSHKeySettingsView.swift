@@ -13,6 +13,7 @@ final class SSHKeySettingsState: ObservableObject {
     static func workspaceReferences() -> [SSHKeyReference] {
         guard let workspace = (NSApp.delegate as? AppDelegate)?.workspace else { return [] }
         var result = workspace.servers.flatMap { SSHKeyAssociations.references(server: $0, session: $0.displayName) }
+        result += workspace.jumpProfiles.map { SSHKeyReference(path: $0.identityFile, session: L10n.text("跳板机") + " · " + SSHJumpCredentials.label($0)) }
         for saved in workspace.savedSessions {
             for tab in saved.tabs {
                 if let server = tab.server { result += SSHKeyAssociations.references(server: server, session: saved.name + " / " + server.displayName) }

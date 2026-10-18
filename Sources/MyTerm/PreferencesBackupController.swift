@@ -85,7 +85,16 @@ enum PreferencesBackupController {
                     if let server = sessions[index].tabs[tab].server { sessions[index].tabs[tab].server = try relocated(server) }
                 }
             }
-            try ServerRepository(fileURL: stage.appendingPathComponent("servers.json")).save(servers)
+            let profileRepository = ServerRepository(fileURL: stage.appendingPathComponent("servers.json"))
+            let profiles = try profileRepository.loadProfiles().map { original in
+                var profile = original
+                let name = URL(fileURLWithPath: profile.identityFile).lastPathComponent
+                if profile.identityFile.contains("/MyTerm/Keys/"), backup.files["Keys/" + name] != nil {
+                    profile.identityFile = root.appendingPathComponent("Keys/" + name).path
+                }
+                return profile
+            }
+            try profileRepository.save(servers, profiles: profiles)
             try SessionRepository(url: stage.appendingPathComponent("sessions.json")).save(sessions)
             try SessionArchive(servers: servers, groups: groups, sessions: sessions).validate()
             let credentials = SQLitePasswordStore(directory: stage.appendingPathComponent("Credentials"))

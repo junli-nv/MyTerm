@@ -177,18 +177,34 @@ public struct ServerRepository {
 
     public func load() throws -> [Server] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
-        let servers = try JSONDecoder().decode([Server].self, from: Data(contentsOf: fileURL))
+        let data = try Data(contentsOf: fileURL)
+        let legacy = data.first(where: { ![9, 10, 13, 32].contains($0) }) == 91
+        let servers = try legacy ? JSONDecoder().decode([Server].self, from: data) : SharedSSHJumps.decode(data)
         guard Set(servers.map(\.id)).count == servers.count else {
             throw ConfigurationError.invalid("服务器配置包含重复 ID。")
         }
-        return try servers.map { try $0.validated() }
+        let validated = try servers.map { try $0.validated() }
+        if legacy {
+            // Keep exact original bytes before the single atomic replacement.
+            let replacement = try SharedSSHJumps.encode(validated)
+            let backup = fileURL.appendingPathExtension("before-shared-jumps-" + UUID().uuidString + ".bak")
+            try data.write(to: backup, options: .withoutOverwriting)
+            try replacement.write(to: fileURL, options: .atomic)
+            return try SharedSSHJumps.decode(replacement)
+        }
+        return validated
     }
 
-    public func save(_ servers: [Server]) throws {
+    public func loadProfiles() throws -> [SSHJumpServer] {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
+        _ = try load() // Migrate legacy files before reading the library.
+        return try SharedSSHJumps.profiles(in: Data(contentsOf: fileURL))
+    }
+
+    public func save(_ servers: [Server], profiles: [SSHJumpServer]? = nil) throws {
         let validated = try servers.map { try $0.validated() }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(validated)
+        guard Set(validated.map(\.id)).count == validated.count else { throw ConfigurationError.invalid("服务器配置包含重复 ID。") }
+        let data = try SharedSSHJumps.encode(validated, profiles: profiles ?? loadProfiles())
         try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: fileURL, options: .atomic)
     }

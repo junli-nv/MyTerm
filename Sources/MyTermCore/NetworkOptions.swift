@@ -48,11 +48,11 @@ public final class SSHLaunchContext {
     public var controlPath: String { directory.appendingPathComponent("control").path }
     public let configPath: String?
 
-    public init(server: Server) throws {
+    public init(server: Server, userConfig: String = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh/config").path) throws {
         directory = URL(fileURLWithPath: "/tmp").appendingPathComponent("myterm-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
-            if let content = try server.proxyJumpConfig() {
+            if let content = try server.proxyJumpConfig(userConfig: userConfig) {
                 let file = directory.appendingPathComponent("ssh_config")
                 try Data(content.utf8).write(to: file, options: .atomic)
                 configPath = file.path

@@ -17,7 +17,7 @@ struct ServerAuthenticationEditor: View {
             switch draft.authentication {
             case .password:
                 Text("SSH 密码（可选）")
-                SecureField("留空使用已保存密码，否则连接时询问", text: $draft.password)
+                PasswordEntryField(text: $draft.password)
                 Text("填写密码需指定用户名。保存时写入本地加密数据库；留空保留已有密码，旧密码被拒绝时提示更新。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             case .key:

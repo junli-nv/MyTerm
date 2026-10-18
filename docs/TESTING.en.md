@@ -45,7 +45,7 @@ Update regression covers version comparison, architecture selection, download UR
 | SFTP files/directories, hidden/empty folders, resume, conflicts, links | Core real-SFTP checks; UI selection, batches, file promises, detached window, disconnect/cancel |
 | ZMODEM and trzsz | Real helpers and PTY upload/download, byte comparisons, rates, tmux and drag paths |
 | tmux, copying, IME, font zoom, reconnect | Window checks and real SSH/tmux, including less replay, streaming selection and R/r |
-| Themes, colors, opacity, fonts, six vertical settings categories, the three-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
+| Themes, colors, opacity, fonts, seven vertical settings categories, the three-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |
 | Password/key management, references, deletion approval, backup | Core encryption/tampering/format tests and bilingual credential UI checks |
 | History opt-in, limits, compression, cleanup, export, memory budget and metadata release | Core/history window checks; 200 metadata cleanup cycles, shared budgets, width changes and opt-out |
 | PTY lifecycle | 100 retained exited objects, 2 MiB final output, EOF before exit, restart and HUP/TERM-ignoring child cleanup |
@@ -93,3 +93,13 @@ Codex launch-form checks expand all settings in Chinese and English at 640×480 
 Resume regressions cover native history-picker arguments, binding a new SSH UUID, rejecting old UUIDs, and authorization/association cleanup. Control-bar checks cover full-width layout and scrolling in narrow windows. `scripts/codex-resume-check.py /path/to/MyTerm.app` uses the real Codex CLI with isolated configuration and a synthetic conversation to verify restored text and fresh MCP initialization, without reading private conversations or calling a model. Release packaging runs this check; it does not replace real-account or model-behavior testing.
 
 Disconnected SSH status-bar checks resize through wide and narrow pane widths in both languages, verifying full-width content or horizontal scrolling.
+
+OpenSSH export checks use system `ssh -G` to verify independent users/ports for sessions sharing a host, stable aliases, existing-host collisions and repeated inputs.
+
+Shared-jump regressions cover exact legacy backups, definition deduplication, route/authentication isolation, propagated updates, independent copies, dangling references, conflict rejection, archives/reloads, and unchanged credential indexes. Editor checks verify password reveal/hide preserves draft text, starts masked, and never saves passwords in configuration JSON.
+
+SSH inventory regressions cover deleted nodes still referenced as jumps, current/snapshot export scope, saved/missing/unknown credentials, explicit key-file availability, unreferenced passwords, asynchronous loading and bilingual small-window scrolling. Checks do not attempt real login or verify password correctness.
+
+Jump-host regressions cover independent persistence, reference protection, propagated edits, deletion, bilingual minimum layout and archive compatibility. `scripts/jump-probe-check.py` uses temporary keys and isolated loopback sshd to verify direct/routed SSH, wrong keys and cancellation; it never connects to user servers.
+
+`scripts/jump-password-probe-check.py` runs an isolated password-only SSH server that rejects all remote channels. It verifies saved-password reuse, wrong-password rejection, absence of shell/exec requests and connection cleanup. Release GUI checks run it using `.test-venv/bin/python` with `scripts/requirements-password-test.txt`; override with `MYTERM_PASSWORD_TEST_PYTHON`. This simulates restricted server capabilities, not validation on an actual Windows host.

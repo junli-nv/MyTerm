@@ -34,7 +34,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     @Published private(set) var canReconnect = false
     var onProcessExit: ((Int32?) -> Void)?
     var onNormalExit: (() -> Void)?
-    private let configuredServer: Server?
+    private var configuredServer: Server?
     var sourceServer: Server? { configuredServer ?? server }
     private let retainOnExit: Bool
     private let launchEnvironment: [String: String]?
@@ -169,6 +169,11 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         status = "\(message) · 按 R 重新连接"
         terminal.reconnectHandler = { [weak self] in self?.reconnect() }
         terminal.showConnectionFailure(L10n.text(message))
+    }
+
+    // Only the next connection uses edited shared profiles; the active transport is untouched.
+    func updateSharedJumps(from servers: [Server], profiles: [SSHJumpServer] = []) {
+        if let source = sourceServer { configuredServer = SharedSSHJumps.resolving(source, from: servers, profiles: profiles) }
     }
 
     func reconnect() {

@@ -6,9 +6,10 @@ public struct SessionArchive: Codable {
     public var servers: [Server]
     public var groups: [SessionGroup]
     public var sessions: [SavedSession]
+    public var jumpProfiles: [SSHJumpServer]?
 
-    public init(servers: [Server], groups: [SessionGroup], sessions: [SavedSession]) {
-        self.servers = servers; self.groups = groups; self.sessions = sessions
+    public init(servers: [Server], groups: [SessionGroup], sessions: [SavedSession], jumpProfiles: [SSHJumpServer]? = nil) {
+        self.servers = servers; self.groups = groups; self.sessions = sessions; self.jumpProfiles = jumpProfiles
     }
     public func validate() throws {
         guard version == 1 else { throw ConfigurationError.invalid("不支持此会话文件版本。") }
@@ -18,6 +19,13 @@ public struct SessionArchive: Codable {
             throw ConfigurationError.invalid("会话文件记录过多或编号重复。")
         }
         for server in servers { _ = try server.validated() }
+        guard (jumpProfiles?.count ?? 0) <= 10000 else { throw ConfigurationError.invalid("公共跳板机数量过多。") }
+        _ = try SharedSSHJumps.encode(servers, profiles: jumpProfiles ?? [])
+        for profile in jumpProfiles ?? [] {
+            for hop in servers.flatMap({ $0.jumpServers ?? [] }) where hop.profileID == profile.id {
+                guard SharedSSHJumps.sameDefinition(profile, hop) else { throw ConfigurationError.invalid("公共跳板机引用的配置不一致，未保存任何更改。") }
+            }
+        }
         try SessionGroupRepository.validate(groups)
         let ids = Set(servers.map(\.id))
         guard groups.allSatisfy({ Set($0.serverIDs).isSubset(of: ids) }) else {
@@ -63,7 +71,8 @@ public struct SessionArchive: Codable {
             return result
         }
         let result = try SessionArchive(servers: merge(servers, incoming.servers),
-            groups: merge(groups, incoming.groups), sessions: merge(sessions, incoming.sessions))
+            groups: merge(groups, incoming.groups), sessions: merge(sessions, incoming.sessions),
+            jumpProfiles: merge(jumpProfiles ?? [], incoming.jumpProfiles ?? []))
         try result.validate(); return result
     }
 }

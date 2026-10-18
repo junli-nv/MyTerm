@@ -3,6 +3,7 @@ import Foundation
 /// Authentication belongs to each hop. Passwords remain in the encrypted credential store.
 public struct SSHJumpServer: Codable, Equatable, Identifiable {
     public var id: UUID
+    public var profileID: UUID?
     public var host: String
     public var port: String
     public var user: String

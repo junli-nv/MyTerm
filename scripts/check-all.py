@@ -42,7 +42,8 @@ def main():
     logs = args.logs.resolve() if args.logs else Path(tempfile.mkdtemp(prefix="myterm-check-all-"))
     logs.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, MYTERM_TEST_APP=str(app), MYTERM_TEST_CONFIGURATION=args.configuration,
-                       MYTERM_TMUX_CHECK="1", MYTERM_TRZSZ_CHECK="1", PYTHONUNBUFFERED="1")
+                       MYTERM_TMUX_CHECK="1", MYTERM_TRZSZ_CHECK="1", PYTHONUNBUFFERED="1",
+                       MYTERM_PASSWORD_TEST_PYTHON=str(password_python))
     metadata = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     identity = dict(version=metadata["CFBundleShortVersionString"], build=metadata["CFBundleVersion"],
                     executable_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),

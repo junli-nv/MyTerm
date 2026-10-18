@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run UI behavior checks in either the Debug or Release application bundle."""
+import os
 import pathlib
 import subprocess
 import sys
@@ -18,3 +19,10 @@ if login.returncode or 'PASS: Codex real PTY' not in login.stdout:
     raise SystemExit(login.returncode or 1)
 
 subprocess.run([sys.executable, str(pathlib.Path(__file__).with_name('codex-launch-check.py')), str(app)], check=True)
+
+subprocess.run([sys.executable, str(pathlib.Path(__file__).with_name("jump-probe-check.py")), str(app)], check=True)
+
+password_python = pathlib.Path(os.environ.get("MYTERM_PASSWORD_TEST_PYTHON", str(pathlib.Path(__file__).resolve().parents[1] / ".test-venv/bin/python")))
+if not password_python.is_file():
+    raise SystemExit("Create .test-venv with scripts/requirements-password-test.txt, or set MYTERM_PASSWORD_TEST_PYTHON")
+subprocess.run([str(password_python), str(pathlib.Path(__file__).with_name("jump-password-probe-check.py")), str(app)], check=True)

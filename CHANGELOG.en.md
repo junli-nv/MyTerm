@@ -4,6 +4,48 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.12"></a>
+
+# MyTerm 3.2.12
+
+- Move jump host management into the Settings sidebar; the SSH editor shortcut opens that same page.
+- Test jump-host SSH connectivity and authentication without remote commands, fixing false failures on Windows and exec-restricted hosts. Reuse saved passwords and place testing above the session reference list.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.12.md).
+
+<a id="version-3.2.11"></a>
+
+# MyTerm 3.2.11
+
+- Add independent management for all jump hosts: CRUD, reference protection, session selection, import/export and backup; test real SSH directly or through preceding hops, with failure details and cancellation.
+- Merge SSH configuration checking and OpenSSH export into one window; keep the report open when the file picker is cancelled.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.11.md).
+
+<a id="version-3.2.10"></a>
+
+# MyTerm 3.2.10
+
+- Add an SSH configuration inventory linking sessions, jumps, snapshots and open tabs with password metadata, explicit key-file checks and unreferenced credentials. Preview dependencies before OpenSSH export without reading secrets or deleting records.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.10.md).
+
+<a id="version-3.2.9"></a>
+
+# MyTerm 3.2.9
+
+- Add shared jump profiles with backed-up legacy migration, synchronized references, independent copies and impact confirmation. Destination and jump password drafts can be shown or hidden.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.9.md).
+
+<a id="version-3.2.8"></a>
+
+# MyTerm 3.2.8
+
+- Allow OpenSSH export of sessions sharing a host by generating distinct, stable aliases while preserving explicit connection settings and leaving saved sessions unchanged.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.8.md).
+
 <a id="version-3.2.7"></a>
 
 # MyTerm 3.2.7

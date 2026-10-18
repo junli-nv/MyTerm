@@ -20,6 +20,10 @@ struct MyTermApp {
                 FileHandle.standardOutput.write(Data((answer + "\n").utf8)); exit(0)
             } catch { exit(1) }
         }
+        if CommandLine.arguments.contains("--smoke-test"),
+           let index = CommandLine.arguments.firstIndex(of: "--jump-probe-check"), CommandLine.arguments.indices.contains(index + 1) {
+            JumpProbeCheck.run(path: CommandLine.arguments[index + 1]); return
+        }
         // AppKit must see this before creating input contexts. Terminal programs
         // need held letters as repeated keys, not the macOS accent picker.
         // This is an application-domain preference; never change NSGlobalDomain.
@@ -188,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         saveItem.keyEquivalentModifierMask = [.command, .shift]; saveItem.target = self
         file.addItem(withTitle: L10n.text("导入会话配置…"), action: #selector(importSessions), keyEquivalent: "").target = self
         file.addItem(withTitle: L10n.text("导出会话配置…"), action: #selector(exportSessions), keyEquivalent: "").target = self
-        file.addItem(withTitle: L10n.text("导出 OpenSSH 配置…"), action: #selector(exportOpenSSH), keyEquivalent: "").target = self
+        file.addItem(withTitle: L10n.text("SSH 配置检查与导出…"), action: #selector(checkSSHConfiguration), keyEquivalent: "").target = self
         file.addItem(withTitle: L10n.text("导出偏好设置备份…"), action: #selector(exportPreferences), keyEquivalent: "").target = self
         file.addItem(withTitle: L10n.text("恢复偏好设置备份…"), action: #selector(restorePreferences), keyEquivalent: "").target = self
         let historyItem = file.addItem(withTitle: L10n.text("会话历史…"), action: #selector(showHistory), keyEquivalent: "")
@@ -266,7 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func saveSession() { workspace.saveSession() }
     @objc private func importSessions() { workspace.importSessions() }
     @objc private func exportSessions() { workspace.exportSessions() }
-    @objc private func exportOpenSSH() { workspace.exportOpenSSH() }
+    @objc private func checkSSHConfiguration() { workspace.showSSHConfigurationAudit() }
     @objc private func exportPreferences() { PreferencesBackupController.export(workspace: workspace) }
     @objc private func restorePreferences() { PreferencesBackupController.restore(workspace: workspace) }
     @objc private func checkUpdates() { updates.present() }
@@ -385,7 +389,7 @@ struct WorkspaceView: View {
                     Button("保存当前会话…", action: workspace.saveSession)
                     Button("导入会话配置…", action: workspace.importSessions)
                     Button("导出会话配置…", action: workspace.exportSessions)
-                    Button("导出 OpenSSH 配置…", action: workspace.exportOpenSSH)
+                    Button("SSH 配置检查与导出…", action: workspace.showSSHConfigurationAudit)
                     Divider()
                     ForEach(workspace.savedSessions) { saved in
                         Menu("\(saved.name)（\(saved.tabs.count) 个会话）") {
@@ -537,7 +541,10 @@ struct ServerEditor: View {
                 EditorTextField(title: "用户名", text: $draft.server.user, prompt: "留空使用 SSH 配置")
                 EditorTextField(title: "端口", text: $draft.server.port, prompt: "留空使用 SSH 配置 / 22")
                 ServerAuthenticationEditor(draft: draft)
-                Toggle("详细配置跳板机", isOn: $draft.detailedJumps)
+                HStack {
+                    Toggle("详细配置跳板机", isOn: $draft.detailedJumps)
+                    Button("跳板机管理…", action: workspace.showJumpManager)
+                }
                 if draft.detailedJumps {
                     Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     Menu("选择已有跳板配置") {
@@ -545,13 +552,34 @@ struct ServerEditor: View {
                             Button(preset.name) { draft.useJumpPreset(preset) }
                         }
                     }.disabled(SSHJumpPreset.available(in: workspace.servers).isEmpty)
-                    Text("选择后替换当前跳转路径和网络代理；保存前可继续修改，不会改动来源会话。")
+                    Text("选择后引用公共跳板机并替换当前路径和代理。修改公共配置会影响引用它的会话；可先解除关联再单独修改。")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     ForEach($draft.jumpServers) { $hop in
+                        if let profileID = hop.profileID {
+                            Text(L10n.text("公共跳板机 · 引用会话：") + workspace.jumpReferences(profileID).joined(separator: "、"))
+                                .font(.caption).fixedSize(horizontal: false, vertical: true)
+                            Button("另存为独立跳板配置") { hop.profileID = UUID() }
+                        }
+                        Menu("更换跳板机") {
+                            ForEach(workspace.sharedJumpProfiles) { profile in
+                                Button(workspace.sharedJumpTitle(profile)) {
+                                    var replacement = profile; replacement.id = hop.id
+                                    draft.jumpPasswords.removeValue(forKey: hop.id)
+                                    hop = replacement
+                                }
+                            }
+                        }.disabled(workspace.sharedJumpProfiles.isEmpty)
                         SSHJumpEditor(hop: $hop, password: Binding(get: { draft.jumpPasswords[hop.id] ?? "" }, set: { draft.jumpPasswords[hop.id] = $0 }), position: (draft.jumpServers.firstIndex(where: { $0.id == hop.id }) ?? 0) + 1,
                                       moveUp: { draft.moveJump(hop.id, offset: -1) }, moveDown: { draft.moveJump(hop.id, offset: 1) },
                                       remove: { draft.jumpServers.removeAll { $0.id == hop.id } })
                     }
+                    Menu("选择已有跳板机") {
+                        ForEach(workspace.sharedJumpProfiles) { profile in
+                            Button(workspace.sharedJumpTitle(profile)) {
+                                var row = profile; row.id = UUID(); draft.jumpServers.append(row)
+                            }
+                        }
+                    }.disabled(workspace.sharedJumpProfiles.isEmpty || draft.jumpServers.count >= 10)
                     Button("添加一级跳板机") { draft.jumpServers.append(SSHJumpServer()) }.disabled(draft.jumpServers.count >= 10)
                 } else {
                     EditorTextField(title: "跳板机", text: $draft.jumpHost, prompt: "B 别名或 user@B:22；多级用逗号分隔")
@@ -644,6 +672,7 @@ struct ServerEditor: View {
     private func save(connect: Bool) {
         do {
             let validated = try draft.server.validated()
+            guard workspace.confirmSharedJumpChanges(validated) else { return }
             if workspace.save(validated, password: draft.authentication == .password ? draft.password : "", jumpPasswords: draft.jumpPasswords) {
                 if connect { workspace.connect(validated) }
                 onClose()
