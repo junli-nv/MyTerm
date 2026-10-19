@@ -20,6 +20,7 @@ struct SSHJumpEditor: View {
                 Button(action: moveDown) { Image(systemName: "arrow.down") }.help("下移")
                 Button(role: .destructive, action: remove) { Image(systemName: "trash") }.help("删除")
             }
+            EditorTextField(title: "名称", text: $hop.editableName, prompt: "留空使用主机地址")
             EditorTextField(title: "跳板机地址", text: $hop.host, prompt: "IP 或域名")
             EditorTextField(title: "端口", text: $hop.port, prompt: "22")
             EditorTextField(title: "用户名", text: $hop.user)

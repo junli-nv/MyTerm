@@ -29,7 +29,7 @@ public enum SSHJumpCredentials {
         (server.jumpServers ?? []).indices.compactMap { try? account(server: server, index: $0) }
     }
     public static func label(_ hop: SSHJumpServer) -> String {
-        "SSH jump · \(hop.user)@\(hop.host):\(hop.port.isEmpty ? "22" : hop.port)"
+        (hop.editableName.isEmpty ? "SSH jump" : hop.displayName) + " · \(hop.user)@\(hop.host):\(hop.port.isEmpty ? "22" : hop.port)"
     }
     /// OpenSSH prompts omit the port. Ambiguous endpoints must remain interactive.
     public static func matchingIndex(prompt: String, server: Server) -> Int? {

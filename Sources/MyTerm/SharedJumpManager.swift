@@ -75,7 +75,7 @@ struct SharedJumpManagerView: View {
     }
     private var matches: [SSHJumpServer] {
         workspace.sharedJumpProfiles.filter { profile in
-            draft.search.isEmpty || ([profile.host, profile.user, profile.port] + workspace.jumpLibraryReferences(profile.id)).joined(separator: " ").localizedCaseInsensitiveContains(draft.search)
+            draft.search.isEmpty || ([profile.editableName, profile.host, profile.user, profile.port] + workspace.jumpLibraryReferences(profile.id)).joined(separator: " ").localizedCaseInsensitiveContains(draft.search)
         }
     }
     private func save() {
@@ -107,7 +107,7 @@ struct SharedJumpManagerView: View {
             Text("管理全部跳板机，包括未使用、单会话使用和多会话共用的配置。")
                 .font(.caption).fixedSize(horizontal: false, vertical: true)
             HStack {
-                TextField(L10n.text("搜索地址、用户名或引用会话"), text: $draft.search)
+                TextField(L10n.text("搜索名称、地址、用户名或引用会话"), text: $draft.search)
                 Button("新增") { draft.select(SSHJumpServer()) }.disabled(test.running)
             }
             HStack(alignment: .top, spacing: 16) {
@@ -116,7 +116,8 @@ struct SharedJumpManagerView: View {
                         ForEach(matches) { profile in
                             Button { draft.select(profile) } label: {
                                 VStack(alignment: .leading) {
-                                    Text(profile.host).font(.headline)
+                                    Text(profile.displayName).font(.headline)
+                                    if !profile.editableName.isEmpty { Text(profile.host).font(.caption) }
                                     Text(profile.user + " : " + profile.port).font(.caption)
                                     Text(L10n.text(profile.authentication == .key ? "密钥" : profile.authentication == .password ? "密码" : "自动")).font(.caption)
                                     Text(L10n.text("引用数量：") + String(workspace.jumpLibraryReferences(profile.id).count)).font(.caption)
@@ -131,6 +132,7 @@ struct SharedJumpManagerView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
+                                EditorTextField(title: "名称", text: $draft.profile.editableName, prompt: "留空使用主机地址")
                                 EditorTextField(title: "跳板机地址", text: $draft.profile.host, prompt: "IP 或域名")
                                 EditorTextField(title: "端口", text: $draft.profile.port, prompt: "22")
                                 EditorTextField(title: "用户名", text: $draft.profile.user)

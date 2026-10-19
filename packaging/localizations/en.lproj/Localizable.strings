@@ -1208,3 +1208,9 @@
 "公共跳板机编号重复。" = "Duplicate jump host identifiers.";
 "公共跳板机数量过多。" = "Too many jump host profiles.";
 "新增" = "Add";
+
+"搜索名称、地址、用户名或引用会话" = "Search name, address, user or referencing session";
+
+"留空使用主机地址" = "Leave empty to use host address";
+
+"跳板机名称不能超过 120 个字符或包含控制字符。" = "Jump host names must be at most 120 characters and contain no control characters.";

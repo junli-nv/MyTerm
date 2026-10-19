@@ -313,6 +313,8 @@ The key list shows explicit references from servers, saved sessions, active tabs
 
 Open Settings → Jump Host Manager (the SSH editor shortcut opens the same settings page) to add, search, edit and delete unused, single-session or shared jump hosts. Unused profiles remain saved independently; existing hops appear automatically. Editing referenced profiles requires impact confirmation. Remove references from sidebar sessions, saved snapshots and open tabs before deleting. Enter passwords in SSH session settings or when connecting. Profiles are included in session JSON import/export and encrypted preferences backups; OpenSSH export includes only hops actually referenced by sidebar sessions.
 
+Jump hosts support custom names in Settings → Jump Host Manager and the SSH editor. Empty names fall back to the host address. Lists and selection menus show names, and search includes names. Names persist through shared references, session import/export and backups; renaming does not change connections or password identifiers.
+
 In the SSH editor, Choose Existing Jump Host appends a saved hop; Change Jump Host replaces one. Multiple hops retain their order; save a separate profile when edits should affect only one session.
 
 Test Connection appears above the reference list and verifies real SSH connectivity and authentication, either directly or via a referencing session’s preceding hops and proxy. It executes no remote commands and supports Windows and forwarding-only jump hosts. It times out after 45 seconds and can be cancelled. It changes no remote files. Success does not guarantee TCP forwarding permission or reachability of subsequent targets. Failure details appear in the window.

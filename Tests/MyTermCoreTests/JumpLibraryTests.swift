@@ -6,6 +6,21 @@ func checkJumpLibrary() throws {
     defer { try? FileManager.default.removeItem(at: root) }
     let repository = ServerRepository(fileURL: root.appendingPathComponent("servers.json"))
     var profile = SSHJumpServer(host: "jump.test", user: "alice", authentication: .password)
+    let oldJSON = try JSONEncoder().encode(profile)
+    checkEqual(try JSONDecoder().decode(SSHJumpServer.self, from: oldJSON).name, nil)
+    var unnamedRoute = Server(host: "target.test", user: "root"); unnamedRoute.jumpServers = [profile]
+    profile.editableName = "Dallas 跳板"
+    var namedRoute = unnamedRoute; namedRoute.jumpServers = [profile]
+    checkEqual(try SSHJumpCredentials.account(server: namedRoute, index: 0), try SSHJumpCredentials.account(server: unnamedRoute, index: 0))
+    checkEqual(try SSHPasswordMemory.scopeIdentifier(for: namedRoute), try SSHPasswordMemory.scopeIdentifier(for: unnamedRoute))
+    checkEqual(try SSHPasswordMemory.legacyScopeIdentifier(for: namedRoute), try SSHPasswordMemory.legacyScopeIdentifier(for: unnamedRoute))
+    checkEqual(profile.displayName, "Dallas 跳板")
+    var invalidName = profile; invalidName.editableName = "bad\nname"
+    checkThrows(try invalidName.validated())
+    invalidName.editableName = String(repeating: "a", count: 121)
+    checkThrows(try invalidName.validated())
+    var clearedName = profile; clearedName.editableName = "  "
+    checkEqual(try clearedName.validated().displayName, profile.host)
     profile.profileID = profile.id
     try repository.save([], profiles: [profile])
     checkEqual(try repository.loadProfiles(), [profile])

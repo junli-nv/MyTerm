@@ -4,6 +4,14 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.2.13"></a>
+
+# MyTerm 3.2.13
+
+- Jump hosts support custom names in Settings → Jump Host Manager and the SSH editor. Empty names fall back to the host address. Lists and selection menus show names, and search includes names. Names persist through shared references, session import/export and backups; renaming does not change connections or password identifiers.
+
+[Release notes](packaging/RELEASE-NOTES-3.2.13.md).
+
 <a id="version-3.2.12"></a>
 
 # MyTerm 3.2.12

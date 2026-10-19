@@ -44,7 +44,7 @@ public final class SSHPasswordMemory {
     public static func legacyScopeIdentifier(for server: Server) throws -> String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         var legacy = server
-        legacy.jumpServers = legacy.jumpServers?.map { var hop = $0; hop.profileID = nil; return hop }
+        legacy.jumpServers = legacy.jumpServers?.map { var hop = $0; hop.profileID = nil; hop.name = nil; return hop }
         return SHA256.hash(data: try encoder.encode(legacy)).map { String(format: "%02x", $0) }.joined()
     }
     public static func migrateLegacy(for server: Server, store: PasswordStore = SQLitePasswordStore()) throws {

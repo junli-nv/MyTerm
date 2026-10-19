@@ -16,8 +16,11 @@ enum JumpManagerCheck {
         guard workspace.save(server) else { throw ConfigurationError.invalid("Cannot save jump reference") }
         do { try workspace.deleteJumpProfile(hop.id); throw ConfigurationError.invalid("Referenced jump was deleted") }
         catch { guard workspace.jumpProfiles.count == 1 else { throw error } }
-        hop.port = "2222"; try workspace.saveJumpProfile(hop)
+        hop.editableName = "Dallas 跳板"; hop.port = "2222"; try workspace.saveJumpProfile(hop)
         guard workspace.servers[0].jumpServers![0].port == "2222" else { throw ConfigurationError.invalid("Jump edit not propagated") }
+        guard workspace.servers[0].jumpServers![0].name == hop.name,
+              Workspace(applicationSupportDirectory: root).jumpProfiles[0].name == hop.name,
+              workspace.sharedJumpTitle(hop).contains("Dallas 跳板") else { throw ConfigurationError.invalid("Jump name not persisted or propagated") }
         let language = LanguagePreferences.shared, previous = language.selection
         let originalWindow = NSApp.keyWindow
         defer { language.selection = previous; originalWindow?.makeKeyAndOrderFront(nil) }

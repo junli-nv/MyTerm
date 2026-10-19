@@ -4,18 +4,32 @@ import Foundation
 public struct SSHJumpServer: Codable, Equatable, Identifiable {
     public var id: UUID
     public var profileID: UUID?
+    public var name: String?
+    public var editableName: String {
+        get { name ?? "" }
+        set { name = newValue.isEmpty ? nil : newValue }
+    }
+    public var displayName: String {
+        let value = editableName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? host : value
+    }
     public var host: String
     public var port: String
     public var user: String
     public var identityFile: String
     public var authentication: AuthenticationMode
-    public init(id: UUID = UUID(), host: String = "", port: String = "22", user: String = "", identityFile: String = "", authentication: AuthenticationMode = .automatic) {
-        self.id = id; self.host = host; self.port = port; self.user = user
+    public init(id: UUID = UUID(), host: String = "", port: String = "22", user: String = "", identityFile: String = "", authentication: AuthenticationMode = .automatic, name: String? = nil) {
+        self.name = name; self.id = id; self.host = host; self.port = port; self.user = user
         self.identityFile = identityFile; self.authentication = authentication
     }
     public func validated() throws -> Self {
         let server = try Server(host: host, user: user, port: port, identityFile: identityFile).validated()
         var result = self
+        let title = editableName.trimmingCharacters(in: .whitespaces)
+        guard title.count <= 120, !title.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            throw ConfigurationError.invalid("跳板机名称不能超过 120 个字符或包含控制字符。")
+        }
+        result.editableName = title
         result.host = server.host; result.port = server.port; result.user = server.user; result.identityFile = server.identityFile
         guard !result.identityFile.contains("\r") else { throw ConfigurationError.invalid("密钥文件路径无效。") }
         return result
