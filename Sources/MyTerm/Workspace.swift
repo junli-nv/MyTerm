@@ -44,7 +44,7 @@ final class Workspace: ObservableObject {
     lazy var sshConfigurationAudit = SSHConfigurationAuditWindow()
     var auditCredentialStore: SQLitePasswordStore { credentialStore }
     var auditKeyLibrary: SSHKeyLibrary { SSHKeyLibrary(directory: credentialStore.directory.deletingLastPathComponent().appendingPathComponent("Keys")) }
-    private let credentialStore: SQLitePasswordStore
+    let credentialStore: SQLitePasswordStore
     let repository: ServerRepository
 
     init(applicationSupportDirectory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]) {

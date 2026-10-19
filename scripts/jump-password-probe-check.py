@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='myterm-no-shell-', dir='/tmp') as direc
     port = listener.getsockname()[1]
     def serve():
         try:
-            for _ in range(2):
+            for _ in range(3):
                 client, _ = listener.accept()
                 with paramiko.Transport(client) as transport:
                     transport.add_server_key(key)
@@ -50,13 +50,13 @@ with tempfile.TemporaryDirectory(prefix='myterm-no-shell-', dir='/tmp') as direc
     config.write_text('Host *\n StrictHostKeyChecking no\n UserKnownHostsFile /dev/null\n GlobalKnownHostsFile /dev/null\n IdentityAgent none\n')
     profile_id = str(uuid.uuid4())
     profile = dict(id=profile_id, profileID=profile_id, host='127.0.0.1', user='Administrator', port=str(port), identityFile='', authentication='password')
-    for i, password in enumerate(['synthetic-jump-password', 'synthetic-wrong-password']):
+    for i, password in enumerate(['synthetic-jump-password', 'synthetic-wrong-password', 'synthetic-jump-password']):
         fixture = root / f'fixture-{i}.json'
-        fixture.write_text(json.dumps(dict(profile=profile, configPath=str(config), credentials=str(root/'credentials'), password=password, expectSuccess=i == 0, cancel=False)))
+        fixture.write_text(json.dumps(dict(profile=profile, configPath=str(config), credentials=str(root/'credentials'), password=password, expectSuccess=i != 1, cancel=False, useDraft=i == 2)))
         subprocess.run([str(binary), '--smoke-test', '--jump-probe-check', str(fixture)], check=True, timeout=20)
     worker.join(5)
     assert not worker.is_alive(), 'Probe connection was not closed'
     if failures: raise failures[0]
-    assert sum(accepted) == 1 and False in accepted, 'Cached-password authentication was not exercised'
+    assert sum(accepted) == 2 and False in accepted, 'Cached-password authentication was not exercised'
     assert not channels, f'Probe requested remote channels: {channels}'
-    print('PASS: saved-password reuse, wrong-password rejection, zero remote shell/exec channels, connection cleanup')
+    print('PASS: saved-password reuse, unsaved draft authentication without persistence, wrong-password rejection, zero remote shell/exec channels, connection cleanup')

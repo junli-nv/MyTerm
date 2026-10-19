@@ -114,6 +114,7 @@ let checks: [(String, () throws -> Void)] = [
     ("trzsz literal paths, invalid drag input and saved connection options", checkTrzsz),
     ("Encrypted preferences backup, credential restore, tampering and resume throughput", checkBackupAndRates),
     ("Streaming character encodings, managed OpenSSH keys and OpenSSH export", checkNewFormats),
+    ("Shared jump export deduplication, stable aliases and real OpenSSH resolution", checkSharedJumpExport),
     ("Shared jump migration, references, independent copies, credentials and corruption", checkSharedJumps),
     ("Standalone jump library, archive compatibility, deletion and probe routes", checkJumpLibrary),
     ("SSH inventory references, credential metadata and explicit key dependencies", checkConfigurationAudit),

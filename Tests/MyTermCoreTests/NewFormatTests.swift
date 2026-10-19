@@ -49,8 +49,8 @@ func checkNewFormats() throws {
     checkEqual(rendered.contains("localforward [127.0.0.1]:8080 [127.0.0.1]:80"), true)
     var other = server
     other.id = UUID(); other.name = "另一个会话"; other.user = "bob"; other.port = "2203"
-    let firstAlias = "myterm-" + server.id.uuidString.lowercased()
-    let secondAlias = "myterm-" + other.id.uuidString.lowercased()
+    let firstAlias = "myterm-session-export-" + server.id.uuidString.lowercased().prefix(8)
+    let secondAlias = "myterm-session-example-com-" + other.id.uuidString.lowercased().prefix(8)
     let duplicateExport = try OpenSSHExport.render([server, other], userConfig: root.appendingPathComponent("optional-config").path)
     checkEqual(duplicateExport, try OpenSSHExport.render([server, other], userConfig: root.appendingPathComponent("optional-config").path))
     try Data(duplicateExport.utf8).write(to: config)
@@ -66,6 +66,15 @@ func checkNewFormats() throws {
     checkEqual(collisionExport.contains("Host " + firstAlias + "-2\n"), true)
     let repeated = try OpenSSHExport.render([server, server], userConfig: root.appendingPathComponent("optional-config").path)
     checkEqual(repeated.contains("Host " + firstAlias + "-2\n"), true)
+    // Same readable names remain distinct and are stable when the session list is reordered.
+    var sameName = other; sameName.name = server.name
+    let sameNameAlias = "myterm-session-export-" + sameName.id.uuidString.lowercased().prefix(8)
+    let namedExport = try OpenSSHExport.render([sameName, server], userConfig: "/dev/null")
+    checkEqual(namedExport.contains("Host " + firstAlias + "\n"), true)
+    checkEqual(namedExport.contains("Host " + sameNameAlias + "\n"), true)
+    var unsafeName = other; unsafeName.name = "A * ? \nHost bad"
+    let sanitized = try OpenSSHExport.render([server, unsafeName], userConfig: "/dev/null")
+    checkEqual(sanitized.split(separator: "\n").filter { $0.hasPrefix("Host ") && $0 != "Host *" }.allSatisfy { !$0.contains("?") && !$0.contains("*") }, true)
     checkFalse(rendered.contains("loglevel DEBUG3\n"))
     server.debugLogging = true
     let debugOptions = try run("/usr/bin/ssh", ["-G"] + server.sshArguments(configPath: "/dev/null"))
@@ -92,8 +101,9 @@ func checkNewFormats() throws {
     checkEqual(secondHop.contains("identityfile " + server.jumpServers![1].identityFile + "\n"), true)
     try Data(OpenSSHExport.render([server], userConfig: root.appendingPathComponent("optional-config").path).utf8).write(to: config)
     let exportedJumps = try run("/usr/bin/ssh", ["-G", "-F", config.path, server.host])
-    checkEqual(exportedJumps.contains("proxyjump " + server.effectiveJumpHost! + "\n"), true)
-    checkEqual(try run("/usr/bin/ssh", ["-G", "-F", config.path, aliases[1]]).contains("user second\n"), true)
+    let exportAliases = exportedJumps.split(separator: "\n").first { $0.hasPrefix("proxyjump ") }!.dropFirst(10).split(separator: ",").map(String.init)
+    checkEqual(exportAliases.count, 2)
+    checkEqual(try run("/usr/bin/ssh", ["-G", "-F", config.path, exportAliases[1]]).contains("user second\n"), true)
     var invalidJump = server
     invalidJump.jumpServers![0].port = "65536"; checkThrows(try invalidJump.validated())
     invalidJump = server; invalidJump.jumpHost = "legacy"; checkThrows(try invalidJump.validated())

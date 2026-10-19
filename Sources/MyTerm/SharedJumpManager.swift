@@ -14,7 +14,7 @@ extension Workspace {
         }
         return Array(Set(names)).sorted()
     }
-    func saveJumpProfile(_ original: SSHJumpServer) throws {
+    func saveJumpProfile(_ original: SSHJumpServer, password: String = "") throws {
         guard !loadFailed else { throw ConfigurationError.invalid("配置读取失败，请修复后再保存。") }
         var profile = try original.validated(); profile.profileID = profile.id
         var catalog = jumpProfiles.filter { $0.id != profile.id }; catalog.append(profile)
@@ -26,7 +26,22 @@ extension Workspace {
             }
             return server
         }
+        var credentials: [(password: String, account: String, label: String?)] = []
+        if !password.isEmpty, profile.authentication != .key {
+            guard let direct = try SSHJumpProbe(profile: profile).passwordAccount else {
+                throw ConfigurationError.invalid("保存跳板机密码前请填写用户名。")
+            }
+            var accounts: Set<String> = [direct]
+            for server in updated {
+                for (index, hop) in (server.jumpServers ?? []).enumerated() where hop.profileID == profile.id {
+                    accounts.insert(try SSHJumpCredentials.account(server: server, index: index))
+                }
+            }
+            credentials = accounts.sorted().map { (password, $0, SSHJumpCredentials.label(profile)) }
+        }
         try repository.save(updated, profiles: catalog)
+        do { try credentialStore.saveBatch(credentials) }
+        catch { try repository.save(servers, profiles: jumpProfiles); throw error }
         servers = updated; jumpProfiles = catalog
         for session in sessions { session.updateSharedJumps(from: servers, profiles: jumpProfiles) }
     }
@@ -40,12 +55,13 @@ extension Workspace {
 }
 
 final class JumpManagerDraft: ObservableObject {
+    @Published var password = ""
     @Published var search = ""
     @Published var profile = SSHJumpServer()
     @Published var editing = false
     @Published var route = "direct"
     @Published var error = ""
-    func select(_ value: SSHJumpServer) { profile = value; editing = true; error = ""; route = "direct" }
+    func select(_ value: SSHJumpServer) { password = ""; profile = value; editing = true; error = ""; route = "direct" }
 }
 
 struct SharedJumpManagerView: View {
@@ -67,9 +83,9 @@ struct SharedJumpManagerView: View {
     }
     private func testConnection() {
         do {
-            if draft.route == "direct" { test.start(try SSHJumpProbe(profile: draft.profile)) }
+            if draft.route == "direct" { test.start(try SSHJumpProbe(profile: draft.profile), store: workspace.credentialStore, password: draft.password) }
             else if let route = routes.first(where: { $0.id == draft.route }) {
-                test.start(try SSHJumpProbe(profile: draft.profile, via: route.server, index: route.index))
+                test.start(try SSHJumpProbe(profile: draft.profile, via: route.server, index: route.index), store: workspace.credentialStore, password: draft.password)
             } else { throw ConfigurationError.invalid("测试路径已变化，请重新选择。") }
         } catch { draft.error = L10n.text(error.localizedDescription) }
     }
@@ -81,7 +97,7 @@ struct SharedJumpManagerView: View {
     private func save() {
         do {
             let profile = try draft.profile.validated()
-            if let old = workspace.jumpProfiles.first(where: { $0.id == profile.id }), !SharedSSHJumps.sameDefinition(old, profile) {
+            if let old = workspace.jumpProfiles.first(where: { $0.id == profile.id }), (!SharedSSHJumps.sameDefinition(old, profile) || (!draft.password.isEmpty && profile.authentication != .key)) {
                 let refs = workspace.jumpLibraryReferences(profile.id)
                 if !refs.isEmpty {
                     let alert = NSAlert(); alert.messageText = L10n.text("更新跳板机配置？")
@@ -90,7 +106,7 @@ struct SharedJumpManagerView: View {
                     guard alert.runModal() == .alertFirstButtonReturn else { return }
                 }
             }
-            try workspace.saveJumpProfile(profile); draft.editing = false; draft.error = ""
+            try workspace.saveJumpProfile(profile, password: draft.password); draft.password = ""; draft.editing = false; draft.error = ""
         } catch { draft.error = L10n.text(error.localizedDescription) }
     }
     private func delete() {
@@ -148,8 +164,12 @@ struct SharedJumpManagerView: View {
                                         if panel.runModal() == .OK, let url = panel.url { draft.profile.identityFile = url.path }
                                     }
                                 }
-                                Text("密码在 SSH 会话配置或连接时填写，沿用现有加密凭据管理。")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                if draft.profile.authentication != .key {
+                                    Text("跳板机密码（可选）")
+                                    PasswordEntryField(text: $draft.password)
+                                    Text("保存后用于直连及当前引用会话的路径；留空保留已有密码。测试可使用填写的密码，但不会保存草稿密码。")
+                                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                                }
                                 Picker("测试路径", selection: $draft.route) {
                                     Text("直接连接（无前级跳板或代理）").tag("direct")
                                     ForEach(routes) { route in Text(route.title).tag(route.id) }
@@ -173,7 +193,7 @@ struct SharedJumpManagerView: View {
                             Button("删除", role: .destructive, action: delete)
                                 .disabled(!workspace.jumpProfiles.contains { $0.id == draft.profile.id } || !workspace.jumpLibraryReferences(draft.profile.id).isEmpty)
                             Spacer()
-                            Button("取消") { draft.editing = false; draft.error = "" }
+                            Button("取消") { draft.password = ""; draft.editing = false; draft.error = "" }
                             Button("保存", action: save).disabled(test.running)
                         }
                     }
@@ -183,8 +203,10 @@ struct SharedJumpManagerView: View {
             }
             if !draft.error.isEmpty { Text(draft.error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
         }.padding(20).environment(\.locale, language.locale)
-            .onDisappear { test.cancel() }
+            .onDisappear { test.cancel(); draft.password = "" }
             .onChange(of: draft.profile) { _, _ in test.reset() }
             .onChange(of: draft.route) { _, _ in test.reset() }
+            .onChange(of: draft.password) { _, _ in test.reset() }
+            .onChange(of: draft.profile.authentication) { _, mode in if mode == .key { draft.password = "" } }
     }
 }

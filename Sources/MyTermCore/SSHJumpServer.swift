@@ -49,25 +49,36 @@ extension Server {
         var blocks: [String] = []
         for (index, original) in jumps.enumerated() {
             let hop = try original.validated()
-            var lines = ["Host \(jumpAlias(index))", "    HostName \(quote(hop.host))", "    Port \(hop.port.isEmpty ? "22" : hop.port)",
-                         "    ProxyJump none", "    ForwardAgent no", "    ForwardX11 no", "    ControlMaster no", "    ControlPath none",
-                         "    ServerAliveInterval 30", "    ServerAliveCountMax 6", "    TCPKeepAlive yes",
-                         "    Compression \(compression ?? true ? "yes" : "no")"]
-            if !hop.user.isEmpty { lines.append("    User \(quote(hop.user))") }
-            if !hop.identityFile.isEmpty {
-                lines += ["    IdentityFile \(quote((hop.identityFile as NSString).expandingTildeInPath))", "    IdentitiesOnly yes"]
-            }
-            switch hop.authentication {
-            case .automatic: break
-            case .password:
-                lines += ["    PubkeyAuthentication no", "    PasswordAuthentication yes", "    KbdInteractiveAuthentication yes", "    PreferredAuthentications keyboard-interactive,password"]
-            case .key:
-                lines += ["    PubkeyAuthentication yes", "    PasswordAuthentication no", "    KbdInteractiveAuthentication no", "    PreferredAuthentications publickey"]
-            }
-            if debugLogging == true { lines.append("    LogLevel DEBUG3") }
-            lines.append("    ProxyCommand \(index == 0 ? try proxy?.command() ?? "none" : "none")")
-            blocks.append(lines.joined(separator: "\n"))
+            let options = hop.openSSHOptions(compression: compression ?? true, debugLogging: debugLogging == true,
+                                             proxyCommand: index == 0 ? try proxy?.command() ?? "none" : "none")
+            blocks.append((["Host \(jumpAlias(index))"] + options).joined(separator: "\n"))
         }
         return blocks.joined(separator: "\n\n") + "\nHost *\n    Include \(quote(userConfig))\n    Include /etc/ssh/ssh_config\n"
+    }
+}
+
+// Shared by runtime connections and export so authentication and proxy behavior cannot drift.
+extension SSHJumpServer {
+    func openSSHOptions(compression: Bool, debugLogging: Bool, proxyCommand: String) -> [String] {
+        let hop = self
+        func quote(_ value: String) -> String { "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+        var lines = ["    HostName \(quote(hop.host))", "    Port \(hop.port.isEmpty ? "22" : hop.port)",
+                 "    ProxyJump none", "    ForwardAgent no", "    ForwardX11 no", "    ControlMaster no", "    ControlPath none",
+                 "    ServerAliveInterval 30", "    ServerAliveCountMax 6", "    TCPKeepAlive yes",
+                 "    Compression \(compression ? "yes" : "no")"]
+        if !hop.user.isEmpty { lines.append("    User \(quote(hop.user))") }
+        if !hop.identityFile.isEmpty {
+            lines += ["    IdentityFile \(quote((hop.identityFile as NSString).expandingTildeInPath))", "    IdentitiesOnly yes"]
+        }
+        switch hop.authentication {
+        case .automatic: break
+        case .password:
+            lines += ["    PubkeyAuthentication no", "    PasswordAuthentication yes", "    KbdInteractiveAuthentication yes", "    PreferredAuthentications keyboard-interactive,password"]
+        case .key:
+            lines += ["    PubkeyAuthentication yes", "    PasswordAuthentication no", "    KbdInteractiveAuthentication no", "    PreferredAuthentications publickey"]
+        }
+        if debugLogging { lines.append("    LogLevel DEBUG3") }
+        lines.append("    ProxyCommand \(proxyCommand)")
+        return lines
     }
 }

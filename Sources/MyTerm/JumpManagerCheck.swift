@@ -21,6 +21,20 @@ enum JumpManagerCheck {
         guard workspace.servers[0].jumpServers![0].name == hop.name,
               Workspace(applicationSupportDirectory: root).jumpProfiles[0].name == hop.name,
               workspace.sharedJumpTitle(hop).contains("Dallas 跳板") else { throw ConfigurationError.invalid("Jump name not persisted or propagated") }
+        var proxied = workspace.servers[0]; proxied.proxy = NetworkProxy(host: "127.0.0.1", port: "7890")
+        guard workspace.save(proxied) else { throw ConfigurationError.invalid("Cannot save proxy fixture") }
+        hop.authentication = .password
+        try workspace.saveJumpProfile(hop, password: "synthetic-manager-password")
+        let account = try SSHJumpCredentials.account(server: workspace.servers[0], index: 0)
+        guard try workspace.credentialStore.read(account) == "synthetic-manager-password" else { throw ConfigurationError.invalid("Jump password not saved") }
+        let directAccount = try SSHJumpProbe(profile: hop).passwordAccount!
+        guard account != directAccount, try workspace.credentialStore.read(directAccount) == "synthetic-manager-password" else { throw ConfigurationError.invalid("Direct password route not saved") }
+        try workspace.saveJumpProfile(hop)
+        guard try workspace.credentialStore.read(account) == "synthetic-manager-password" else { throw ConfigurationError.invalid("Blank jump password cleared saved secret") }
+        let encoded = try SessionArchive(servers: workspace.servers, groups: [], sessions: [], jumpProfiles: workspace.jumpProfiles).encoded()
+        guard !String(decoding: encoded, as: UTF8.self).contains("synthetic-manager-password") else { throw ConfigurationError.invalid("Password leaked into jump config") }
+        let draftCheck = JumpManagerDraft(); draftCheck.password = "draft"; draftCheck.select(hop)
+        guard draftCheck.password.isEmpty else { throw ConfigurationError.invalid("Switching jump retained password draft") }
         let language = LanguagePreferences.shared, previous = language.selection
         let originalWindow = NSApp.keyWindow
         defer { language.selection = previous; originalWindow?.makeKeyAndOrderFront(nil) }

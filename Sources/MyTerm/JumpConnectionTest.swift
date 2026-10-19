@@ -13,11 +13,16 @@ final class JumpConnectionTest: ObservableObject, LocalProcessDelegate {
     private var timer: Timer?
     private var readinessTimer: Timer?
     private var output = Data()
-    func start(_ probe: SSHJumpProbe, configPath: String? = nil, store: PasswordStore = SQLitePasswordStore()) {
+    func start(_ probe: SSHJumpProbe, configPath: String? = nil, store: PasswordStore = SQLitePasswordStore(), password: String = "") {
         cancel(); succeeded = false
         do {
             let context = try SSHLaunchContext(server: probe.server, userConfig: configPath ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh/config").path)
-            let auth = try SSHAuthentication(server: probe.server, destinationPasswordAccount: probe.passwordAccount, store: store, context: context, terminal: terminal) { [weak self] message in self?.result = message }
+            var testStore: PasswordStore = store
+            if !password.isEmpty, probe.server.authentication != .key {
+                guard let account = probe.passwordAccount else { throw ConfigurationError.invalid("保存跳板机密码前请填写用户名。") }
+                testStore = JumpTestPasswordStore(base: store, account: account, password: password)
+            }
+            let auth = try SSHAuthentication(server: probe.server, destinationPasswordAccount: probe.passwordAccount, store: testStore, context: context, terminal: terminal) { [weak self] message in self?.result = message }
             self.context = context; authentication = auth
             var environment = ProcessInfo.processInfo.environment
             environment.merge(auth.environment) { _, value in value }

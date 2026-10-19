@@ -4,6 +4,24 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.3.2"></a>
+
+# MyTerm 3.3.2
+
+- OpenSSH export aliases for sessions sharing a host now use myterm-session-name-short-id, distinguishing direct login entries from shared jumps. Collision protection remains; names without ASCII characters fall back to the host, with full names retained in comments.
+
+[Release notes](packaging/RELEASE-NOTES-3.3.2.md).
+
+<a id="version-3.3.1"></a>
+
+# MyTerm 3.3.1
+
+- Jump Host Manager adds password entry and show/hide; blank preserves credentials, and tests can use drafts without saving.
+
+- OpenSSH export deduplicates jump hosts by effective connection settings, uses readable aliases with names and short identifiers, and lists referencing sessions. Multi-hop order is preserved; different proxy, authentication, compression or logging settings remain separate.
+
+[Release notes](packaging/RELEASE-NOTES-3.3.1.md).
+
 <a id="version-3.3"></a>
 
 # MyTerm 3.3

@@ -10,24 +10,42 @@ public enum OpenSSHExport {
         let counts = Dictionary(grouping: validated, by: { $0.host.lowercased() }).mapValues(\.count)
         // Reserve every original destination before allocating aliases, including later entries.
         var reserved = Set(validated.map { $0.host.lowercased() })
-        var blocks: [String] = [], jumpBlocks: [String] = []
+        var destinationAliases: [String] = []
         for server in validated {
             var alias = server.host
             if counts[server.host.lowercased(), default: 0] > 1 {
-                let base = "myterm-" + server.id.uuidString.lowercased()
+                let name = OpenSSHExportAlias.slug(server.displayName, fallback: OpenSSHExportAlias.slug(server.host))
+                let base = "myterm-session-" + name + "-" + server.id.uuidString.lowercased().prefix(8)
                 alias = base
                 var suffix = 2
                 while !reserved.insert(alias.lowercased()).inserted {
                     alias = base + "-" + String(suffix); suffix += 1
                 }
             }
+            destinationAliases.append(alias)
+        }
+        // Reserve explicit legacy hop aliases before assigning generated jump aliases.
+        for server in validated where server.jumpServers == nil {
+            for part in (server.jumpHost ?? "").split(separator: ",") {
+                let host = part.split(separator: "@").last.map(String.init) ?? ""
+                reserved.insert(host.lowercased())
+                reserved.insert(host.split(separator: ":").first.map(String.init)?.lowercased() ?? "")
+            }
+        }
+        let jumps = try OpenSSHJumpExport(servers: validated, reserved: &reserved)
+        var blocks: [String] = [], legacyJumpBlocks: [String] = []
+        for (serverIndex, server) in validated.enumerated() {
+            let alias = destinationAliases[serverIndex]
             var lines = ["# " + server.displayName.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " "), "Host \(alias)"]
             if alias != server.host { lines.append("    HostName " + (try quote(server.host))) }
             let args = try server.connectionArguments()
             if server.debugLogging == true { lines.append("    LogLevel DEBUG3") }
             var index = 0
             while index < args.count {
-                let flag = args[index], value = args[index + 1]; index += 2
+                let flag = args[index]
+                let value = flag == "-J" && !jumps.chains[serverIndex].isEmpty
+                    ? jumps.chains[serverIndex].joined(separator: ",") : args[index + 1]
+                index += 2
                 if flag == "-o" {
                     let parts = value.split(separator: "=", maxSplits: 1).map(String.init)
                     if parts[0] == "ProxyCommand" { lines.append("    ProxyCommand " + parts[1]) }
@@ -46,10 +64,11 @@ public enum OpenSSHExport {
             }
             if !(server.forwards ?? []).isEmpty { lines.append("    ExitOnForwardFailure yes") }
             blocks.append(lines.joined(separator: "\n"))
-            if let jump = try server.proxyJumpConfig(userConfig: userConfig), let range = jump.range(of: "\nHost *") {
-                jumpBlocks.append(String(jump[..<range.lowerBound]))
+            if server.jumpServers == nil, let jump = try server.proxyJumpConfig(userConfig: userConfig), let range = jump.range(of: "\nHost *") {
+                let block = String(jump[..<range.lowerBound])
+                if !legacyJumpBlocks.contains(block) { legacyJumpBlocks.append(block) }
             }
         }
-        return "# MyTerm OpenSSH configuration. Use: ssh -F <this-file> <Host>\n# Keep referenced private keys, MyTermProxy (when used), and included SSH configs available.\n# Generated myterm-* aliases use the original destination as HostName. Host-specific settings\n# inherited from included configs must also match the generated alias; alias destinations\n# need their real HostName supplied on the destination machine.\n\n" + (blocks + jumpBlocks).joined(separator: "\n\n") + "\n\nHost *\n    Include \(try quote(userConfig))\n    Include /etc/ssh/ssh_config\n"
+        return "# MyTerm OpenSSH configuration. Use: ssh -F <this-file> <Host>\n# Keep referenced private keys, MyTermProxy (when used), and included SSH configs available.\n# Generated myterm-* aliases use the original destination as HostName. Host-specific settings\n# inherited from included configs must also match the generated alias; alias destinations\n# need their real HostName supplied on the destination machine.\n\n" + (["# Destination sessions"] + blocks + (jumps.blocks.isEmpty ? [] : ["# Shared jump hosts"] + jumps.blocks) + legacyJumpBlocks).joined(separator: "\n\n") + "\n\nHost *\n    Include \(try quote(userConfig))\n    Include /etc/ssh/ssh_config\n"
     }
 }
