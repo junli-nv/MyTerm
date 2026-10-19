@@ -8,6 +8,7 @@ public struct RemoteEntry: Identifiable, Equatable {
     public let size: UInt64?
     public let modified: UInt32?
     public let permissions: UInt32?
+    public var isRegularFile: Bool { !isDirectory && !isLink && (permissions.map { $0 & 0o170000 == 0o100000 } ?? true) }
     public var isDirectory: Bool { (permissions ?? 0) & 0o170000 == 0o040000 }
     public var isLink: Bool { (permissions ?? 0) & 0o170000 == 0o120000 }
 }
@@ -63,6 +64,7 @@ public final class SFTPClient {
     private let lock = NSLock()
     private var cancelled = false
     private var diagnostics = Data()
+    private var supportsAtomicRename = false
     private var requestID: UInt32 = 0
     private let resumeIdentity: String
     public init(executable: String = "/usr/bin/ssh", arguments: [String], resumeIdentity: String? = nil) {
@@ -89,6 +91,10 @@ public final class SFTPClient {
         try send(type: 1, data: hello.data)
         var response = try receive()
         guard try response.byte() == 2, try response.uint() == 3 else { throw SFTPError(code: 5, message: "服务器未提供 SFTP v3。") }
+        while response.offset < response.data.count {
+            let name = try response.string(), version = try response.string()
+            if name == "posix-rename@openssh.com", version == "1" { supportsAtomicRename = true }
+        }
     }
     public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
     public func close() {
@@ -220,6 +226,24 @@ public final class SFTPClient {
     private func rename(_ source: String, _ target: String) throws {
         var p = Wire(); p.string(source); p.string(target); _ = try request(18, p, expecting: 101)
     }
+    private func replaceUploadedFile(_ partial: String, destination: String) throws {
+        if supportsAtomicRename {
+            var payload = Wire(); payload.string("posix-rename@openssh.com")
+            payload.string(partial); payload.string(destination)
+            _ = try request(200, payload, expecting: 101)
+            return
+        }
+        let backup = destination + ".myterm-backup-" + UUID().uuidString
+        try rename(destination, backup)
+        do { try rename(partial, destination) }
+        catch {
+            // If the transport fails here, the original remains recoverable at this exact path.
+            do { try rename(backup, destination) }
+            catch { throw SFTPError(code: 4, message: "覆盖未完成，原文件备份保留于：" + backup) }
+            throw error
+        }
+        try? remove(backup)
+    }
     private func exists(_ path: String) throws -> RemoteEntry? {
         do {
             var p = Wire(); p.string(path)
@@ -307,10 +331,13 @@ public final class SFTPClient {
         try? fm.removeItem(at: metadata)
     }
 
-    public func upload(_ source: URL, to remote: String, progress: (UInt64, UInt64) -> Void) throws {
+    public func upload(_ source: URL, to remote: String, overwrite: Bool = false, progress: (UInt64, UInt64) -> Void) throws {
         let original = try source.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey])
         guard original.isRegularFile == true else { throw SFTPError(code: 4, message: "请选择普通文件上传。") }
-        guard try exists(remote) == nil else { throw SFTPError(code: 4, message: "远端已有同名文件，请指定不同名称；现有文件未被覆盖。") }
+        let destination = try exists(remote)
+        if let destination {
+            guard overwrite, destination.isRegularFile else { throw SFTPError(code: 4, message: "远端已有同名文件，请指定不同名称；现有文件未被覆盖。") }
+        }
         let local = try FileHandle(forReadingFrom: source); defer { try? local.close() }
         let size = try local.seekToEnd(); try local.seek(toOffset: 0)
         var hash = SHA256()
@@ -360,7 +387,11 @@ public final class SFTPClient {
             throw SFTPError(code: 4, message: "本地文件在传输中发生变化，临时文件已保留。")
         }
         try closeHandle(handle); closed = true
-        // SFTP v3 rename refuses an existing destination, even if created during this upload.
-        try rename(partial, remote); try? remove(metadata)
+        // Only replace the destination that was approved, after the temporary upload completes.
+        guard try exists(remote) == destination else { throw SFTPError(code: 4, message: "上传期间目标发生变化，临时文件已保留，请重试。") }
+        if destination != nil {
+            try replaceUploadedFile(partial, destination: remote)
+        } else { try rename(partial, remote) }
+        try? remove(metadata)
     }
 }

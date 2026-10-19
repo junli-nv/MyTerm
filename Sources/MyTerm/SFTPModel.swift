@@ -21,6 +21,7 @@ final class SFTPModel: ObservableObject {
     private var rateTimer: Timer?
     private let queue = DispatchQueue(label: "MyTerm.SFTP", qos: .userInitiated)
     private var client: SFTPClient?
+    var uploadConflictHandler: SFTPUploadConflict.Handler = SFTPUploadConflict.prompt
     private var generation = UUID()
     private var pending = 0
     private var promising = false
@@ -66,6 +67,7 @@ final class SFTPModel: ObservableObject {
         perform("读取目录…", client: client) { try client.realpath(destination) }
     }
     private func perform(_ message: String, client: SFTPClient, direction: String? = nil, completion: ((Error?) -> Void)? = nil, operation: @escaping () throws -> String) {
+        let wasConnected = connected
         pending += 1
         busy = true; status = message; completed = 0; total = 0
         rateTimer?.invalidate(); rateTimer = nil
@@ -93,12 +95,20 @@ final class SFTPModel: ObservableObject {
                     completion?(nil)
                 }
             } catch {
-                client.close()
+                // File/permission conflicts do not imply a broken SSH transport. Probe before reuse.
+                let fatal = (error as? SFTPError).map { [5, 6, 7, 100].contains($0.code) } ?? false
+                let reusable = wasConnected && !fatal && (try? client.realpath(".")) != nil
+                if !reusable { client.close() }
                 DispatchQueue.main.async {
                     guard let self, self.client === client else { completion?(CancellationError()); return }
                     self.finishRate(success: false, now: ProcessInfo.processInfo.systemUptime)
-                    self.client = nil; self.pending = 0; self.promising = false; self.busy = false; self.connected = false
-                    self.status = error.localizedDescription
+                    if reusable {
+                        self.pending -= 1; self.busy = self.pending > 0
+                        if !self.busy { self.promising = false }
+                    } else {
+                        self.client = nil; self.pending = 0; self.promising = false; self.busy = false; self.connected = false
+                    }
+                    self.status = error is CancellationError ? "上传已取消，SFTP 保持连接。" : error.localizedDescription
                     completion?(error)
                 }
             }
@@ -130,7 +140,7 @@ final class SFTPModel: ObservableObject {
         guard panel.runModal() == .OK else { return }
         if panel.urls.count == 1, let source = panel.urls.first {
             let alert = NSAlert(); alert.messageText = L10n.text("上传文件")
-            alert.informativeText = L10n.text("远端文件名；再次使用相同文件和名称可断点续传。已有完整文件不会被覆盖。")
+            alert.informativeText = L10n.text("远端文件名；相同文件和路径可续传。遇到同名项目时询问覆盖或跳过。")
             let field = NSTextField(string: source.lastPathComponent)
             field.frame = NSRect(x: 0, y: 0, width: 350, height: 24); alert.accessoryView = field
             alert.addButton(withTitle: L10n.text("上传 / 续传")); alert.addButton(withTitle: L10n.text("取消"))
@@ -148,10 +158,20 @@ final class SFTPModel: ObservableObject {
             }
             let directory = path
             let targets = try names.map { try SFTPClient.joining(directory, $0) }
-            perform("检查文件并准备上传…", client: client, direction: "上传") { [weak self] in
+            let conflicts = SFTPUploadConflict(handler: uploadConflictHandler) { [weak self, weak client] in
+                guard let self, let client else { return false }
+                return self.client === client && self.connected
+            }
+            perform("检查文件并准备上传…", client: client, direction: "上传", completion: { [weak self] error in
+                if error == nil, conflicts.skipped > 0 {
+                    self?.status = L10n.text("上传完成，跳过项目数：") + String(conflicts.skipped)
+                }
+            }) { [weak self] in
                 for (source, target) in zip(sources, targets) {
                     self?.beginFile(source.lastPathComponent, client: client)
-                    try client.uploadItem(source, to: target) { self?.treeProgress($0, $1, $2, client: client) }
+                    try client.uploadItem(source, to: target, conflict: { try conflicts.resolve($0, target: $1, canReplace: $2) }) {
+                        self?.treeProgress($0, $1, $2, client: client)
+                    }
                 }
                 return directory
             }

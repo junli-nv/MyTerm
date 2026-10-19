@@ -42,7 +42,7 @@ Update regression covers version comparison, architecture selection, download UR
 | SSH authentication, aliases, compression, jumps, HTTP/SOCKS5, L/R/D forwarding | `integration-check.py`: temporary loopback sshd, proxies, echo services and multi-hop combinations |
 | Password save, reuse, rejection and rotation | `password-check.py`: real OpenSSH askpass and temporary encrypted database |
 | Group tree, drag, session restore/import/export | Core archive/group checks and window group/tab-drag checks |
-| SFTP files/directories, hidden/empty folders, resume, conflicts, links | Core real-SFTP checks; UI selection, batches, file promises, detached window, disconnect/cancel |
+| SFTP files/directories, hidden/empty folders, resume, conflicts, links | Core real-SFTP checks including atomic/portable replacement; overwrite/skip/batch choices and connection preservation after conflict cancellation; UI selection, batches, file promises, detached window, disconnect/cancel |
 | ZMODEM and trzsz | Real helpers and PTY upload/download, byte comparisons, rates, tmux and drag paths |
 | tmux, copying, IME, font zoom, reconnect | Window checks and real SSH/tmux, including less replay, streaming selection and R/r |
 | Themes, colors, opacity, fonts, seven vertical settings categories, the three-section Codex sidebar, Chinese/English | Complete window checks, repeated language changes, small windows and scrolling |

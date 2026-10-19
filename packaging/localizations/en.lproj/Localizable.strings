@@ -1214,3 +1214,27 @@
 "留空使用主机地址" = "Leave empty to use host address";
 
 "跳板机名称不能超过 120 个字符或包含控制字符。" = "Jump host names must be at most 120 characters and contain no control characters.";
+
+"远端已有同名项目" = "An item with this name already exists remotely";
+
+"请选择覆盖或跳过。全部选项仅对本次上传生效。" = "Choose overwrite or skip. Apply-to-all choices affect only this upload batch.";
+
+"文件类型不兼容，不能覆盖目录、符号链接或特殊文件。可以跳过并继续。" = "Incompatible file types: directories, symbolic links and special files cannot be replaced. Skip to continue.";
+
+"跳过" = "Skip";
+
+"全部覆盖" = "Overwrite All";
+
+"全部跳过" = "Skip All";
+
+"取消上传" = "Cancel Upload";
+
+"上传已取消，SFTP 保持连接。" = "Upload cancelled. SFTP remains connected.";
+
+"上传完成，跳过项目数：" = "Upload complete. Items skipped: ";
+
+"远端文件名；相同文件和路径可续传。遇到同名项目时询问覆盖或跳过。" = "Remote name; reuse the same file and path to resume. Existing items prompt for overwrite or skip.";
+
+"上传期间目标发生变化，临时文件已保留，请重试。" = "The destination changed during upload. The partial file is retained; please retry.";
+
+"覆盖未完成，原文件备份保留于：" = "Replacement did not finish. Original file backup retained at: ";

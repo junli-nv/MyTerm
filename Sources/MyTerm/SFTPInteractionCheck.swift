@@ -48,6 +48,35 @@ enum SFTPInteractionCheck {
         try require(model.entries.count == 2 && model.connected, "batch upload failed: " + model.status)
         for file in files { try require(try Data(contentsOf: file) == Data(contentsOf: remote.appendingPathComponent(file.lastPathComponent)), "uploaded bytes differ") }
 
+        var prompts = 0
+        func oldRemote() throws { for file in files { try Data("old".utf8).write(to: remote.appendingPathComponent(file.lastPathComponent)) } }
+        try oldRemote()
+        model.uploadConflictHandler = { _, _, allowed in
+            prompts += 1; return allowed && prompts == 2 ? .overwrite : .skip
+        }
+        model.upload(files); try wait { !model.busy }
+        try require(model.connected && prompts == 2, "mixed conflict choices disconnected")
+        try require(try Data(contentsOf: remote.appendingPathComponent(files[0].lastPathComponent)) == Data("old".utf8), "skip changed destination")
+        try require(try Data(contentsOf: remote.appendingPathComponent(files[1].lastPathComponent)) == Data(contentsOf: files[1]), "overwrite failed")
+        prompts = 0
+        model.uploadConflictHandler = { _, _, _ in prompts += 1; return .overwriteAll }
+        model.upload(files); try wait { !model.busy }
+        try require(model.connected && prompts == 1, "overwrite-all prompted more than once")
+        try oldRemote(); prompts = 0
+        model.uploadConflictHandler = { _, _, _ in prompts += 1; return .skipAll }
+        model.upload(files); try wait { !model.busy }
+        try require(model.connected && prompts == 1, "skip-all failed")
+        for file in files { try require(try Data(contentsOf: remote.appendingPathComponent(file.lastPathComponent)) == Data("old".utf8), "skip-all replaced content") }
+        prompts = 0
+        model.uploadConflictHandler = { _, _, _ in prompts += 1; return .cancel }
+        model.upload(files); try wait { !model.busy }
+        try require(model.connected && prompts == 1, "cancel conflict closed connection or batch policy leaked")
+        model.navigate(remote.appendingPathComponent("missing").path); try wait { !model.busy }
+        try require(model.connected, "missing directory disconnected SFTP")
+        model.uploadConflictHandler = { _, _, _ in .overwriteAll }
+        model.upload(files); try wait { !model.busy }
+        try require(model.connected, "upload after conflict failed")
+
         let host = NSHostingView(rootView: SFTPFileTable(model: model))
         let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 500, height: 280), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host; window.makeKeyAndOrderFront(nil)
@@ -107,6 +136,9 @@ enum SFTPInteractionCheck {
         try fm.createDirectory(at: uploadFolder.appendingPathComponent("nested/empty"), withIntermediateDirectories: true)
         try Data("recursive drag".utf8).write(to: uploadFolder.appendingPathComponent("nested/test.txt"))
         model.upload([uploadFolder]); try wait { !model.busy }
+        try Data("nested old".utf8).write(to: remote.appendingPathComponent("tree/nested/test.txt"))
+        model.upload([uploadFolder]); try wait { !model.busy }
+        try require(model.connected && (try? Data(contentsOf: remote.appendingPathComponent("tree/nested/test.txt"))) == Data("recursive drag".utf8), "recursive overwrite failed")
         try wait { coordinator.entries.contains(where: { $0.name == "tree" }) }
         guard let directoryIndex = coordinator.entries.firstIndex(where: { $0.name == "tree" }),
               let folderPromise = coordinator.tableView(table, pasteboardWriterForRow: directoryIndex) as? NSFilePromiseProvider,

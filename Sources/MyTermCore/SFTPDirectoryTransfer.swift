@@ -4,6 +4,7 @@ extension SFTPClient {
     /// Directory retries merge folders and skip only byte-identical completed files.
     /// Links and special files are rejected rather than followed outside the selected tree.
     public func uploadItem(_ source: URL, to remote: String,
+                           conflict: ((URL, String, Bool) throws -> Bool)? = nil,
                            progress: (String, UInt64, UInt64) -> Void) throws {
         var count = 0
         func visit(_ local: URL, _ target: String, depth: Int) throws {
@@ -12,16 +13,25 @@ extension SFTPClient {
             let values = try local.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey, .fileSizeKey])
             guard values.isSymbolicLink != true else { throw SFTPError(code: 4, message: "递归传输不跟随符号链接：" + local.path) }
             if values.isDirectory == true {
+                if let existing = try attributes(at: target), !existing.isDirectory || existing.isLink {
+                    if let conflict, try !conflict(local, target, false) { return }
+                }
                 try createDirectory(target)
                 for child in try FileManager.default.contentsOfDirectory(at: local, includingPropertiesForKeys: nil).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                     try visit(child, SFTPClient.joining(target, child.lastPathComponent), depth: depth + 1)
                 }
             } else if values.isRegularFile == true {
-                if try attributes(at: target) != nil, try contentsMatch(local, remote: target) {
-                    let size = UInt64(max(0, values.fileSize ?? 0)); progress(local.path, size, size)
-                } else {
-                    try upload(local, to: target) { progress(local.path, $0, $1) }
+                var overwrite = false
+                if let existing = try attributes(at: target) {
+                    if let conflict {
+                        guard try conflict(local, target, existing.isRegularFile) else { return }
+                        overwrite = existing.isRegularFile
+                    } else if try contentsMatch(local, remote: target) {
+                        let size = UInt64(max(0, values.fileSize ?? 0)); progress(local.path, size, size)
+                        return
+                    }
                 }
+                try upload(local, to: target, overwrite: overwrite) { progress(local.path, $0, $1) }
             } else { throw SFTPError(code: 4, message: "不支持此文件类型：" + local.path) }
         }
         try visit(source, remote, depth: 0)

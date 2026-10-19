@@ -192,6 +192,20 @@ final class FeatureTests {
         try Data("different".utf8).write(to: nested.appendingPathComponent("file.bin"))
         checkThrows(try third.uploadItem(source, to: target) { _, _, _ in })
         checkEqual(try Data(contentsOf: remote.appendingPathComponent("source/中文 folder/nested/file.bin")), bytes)
+        // Both OpenSSH atomic replacement and portable v3 replacement keep old bytes until completion.
+        for disabled in [false, true] {
+            let replacement = SFTPClient(executable: "/usr/libexec/sftp-server", arguments: ["-d", remote.path] + (disabled ? ["-P", "posix-rename"] : []))
+            try replacement.connect(); defer { replacement.close() }
+            let path = remote.appendingPathComponent(disabled ? "legacy-replace" : "atomic-replace")
+            try Data("old".utf8).write(to: path)
+            let uploadSource = nested.appendingPathComponent("file.bin")
+            try replacement.upload(uploadSource, to: path.path, overwrite: true) { _, _ in
+                checkEqual(try? Data(contentsOf: path), Data("old".utf8))
+            }
+            checkEqual(try Data(contentsOf: path), Data("different".utf8))
+        }
+        try third.uploadItem(source, to: target, conflict: { _, _, allowed in allowed }) { _, _, _ in }
+        checkEqual(try Data(contentsOf: remote.appendingPathComponent("source/中文 folder/nested/file.bin")), Data("different".utf8))
         let link = root.appendingPathComponent("link")
         try fm.createSymbolicLink(at: link, withDestinationURL: source)
         checkThrows(try third.uploadItem(link, to: remote.appendingPathComponent("link").path) { _, _, _ in })

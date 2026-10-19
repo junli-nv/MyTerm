@@ -30,6 +30,8 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### Publishing and documentation
 
+- Patch versions stop at `.12`; subsequent releases increment the minor version (for example, `3.3.12` → `3.4`).
+
 - When publishing is requested, publish and verify the new release. Preserve existing GitHub Releases and their assets unless the user explicitly requests cleanup; preserve source tags and historical changelogs. Do not infer publishing authorization from an ordinary code or documentation edit.
 - Maintain Chinese and English versions of current documentation together, with working language links. README is a usage guide, not a running list of version announcements. Use `releases/latest` for downloads and `packaging/Info.plist` as the version source.
 - After every change, validate code and matching Chinese/English documentation together; run regression checks appropriate to the changed behavior and report any unverified areas.
@@ -63,6 +65,8 @@ This file contains matching English and Chinese instructions. Both describe the 
 - 涉及异步会话状态时，验证初始/加载状态与完成状态。SFTP 入口不得依赖底栏，切换 SSH/本地标签保持标签栏布局稳定。
 
 ### 发布与文档
+
+- 补丁版本最多到 `.12`，之后递增次版本（例如 `3.3.12` → `3.4`）。
 
 - 用户要求发布时，发布并验证新版本。除非用户明确要求清理，否则保留已有 GitHub Release 及附件，并保留源码标签和历史日志；普通代码或文档修改不自动授权发布。
 - 当前文档的中英文同步维护，并提供有效语言链接。README 描述用法，不堆叠版本公告；下载指向 `releases/latest`，版本以 `packaging/Info.plist` 为准。

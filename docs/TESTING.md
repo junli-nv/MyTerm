@@ -42,7 +42,7 @@ python3 scripts/check-all.py /tmp/myterm-check/Release/MyTerm.app --configuratio
 | SSH 认证、别名、压缩、跳板、HTTP/SOCKS5、L/R/D 转发 | `integration-check.py`：临时本机 sshd、代理、回显服务及多级组合 |
 | 密码首次保存、复用、拒绝与更新 | `password-check.py`：真实 OpenSSH askpass 和临时加密数据库 |
 | 分组树、拖拽、会话恢复/导入导出 | 核心归档/分组检查、窗口中的分组与标签拖拽检查 |
-| SFTP 文件/目录、隐藏/空目录、断点续传、冲突、链接 | 核心真实 SFTP 检查；窗口中的选择、批量、文件承诺拖拽、独立窗口、断开/取消 |
+| SFTP 文件/目录、隐藏/空目录、断点续传、冲突、链接 | 核心真实 SFTP 检查（含原子/兼容覆盖）；覆盖/跳过/批次选择、取消冲突后保持连接；窗口中的选择、批量、文件承诺拖拽、独立窗口、断开/取消 |
 | ZMODEM、trzsz | 真实助手进程及 PTY 上传/下载、字节比对、速度、tmux 与拖拽路径 |
 | tmux、复制、输入法、字体缩放、断线重连 | 窗口检查及真实 SSH/tmux；包含 less 回放、持续输出选区、R/r |
 | 主题、颜色、透明度、字体、七个纵向设置分类、Codex 三分区侧栏、中英文 | 完整窗口检查，含反复切换语言、小窗口与滚动 |

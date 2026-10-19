@@ -171,9 +171,9 @@ New SSH tabs immediately expose the SFTP button, while the panel starts hidden. 
 - Use toolbar/context-menu downloads, batch uploads/downloads and recursive folders, including empty directories and hidden files.
 - Drop files/folders from Finder into the current remote directory, or drag selected remote items to Finder to download.
 - Pop the panel into a resizable window. Closing/docking restores the inline panel while retaining connection and selection. The tab-strip button brings an existing detached window forward.
-- Transfers run sequentially and show the current file, progress and rate. Errors stop the operation. Cancel disconnects SFTP and preserves resume files.
+- Transfers run sequentially and show the current file, progress and rate. File conflicts and recoverable operation errors keep SFTP connected; broken connections are closed. The panel Cancel button disconnects and preserves resume files, while Cancel Upload in a conflict dialog stops only the batch.
 
-Directory retries merge folders and skip completed files only after byte comparison. Uploads refuse to overwrite different contents. Downloads into existing destinations require save-panel or merge/replace confirmation. Symlinks and special files cause an error rather than being followed. Recursion is bounded at 128 levels and 100,000 entries per selected root. Names use UTF-8. The file panel uses SFTP; it has no SCP option.
+Uploads merge existing directories. Existing files offer Overwrite, Skip, Overwrite All or Skip All; all choices apply only to this batch, including recursive children. Incompatible types allow only skipping or cancellation. Overwrites finish the temporary upload before replacing the target, atomically with the OpenSSH extension or using a temporary backup otherwise. Failed replacement attempts restore the original; failed restoration reports the backup path. Download directory retries skip completed files only after byte comparison. Downloads into existing destinations require save-panel or merge/replace confirmation. Symlinks and special files cause an error rather than being followed. Recursion is bounded at 128 levels and 100,000 entries per selected root. Names use UTF-8. The file panel uses SFTP; it has no SCP option.
 
 ### Resume interrupted transfers
 
