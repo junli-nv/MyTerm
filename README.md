@@ -255,6 +255,10 @@ SSH 命令支持多行脚本（LF 换行、Tab 缩进，默认最多 4096 UTF-8 
 fullscreen_transcript = false
 ```
 
+设置、Codex 接入和 SSH 配置窗口会在打开时移动到当前桌面。内置 Codex 标签使用普通历史缓冲时，两指或滚轮上翻由 MyTerm 处理：输出继续；回到底部后恢复自动跟随。全屏模式由程序处理滚动，历史内容仍受行数和内存预算限制。
+
+已知问题：Codex 持续输出时，上翻历史仍可能突然跳到更早内容，用户复测确认本次调整未解决该问题，后续继续排查。
+
 在 Codex CLI 0.157.1 的普通会话界面中，Scrollback 不开启鼠标报告：启用 MyTerm 的“选中文本后自动复制”后，直接拖选并松开鼠标即可复制，**无需 Shift**；启用“右键直接粘贴”后，右键仍直接粘贴。若使用 Fullscreen 模式或其他接管鼠标的界面，可按住 Shift 拖选，并保持到松开鼠标，以使用本地选择。`Shift + 右键` 显示菜单。
 
 无需额外配置 `raw_output_mode` 或 `alternate_screen`：它们的默认值分别为 `false` 和 `"auto"`。若此前设置了 `raw_output_mode = true` 或 `alternate_screen = "never"`，请删除这些覆盖项或恢复默认值。Scrollback 不需要开启原始输出模式；原始输出模式可能削弱提问和回复的视觉区分。默认值与选项含义见 [Codex 官方配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)。

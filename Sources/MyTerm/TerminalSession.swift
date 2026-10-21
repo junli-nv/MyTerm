@@ -7,7 +7,9 @@ import Combine
 final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProcessTerminalViewDelegate {
     weak var codexExecutionBridge: CodexBridge?
     var codexTargetSessionID: UUID?
-    var isCodexSession = false
+    var isCodexSession = false {
+        didSet { terminal.prefersLocalScrollback = isCodexSession }
+    }
     private(set) var inputGeneration = UUID()
     let id = UUID()
     let startedAt = Date()

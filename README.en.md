@@ -249,6 +249,10 @@ To keep formatted questions and replies while using MyTerm's direct drag-to-copy
 fullscreen_transcript = false
 ```
 
+Settings, Codex integration and SSH configuration windows move to the active desktop when opened. In the normal history buffer of embedded Codex tabs, MyTerm handles trackpad/wheel scrolling: output continues while you read history, and following resumes when you return to the bottom. Full-screen applications handle their own scrolling; history remains subject to line and memory limits.
+
+Known issue: scrolling through history while Codex continues producing output can still jump unexpectedly to much earlier content. User testing confirmed that this change does not resolve the issue; further investigation is pending.
+
 In the ordinary conversation view of Codex CLI 0.157.1, Scrollback does not enable mouse reporting. With MyTerm selection-copy enabled, simply drag to select and release the mouse to copy—**no Shift needed**. Right-click still pastes when that option is enabled. In Fullscreen mode or another view that captures the mouse, hold Shift while dragging and until you release the mouse to select locally. Shift+right-click opens the menu.
 
 No additional `raw_output_mode` or `alternate_screen` setting is required: their defaults are `false` and `"auto"`, respectively. If you previously set `raw_output_mode = true` or `alternate_screen = "never"`, remove those overrides or restore the default values. Scrollback does not require raw output mode, which may make questions and replies harder to distinguish. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) for defaults and option details.

@@ -23,6 +23,7 @@ enum CodexLocalWorkCheck {
         try require(workspace.sessions.count == 1 && tab.directory == root.path && tab.codexTargetSessionID == nil && tab.codexExecutionBridge == nil, "Local launch lost directory/target")
         try require(tab.arguments.contains("workspace-write") && tab.arguments.contains("on-request"), "Local sandbox/approval missing")
         try require(bridge.executionGrants.isEmpty && bridge.allowed.isEmpty && !bridge.enabled, "Local tab acquired SSH permissions or shares Codex output")
+        try require(tab.terminal.prefersLocalScrollback, "Codex tab did not enable local history scrolling")
         tab.start()
         // Read the child-written fixture, not main-queue PTY callbacks while
         // this synchronous UI check itself occupies the main queue.

@@ -26,6 +26,7 @@ final class WindowControlsCheck {
             try TmuxPrefixInputCheck.run()
             try KeyboardRepeatCheck.run()
             try TerminalInputStateCheck.run()
+            try TerminalScrollCheck.run()
             try TerminalDiagnosticsCheck.run(workspace: workspace)
             try TerminalCopyCheck.run()
             try SSHDisconnectCheck.run()

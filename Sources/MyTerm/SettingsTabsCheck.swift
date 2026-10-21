@@ -22,6 +22,8 @@ enum SettingsTabsCheck {
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("Settings tabs: " + message) }
         }
+        try require(window.collectionBehavior.contains(.moveToActiveSpace), "Settings must follow the active desktop")
+        try require(!window.collectionBehavior.contains(.canJoinAllSpaces), "Settings must not appear on every desktop")
         for locale in [InterfaceLanguage.english, .chinese, .english, .chinese] {
             let selected = controller.selection.page
             language.selection = locale

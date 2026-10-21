@@ -1,8 +1,19 @@
 # MyTerm release history
 
+
 [简体中文](CHANGELOG.md) · English
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
+
+<a id="version-3.3.3"></a>
+
+# MyTerm 3.3.3
+
+- Settings, Codex integration and SSH configuration windows move to the active desktop when opened instead of activating a window on another desktop.
+- In embedded Codex tabs, MyTerm handles wheel/trackpad scrolling in the normal terminal buffer even when the process enables mouse reporting. Output continues while reading history; scrolling back to the bottom resumes following. Alternate-screen applications retain their mouse routing. History remains subject to line and memory limits.
+- Known issue: scrolling through history while Codex continues producing output can still jump unexpectedly to much earlier content. User testing confirmed that this change does not resolve the issue; further investigation is pending.
+
+[Release notes](packaging/RELEASE-NOTES-3.3.3.md).
 
 <a id="version-3.3.2"></a>
 

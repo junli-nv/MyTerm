@@ -20,6 +20,7 @@ enum ServerEditorLayoutCheck {
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("SSH editor layout: " + message) }
         }
+        try require(window.collectionBehavior.contains(.moveToActiveSpace), "SSH editor must follow the active desktop")
         var keyed = server
         keyed.authentication = .key; keyed.identityFile = "/tmp/myterm-editor-key"
         keyed.jumpServers?[0].authentication = .key; keyed.jumpServers?[0].identityFile = "/tmp/myterm-editor-hop-key"

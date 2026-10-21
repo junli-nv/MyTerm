@@ -38,7 +38,7 @@ final class MouseSettingsController: NSWindowController, NSWindowDelegate {
         window.title = L10n.text("MyTerm 设置")
         window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 940, height: 620)
-        window.collectionBehavior.insert(.fullScreenPrimary)
+        window.collectionBehavior.formUnion([.fullScreenPrimary, .moveToActiveSpace])
         super.init(window: window)
         window.delegate = self
         window.contentView = NSHostingView(rootView: SettingsView(selection: selection))

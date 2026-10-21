@@ -6,6 +6,7 @@ final class CodexSettingsController {
     func present(workspace: Workspace) {
         if window == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.collectionBehavior.insert(.moveToActiveSpace)
             window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 940, height: 620)
             window.contentView = NSHostingView(rootView: CodexSettingsView(workspace: workspace, bridge: workspace.codex, onStarted: { [weak self] in self?.window?.close() }))
             window.center(); self.window = window

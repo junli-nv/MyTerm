@@ -12,7 +12,7 @@ final class ServerEditorWindowController: NSWindowController, NSWindowDelegate {
         window.title = L10n.text("SSH 服务器")
         window.contentMinSize = NSSize(width: 640, height: 480)
         window.isReleasedWhenClosed = false
-        window.collectionBehavior.insert(.fullScreenPrimary)
+        window.collectionBehavior.formUnion([.fullScreenPrimary, .moveToActiveSpace])
         super.init(window: window)
         window.delegate = self
         languageObserver = NotificationCenter.default.addObserver(forName: LanguagePreferences.didChange, object: nil, queue: .main) { [weak self] _ in
