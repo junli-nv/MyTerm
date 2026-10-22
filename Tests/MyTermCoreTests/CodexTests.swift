@@ -47,6 +47,10 @@ func checkCodexIntegration() throws {
     checkEqual(localArgs.contains(where: { $0.contains("enabled=false") }), true)
     checkEqual(localArgs.contains(where: { $0.contains("required=false") }), true)
     checkEqual(localArgs.contains(where: { $0.contains("session_id") || $0.contains("mcp_servers.myterm.command=") }), false)
+    for launch in [args, resumed, localArgs] {
+        checkFalse(launch.contains("--no-alt-screen"))
+        checkFalse(launch.contains(where: { $0.hasPrefix("tui.") }))
+    }
     let once = CodexConnection.sessionPrompt(id: id)
     checkEqual(once.contains(id.uuidString), true)
     checkEqual(once.contains("Continuously monitor"), false)

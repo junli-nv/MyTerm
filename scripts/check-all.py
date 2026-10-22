@@ -52,7 +52,7 @@ def main():
     suites = [
         ("core", [str(checks)], 120),
         ("ssh-integration", [python, "scripts/integration-check.py"], 300),
-        ("window-controls", [python, "scripts/window-controls-check.py", str(app)], 150),
+        ("window-controls", [python, "scripts/window-controls-check.py", str(app)], 300),
         ("zmodem", [str(binary), "--smoke-test", "--transfer-check"], 90),
         ("trzsz", [python, "scripts/trzsz-check.py"], 150),
         ("password", [str(password_python), "scripts/password-check.py"], 120),

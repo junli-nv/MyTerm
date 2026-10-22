@@ -44,13 +44,13 @@ public struct CodexConnection: Codable, Equatable {
             // Standalone local work must not depend on a shared terminal or on
             // stale MyTerm MCP paths in the user's external Codex configuration.
             return authenticationArguments + ["--cd", localDirectory, "--sandbox", "workspace-write",
-                "--ask-for-approval", "on-request", "--no-alt-screen",
+                "--ask-for-approval", "on-request",
                 "-c", #"mcp_servers.myterm={enabled=false,required=false,command="/usr/bin/false",args=[]}"#]
         }
         // TOML does not accept JSON\'s optional escaped slash (\\/). Keep slashes literal.
         // Quotes and backslashes remain escaped; no shell interpretation.
         let command = String(decoding: try JSONSerialization.data(withJSONObject: appExecutable, options: [.fragmentsAllowed, .withoutEscapingSlashes]), as: UTF8.self)
-        var arguments = ["-c", "mcp_servers.myterm.enabled=true", "-c", "mcp_servers.myterm.required=true", "-c", "mcp_servers.myterm.command=" + command, "-c", "mcp_servers.myterm.args=[\"--myterm-mcp\"]", "-c", "mcp_servers.myterm.tool_timeout_sec=60", "-c", "mcp_servers.myterm.enabled_tools=[\"list_sessions\",\"read_output\",\"capture_history\",\"read_history_page\",\"execute_command\",\"command_status\",\"cancel_command\"]", "--sandbox", "read-only", "--no-alt-screen"]
+        var arguments = ["-c", "mcp_servers.myterm.enabled=true", "-c", "mcp_servers.myterm.required=true", "-c", "mcp_servers.myterm.command=" + command, "-c", "mcp_servers.myterm.args=[\"--myterm-mcp\"]", "-c", "mcp_servers.myterm.tool_timeout_sec=60", "-c", "mcp_servers.myterm.enabled_tools=[\"list_sessions\",\"read_output\",\"capture_history\",\"read_history_page\",\"execute_command\",\"command_status\",\"cancel_command\"]", "--sandbox", "read-only"]
         if let association {
             arguments += ["-c", "mcp_servers.myterm.env.MYTERM_CODEX_ASSOCIATION=\"" + association.uuidString + "\""]
         }

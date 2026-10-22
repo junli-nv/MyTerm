@@ -301,9 +301,9 @@ def zmodem_check(root):
     source = source_dir / 'binary.bin'; source.write_bytes(os.urandom(180000))
     # Two unmodified lrzsz helpers exchange protocol over pipes, as the app's bridge does.
     with open(root / 'zmodem.log', 'wb') as log:
-        recv = subprocess.Popen([receiver, '--binary', '--escape', '--restricted', '--protect'],
+        recv = subprocess.Popen([receiver, '--binary', '--escape', '--resume'],
             cwd=target_dir, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
-        send = subprocess.Popen([sender, '--binary', '--escape', '--resume', '--', str(source)],
+        send = subprocess.Popen([sender, '--binary', '--escape', '--overwrite', '--', str(source)],
             cwd=source_dir, stdin=recv.stdout, stdout=recv.stdin, stderr=log)
         recv.stdout.close(); recv.stdin.close()
         try:

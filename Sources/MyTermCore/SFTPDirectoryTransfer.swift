@@ -39,6 +39,7 @@ extension SFTPClient {
 
     /// Uses the existing per-file resume metadata. Never writes through local symlinks.
     public func downloadItem(_ remote: String, to destination: URL,
+                             conflict: ((URL, String, Bool) throws -> Bool)? = nil,
                              progress: (String, UInt64, UInt64) -> Void) throws {
         var count = 0
         func visit(_ source: String, _ local: URL, depth: Int) throws {
@@ -48,7 +49,10 @@ extension SFTPClient {
                 throw SFTPError(code: 4, message: "文件不存在或是符号链接：" + source)
             }
             // resourceValues detects a dangling symlink too; fileExists alone does not.
-            let existing = try? local.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+            let existing = try? local.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey])
+            if let existing, !(entry.isDirectory && existing.isDirectory == true && existing.isSymbolicLink != true), let conflict {
+                guard try conflict(URL(fileURLWithPath: source), local.path, !entry.isDirectory && existing.isRegularFile == true && existing.isSymbolicLink != true) else { return }
+            }
             guard existing?.isSymbolicLink != true else { throw SFTPError(code: 4, message: "目标是符号链接：" + local.path) }
             if entry.isDirectory {
                 if FileManager.default.fileExists(atPath: local.path), existing?.isDirectory != true {

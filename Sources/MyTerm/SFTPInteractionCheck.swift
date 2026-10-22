@@ -135,6 +135,35 @@ enum SFTPInteractionCheck {
         try wait { completed == 2 }
         try require(errors.isEmpty && !model.busy, "promised downloads failed")
         for entry in model.entries { try require(try Data(contentsOf: dragDirectory.appendingPathComponent(entry.name)) == Data(contentsOf: remote.appendingPathComponent(entry.name)), "promised bytes differ") }
+        // Existing promise destinations use the same conflict path as button downloads.
+        var downloadPrompts = 0
+        model.downloadConflictHandler = { _, _, allowed in downloadPrompts += 1; return allowed ? .overwrite : .cancel }
+        try Data("old local".utf8).write(to: dragDirectory.appendingPathComponent(files[0].lastPathComponent))
+        var replaced = false
+        model.downloadPromise(remote: remote.appendingPathComponent(files[0].lastPathComponent).path,
+            destination: dragDirectory.appendingPathComponent(files[0].lastPathComponent), connectionID: model.connectionID) { error in
+            replaced = error == nil
+        }
+        try wait { !model.busy }
+        try require(replaced && downloadPrompts == 1 && model.connected, "download overwrite failed or disconnected")
+        try require(try Data(contentsOf: dragDirectory.appendingPathComponent(files[0].lastPathComponent)) == Data(contentsOf: files[0]), "download overwrite bytes differ")
+        let downloadEntries = model.entries.filter { !$0.isDirectory }
+        let downloadTargets = downloadEntries.map { dragDirectory.appendingPathComponent($0.name) }
+        for target in downloadTargets { try Data("preserve local".utf8).write(to: target) }
+        downloadPrompts = 0
+        model.downloadConflictHandler = { _, _, _ in downloadPrompts += 1; return .skipAll }
+        model.download(downloadEntries, destinations: downloadTargets); try wait { !model.busy }
+        try require(downloadPrompts == 1 && model.connected, "download skip-all did not remain batch scoped")
+        for target in downloadTargets { try require(try Data(contentsOf: target) == Data("preserve local".utf8), "download skip changed original") }
+        downloadPrompts = 0
+        model.downloadConflictHandler = { _, _, _ in downloadPrompts += 1; return .overwriteAll }
+        model.download(downloadEntries, destinations: downloadTargets); try wait { !model.busy }
+        try require(downloadPrompts == 1 && model.connected, "download overwrite-all failed")
+        for target in downloadTargets { try require(try Data(contentsOf: target) == Data(contentsOf: remote.appendingPathComponent(target.lastPathComponent)), "batch overwrite bytes differ") }
+        model.downloadConflictHandler = { _, _, _ in .cancel }
+        model.download(downloadEntries, destinations: downloadTargets); try wait { !model.busy }
+        try require(model.connected, "cancelling a download conflict disconnected SFTP")
+        model.downloadConflictHandler = { _, _, allowed in allowed ? .overwrite : .skip }
         let uploadFolder = local.appendingPathComponent("tree")
         try fm.createDirectory(at: uploadFolder.appendingPathComponent("nested/empty"), withIntermediateDirectories: true)
         try Data("recursive drag".utf8).write(to: uploadFolder.appendingPathComponent("nested/test.txt"))

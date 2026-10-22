@@ -85,6 +85,7 @@ for line in sys.stdin:
     process = None
     output = bytearray()
     rendered = b""
+    history_emitted = False
     try:
         process = subprocess.Popen([codex, *args], stdin=slave, stdout=slave, stderr=slave, cwd=root, env=env, start_new_session=True)
         os.close(slave); slave = -1
@@ -102,10 +103,13 @@ for line in sys.stdin:
                     assert all(event["association"] == "11111111-2222-3333-4444-555555555555" for event in events)
                     initialized = True
             rendered = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", bytes(output))
-            if initialized and b"Synthetic discussion completed." in rendered:
+            # Fullscreen TUI may draw word gaps with cursor positioning rather than
+            # literal spaces. Check the unique assistant marker, independent of layout.
+            history_emitted = b"Syntheticdiscussioncompleted." in re.sub(rb"\s+", b"", rendered)
+            if initialized and history_emitted:
                 break
         assert initialized, "Real Codex resume did not initialize the fresh MCP: " + output.decode(errors="replace")[-5000:]
-        assert b"Synthetic discussion completed." in rendered, "Saved conversation was not rendered: " + rendered.decode(errors="replace")[-3000:]
+        assert history_emitted, "Saved conversation was not rendered: " + rendered.decode(errors="replace")[-3000:]
         assert not any(method == "POST" for method, _ in requests), "Resume unexpectedly requested inference"
         print("PASS: real Codex resumes synthetic history and initializes MCP with fresh association; no model requests")
     finally:

@@ -61,8 +61,8 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         terminal.processDelegate = self
         terminal.configureOutputHighlighting(isSSH: executable == "/usr/bin/ssh")
         HistoryMemoryBudget.shared.register(terminal, id: id)
-        if server != nil {
-            terminal.zmodem = ZmodemBridge(terminal: terminal)
+        if let server {
+            terminal.zmodem = ZmodemBridge(terminal: terminal, identity: server.id.uuidString)
             terminal.registerForDraggedTypes([.fileURL])
             terminal.canUploadFiles = { [weak self] in
                 guard let self, self.isRunning, let path = self.connectionContext?.controlPath else { return false }

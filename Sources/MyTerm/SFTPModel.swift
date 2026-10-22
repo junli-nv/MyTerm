@@ -21,10 +21,12 @@ final class SFTPModel: ObservableObject {
     private var rateTimer: Timer?
     private let queue = DispatchQueue(label: "MyTerm.SFTP", qos: .userInitiated)
     private var client: SFTPClient?
-    var uploadConflictHandler: SFTPUploadConflict.Handler = SFTPUploadConflict.prompt
+    var downloadConflictHandler: TransferConflict.Handler = TransferConflict.downloadPrompt
+    var uploadConflictHandler: TransferConflict.Handler = TransferConflict.prompt
     private var generation = UUID()
     private var pending = 0
     private var promising = false
+    private var promiseConflicts: TransferConflict?
     @Published private(set) var detached = false
     private var detachedWindow: SFTPWindowController?
     var selectedEntries: [RemoteEntry] { entries.filter { selected.contains($0.name) } }
@@ -91,7 +93,7 @@ final class SFTPModel: ObservableObject {
                     self.path = path; self.pathInput = path; self.entries = entries; self.selected = self.selected.intersection(Set(entries.map(\.name)))
                     self.pending -= 1; self.busy = self.pending > 0
                     self.connected = true; self.status = "\(entries.count) 个项目"
-                    if !self.busy { self.promising = false; self.finishRate(success: true, now: finished) }
+                    if !self.busy { self.promising = false; self.promiseConflicts = nil; self.finishRate(success: true, now: finished) }
                     completion?(nil)
                 }
             } catch {
@@ -104,11 +106,11 @@ final class SFTPModel: ObservableObject {
                     self.finishRate(success: false, now: ProcessInfo.processInfo.systemUptime)
                     if reusable {
                         self.pending -= 1; self.busy = self.pending > 0
-                        if !self.busy { self.promising = false }
+                        if !self.busy { self.promising = false; self.promiseConflicts = nil }
                     } else {
-                        self.client = nil; self.pending = 0; self.promising = false; self.busy = false; self.connected = false
+                        self.client = nil; self.pending = 0; self.promising = false; self.promiseConflicts = nil; self.busy = false; self.connected = false
                     }
-                    self.status = error is CancellationError ? "上传已取消，SFTP 保持连接。" : error.localizedDescription
+                    self.status = error is CancellationError ? "传输已取消，SFTP 保持连接。" : error.localizedDescription
                     completion?(error)
                 }
             }
@@ -124,7 +126,7 @@ final class SFTPModel: ObservableObject {
     func disconnect() {
         generation = UUID()
         finishRate(success: false, now: ProcessInfo.processInfo.systemUptime)
-        showRate = false; transferFile = ""; busy = false; connected = false; pending = 0; promising = false
+        showRate = false; transferFile = ""; busy = false; connected = false; pending = 0; promising = false; promiseConflicts = nil
         selected.removeAll(); entries.removeAll(); status = "SFTP 已断开，SSH 会话保持连接。"
         let client = self.client; self.client = nil; client?.cancel()
         queue.async { client?.close() }
@@ -158,7 +160,7 @@ final class SFTPModel: ObservableObject {
             }
             let directory = path
             let targets = try names.map { try SFTPClient.joining(directory, $0) }
-            let conflicts = SFTPUploadConflict(handler: uploadConflictHandler) { [weak self, weak client] in
+            let conflicts = TransferConflict(handler: uploadConflictHandler) { [weak self, weak client] in
                 guard let self, let client else { return false }
                 return self.client === client && self.connected
             }
@@ -188,11 +190,6 @@ final class SFTPModel: ObservableObject {
             let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
             guard panel.runModal() == .OK, let directory = panel.url else { return }
             let destinations = files.map { directory.appendingPathComponent($0.name) }
-            if destinations.contains(where: { FileManager.default.fileExists(atPath: $0.path) }) {
-                let alert = NSAlert(); alert.messageText = L10n.text("下载目录已有同名项目，是否合并目录并覆盖不同的文件？")
-                alert.addButton(withTitle: L10n.text("取消")); alert.addButton(withTitle: L10n.text("覆盖"))
-                guard alert.runModal() == .alertSecondButtonReturn else { return }
-            }
             download(files, destinations: destinations)
         }
     }
@@ -201,10 +198,11 @@ final class SFTPModel: ObservableObject {
         do {
             let directory = path
             let remotes = try files.map { try SFTPClient.joining(directory, $0.name) }
+            let conflicts = downloadConflicts(client: client)
             perform("准备下载…", client: client, direction: "下载") { [weak self] in
                 for (remote, destination) in zip(remotes, destinations) {
                     self?.beginFile(destination.lastPathComponent, client: client)
-                    try client.downloadItem(remote, to: destination) { self?.treeProgress($0, $1, $2, client: client) }
+                    try client.downloadItem(remote, to: destination, conflict: { try conflicts.resolve($0, target: $1, canReplace: $2) }) { self?.treeProgress($0, $1, $2, client: client) }
                 }
                 return directory
             }
@@ -216,15 +214,20 @@ final class SFTPModel: ObservableObject {
         guard connected, generation == connectionID, (!busy || promising), let client else {
             completion(ConfigurationError.invalid("SFTP 已断开或正在执行其他操作，请重新拖拽。")); return
         }
-        guard !FileManager.default.fileExists(atPath: destination.path) else {
-            completion(ConfigurationError.invalid("目标文件已存在，请选择其他名称。")); return
-        }
+        let conflicts = promiseConflicts ?? downloadConflicts(client: client)
+        promiseConflicts = conflicts
         promising = true
         let directory = path
         perform("准备下载…", client: client, direction: "下载", completion: completion) { [weak self] in
             self?.beginFile(destination.lastPathComponent, client: client)
-            try client.downloadItem(remote, to: destination) { self?.treeProgress($0, $1, $2, client: client) }
+            try client.downloadItem(remote, to: destination, conflict: { try conflicts.resolve($0, target: $1, canReplace: $2) }) { self?.treeProgress($0, $1, $2, client: client) }
             return directory
+        }
+    }
+    private func downloadConflicts(client: SFTPClient) -> TransferConflict {
+        TransferConflict(handler: downloadConflictHandler) { [weak self, weak client] in
+            guard let self, let client else { return false }
+            return self.client === client && self.connected
         }
     }
     private var activeTransferPath = ""

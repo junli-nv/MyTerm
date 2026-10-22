@@ -6,8 +6,15 @@ import subprocess
 import sys
 
 app = pathlib.Path(sys.argv[1]).resolve()
-result = subprocess.run([str(app / 'Contents/MacOS/MyTerm'), '--smoke-test', '--window-controls-check'],
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=90)
+# The bilingual layout, native-menu and real-transfer suites have individual
+# bounded waits. Leave headroom for their cumulative duration on a busy desktop.
+try:
+    result = subprocess.run([str(app / 'Contents/MacOS/MyTerm'), '--smoke-test', '--window-controls-check'],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
+except subprocess.TimeoutExpired as error:
+    captured = error.stdout or b""
+    print(captured.decode(errors="replace") if isinstance(captured, bytes) else captured, end="", flush=True)
+    raise
 print(result.stdout, end='')
 if result.returncode or 'PASS: window controls:' not in result.stdout:
     raise SystemExit(result.returncode or 1)

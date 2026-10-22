@@ -2,6 +2,11 @@ import AppKit
 import MyTermCore
 
 final class ZmodemBridge: ObservableObject {
+    var conflictHandler: TransferConflict.Handler = TransferConflict.downloadPrompt
+    var testDownloadStorage: URL?
+    var testResumeUpload = false
+    private var resumeUpload = false
+    private let identity: String
     var testSelection: ((Bool) -> [URL])?
     @Published var active = false
     @Published var awaitingReceiver = false
@@ -40,7 +45,7 @@ final class ZmodemBridge: ObservableObject {
     private let writer = DispatchQueue(label: "MyTerm.Zmodem.Write")
     private var queuedBytes = 0
     private weak var terminal: MouseTerminalView?
-    init(terminal: MouseTerminalView) { self.terminal = terminal }
+    init(terminal: MouseTerminalView, identity: String = UUID().uuidString) { self.terminal = terminal; self.identity = identity }
 
     @discardableResult func uploadDroppedFiles(_ urls: [URL]) -> Bool {
         guard !active, !awaitingReceiver, !urls.isEmpty, let terminal,
@@ -53,10 +58,11 @@ final class ZmodemBridge: ObservableObject {
         guard ["/opt/homebrew/bin/lsz", "/usr/local/bin/lsz", "/usr/bin/sz"].contains(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             status = "未找到 lrzsz，请先安装：brew install lrzsz"; return false
         }
+        guard selectUploadPolicy() else { return false }
         bytesPerSecond = 0; transferredBytes = 0; rateIsAverage = false; receiving = false
         droppedURLs = urls; awaitingReceiver = true; status = "正在启动远端 rz，等待 Zmodem 握手…"
         // Clear an unfinished command line before starting the explicitly requested transfer.
-        terminal.process.send(data: Array("\u{15}rz\r".utf8)[...])
+        terminal.process.send(data: Array(("\u{15}rz " + (resumeUpload ? "--resume" : "--overwrite") + "\r").utf8)[...])
         let timeout = DispatchWorkItem { [weak self] in
             guard let self, self.awaitingReceiver else { return }
             self.cancel(); self.status = "未收到 rz 响应；请确认远端已安装 lrzsz，并停留在 shell 提示符。"
@@ -91,6 +97,7 @@ final class ZmodemBridge: ObservableObject {
             start(receiving: false, urls: urls); return
         }
         if ProcessInfo.processInfo.arguments.contains("--smoke-test"), let testSelection {
+            resumeUpload = testResumeUpload
             let urls = testSelection(receiving)
             DispatchQueue.main.async { [weak self] in self?.start(receiving: receiving, urls: urls) }
             return
@@ -104,6 +111,7 @@ final class ZmodemBridge: ObservableObject {
             guard let self, self.active else { return }
             self.panel = nil
             guard response == .OK, !panel.urls.isEmpty else { self.cancel(); return }
+            if !receiving && !self.selectUploadPolicy() { self.cancel(); return }
             self.start(receiving: receiving, urls: panel.urls)
         }
     }
@@ -113,13 +121,34 @@ final class ZmodemBridge: ObservableObject {
         guard let executable = paths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             cancel(); status = "未找到 lrzsz。请安装后重试：brew install lrzsz"; return
         }
+        let download: ZmodemDownload?
+        do {
+            download = receiving ? try ZmodemDownload(destination: urls[0], identity: identity, storage: testDownloadStorage) : nil
+            if let download, download.hasPartialFiles, !(ProcessInfo.processInfo.arguments.contains("--smoke-test") && testSelection != nil) {
+                let alert = NSAlert()
+                alert.messageText = L10n.text("发现上次未完成的 ZMODEM 下载")
+                alert.informativeText = L10n.text("仅当远端文件未改变时选择续传；否则重新下载。")
+                for title in ["续传", "重新下载", "取消"] { alert.addButton(withTitle: L10n.text(title)) }
+                switch alert.runModal() {
+                case .alertFirstButtonReturn: break
+                case .alertSecondButtonReturn: try download.restart()
+                default: cancel(); return
+                }
+            }
+        } catch { cancel(); status = error.localizedDescription; return }
         let process = Process(), input = Pipe(), output = Pipe(), errors = Pipe()
+        let conflicts = TransferConflict(handler: conflictHandler) { [weak self] in self?.active == true && self?.helper === process }
         process.executableURL = URL(fileURLWithPath: executable)
-        process.currentDirectoryURL = receiving ? urls[0] : urls[0].deletingLastPathComponent()
-        process.arguments = receiving ? ["--binary", "--escape", "--restricted", "--protect"]
-            : ["--binary", "--escape", "--resume", "--"] + urls.map(\.path)
+        process.currentDirectoryURL = download?.directory ?? urls[0].deletingLastPathComponent()
+        process.arguments = receiving ? ["--binary", "--escape", "--resume"]
+            : ["--binary", "--escape", resumeUpload ? "--resume" : "--overwrite", "--"] + urls.map(\.path)
+        do { if let download { try download.configureReceiver(process, executable: executable) } }
+        catch { cancel(); status = error.localizedDescription; return }
         process.standardInput = input; process.standardOutput = output; process.standardError = errors
-        errors.fileHandleForReading.readabilityHandler = { handle in _ = handle.availableData }
+        errors.fileHandleForReading.readabilityHandler = { handle in
+            guard let data = try? handle.read(upToCount: 8192) else { return }
+            if ProcessInfo.processInfo.arguments.contains("--smoke-test") { try? FileHandle.standardError.write(contentsOf: data) }
+        }
         do {
             try process.run(); helper = process; stdin = input.fileHandleForWriting
             try? input.fileHandleForReading.close(); try? output.fileHandleForWriting.close(); try? errors.fileHandleForWriting.close()
@@ -143,17 +172,33 @@ final class ZmodemBridge: ObservableObject {
                     }
                 }
                 process.waitUntilExit()
+                var finalError: String?
+                if process.terminationStatus == 0, let download {
+                    do { try download.finish(conflicts: conflicts) }
+                    catch { finalError = error.localizedDescription }
+                }
+                let completionError = finalError
                 errors.fileHandleForReading.readabilityHandler = nil
                 try? output.fileHandleForReading.close(); try? errors.fileHandleForReading.close()
                 DispatchQueue.main.async {
                     guard let self, self.helper === process else { return }
-                    self.finishRate(completed: process.terminationStatus == 0)
+                    self.finishRate(completed: process.terminationStatus == 0 && completionError == nil)
                     self.stdin = nil; self.helper = nil; self.active = false; self.pending = Data(); self.detector = ZmodemDetector()
-                    self.status = process.terminationStatus == 0 ? "Zmodem 传输完成" : "Zmodem 传输未完成（\(process.terminationStatus)）"
+                    self.status = completionError ?? (process.terminationStatus == 0 ? "Zmodem 传输完成" : "Zmodem 传输未完成（\(process.terminationStatus)）")
                     self.writer.async { try? input.fileHandleForWriting.close() }
                 }
             }
         } catch { cancel(); status = "Zmodem 启动失败：\(error.localizedDescription)" }
+    }
+    private func selectUploadPolicy() -> Bool {
+        if ProcessInfo.processInfo.arguments.contains("--smoke-test") { resumeUpload = testResumeUpload; return true }
+        let alert = NSAlert()
+        alert.messageText = L10n.text("ZMODEM 上传同名文件")
+        alert.informativeText = L10n.text("默认覆盖，不自动改名。仅在远端为同一文件的未完成副本时选择续传。")
+        for title in ["覆盖", "续传", "取消"] { alert.addButton(withTitle: L10n.text(title)) }
+        let response = alert.runModal()
+        resumeUpload = response == .alertSecondButtonReturn
+        return response == .alertFirstButtonReturn || response == .alertSecondButtonReturn
     }
     private func write(_ data: Data, to handle: FileHandle) {
         guard queuedBytes + data.count <= 4 * 1024 * 1024 else { cancel(); status = "Zmodem 接收缓冲超限，已取消。"; return }
