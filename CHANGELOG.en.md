@@ -5,6 +5,16 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.3.4"></a>
+
+# MyTerm 3.3.4
+
+- Revert the forced local scrolling override for embedded Codex normal buffers introduced in 3.3.3. Scroll routing again follows terminal mouse-reporting mode. Settings windows still follow the active desktop.
+- Fix an application crash during queued SFTP file/directory drag downloads when an earlier failed task closed the connection and a later task accessed a closed pipe. Closing is idempotent and requests on closed clients return errors. Add failed-queue and reconnection regression checks.
+- Random history jumps during continued Codex output remain a known issue; reverting the override does not establish that the issue is resolved.
+
+[Release notes](packaging/RELEASE-NOTES-3.3.4.md).
+
 <a id="version-3.3.3"></a>
 
 # MyTerm 3.3.3

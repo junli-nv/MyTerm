@@ -16,20 +16,18 @@ enum TerminalScrollCheck {
         view.resize(cols: 40, rows: 12)
         view.changeScrollback(200)
         view.feed(text: (0..<160).map { "HISTORY_\($0)\r\n" }.joined())
-        view.prefersLocalScrollback = true
         view.feed(text: "\u{1b}[?1000h\u{1b}[?1006h")
         let previousRow = view.getTerminal().buffer.yDisp
         let wheel = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
                             wheel1: 120, wheel2: 0, wheel3: 0)!
-        view.prefersLocalScrollback = false
         view.scrollWheel(with: NSEvent(cgEvent: wheel)!)
         try require(!view.bytes.isEmpty && view.getTerminal().buffer.yDisp == previousRow,
                     "Ordinary mouse-aware terminals lost application wheel routing")
         view.bytes = []
-        view.prefersLocalScrollback = true
+        view.feed(text: "\u{1b}[?1000l\u{1b}[?1006l")
         view.scrollWheel(with: NSEvent(cgEvent: wheel)!)
         try require(view.bytes.isEmpty && view.getTerminal().buffer.yDisp < previousRow,
-                    "Codex wheel gesture was sent to the process instead of local history")
+                    "Mouse reporting disabled but wheel did not scroll local history")
         try require(view.allowMouseReporting, "Local wheel handling changed click routing")
         view.scrollUp(lines: 30)
         let buffer = view.getTerminal().buffer
@@ -44,7 +42,7 @@ enum TerminalScrollCheck {
         view.scroll(toPosition: 1)
         view.feed(text: "\r\nLATEST")
         try require(view.scrollPosition == 1, "Bottom did not resume following")
-        view.feed(text: "\u{1b}[?1049h")
+        view.feed(text: "\u{1b}[?1049h\u{1b}[?1000h\u{1b}[?1006h")
         view.scrollWheel(with: NSEvent(cgEvent: wheel)!)
         try require(!view.bytes.isEmpty, "Alternate-screen mouse reporting was disabled")
         print("PASS: terminal history anchor during synchronized output and buffer recycling; resume at bottom")

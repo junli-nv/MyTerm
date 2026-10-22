@@ -7,23 +7,12 @@ class MouseTerminalView: LocalProcessTerminalView {
     let diagnosticTrace = TerminalDiagnosticTrace()
     var onPaneFocus: (() -> Void)?
     var paneIsActive = true
-    // Embedded Codex uses terminal scrollback for its transcript. Keep its
-    // normal-buffer wheel gestures local even if it enables mouse reporting.
-    var prefersLocalScrollback = false
     private var tmuxPrefixInput = TmuxPrefixInput()
     private var fullscreenScrollGesture = FullscreenScrollGesture()
     private var lastFullscreenScrollMode: FullscreenScrollMode?
 
     override func scrollWheel(with event: NSEvent) {
         defer { diagnosticTrace.record(.scroll, view: self) }
-        if prefersLocalScrollback && !getTerminal().isDisplayBufferAlternate {
-            fullscreenScrollGesture.reset()
-            let reporting = allowMouseReporting
-            allowMouseReporting = false
-            defer { allowMouseReporting = reporting }
-            super.scrollWheel(with: event)
-            return
-        }
         let mode = preferences.fullscreenScroll
         if lastFullscreenScrollMode != mode {
             fullscreenScrollGesture.reset(); lastFullscreenScrollMode = mode

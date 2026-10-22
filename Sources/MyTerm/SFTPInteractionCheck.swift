@@ -28,8 +28,11 @@ enum SFTPInteractionCheck {
         guard preparing.showSFTP && !preparing.statusBarVisible else {
             throw ConfigurationError.invalid("SFTP shortcut requires the bottom status bar")
         }
+        var activeClient: SFTPClient?
         let model = SFTPModel(server: server, context: context) {
-            SFTPClient(executable: "/usr/libexec/sftp-server", arguments: ["-d", remote.path])
+            let client = SFTPClient(executable: "/usr/libexec/sftp-server", arguments: ["-d", remote.path])
+            activeClient = client
+            return client
         }
         defer { model.stop() }
         func require(_ value: Bool, _ message: String) throws {
@@ -151,6 +154,28 @@ enum SFTPInteractionCheck {
         try require(folderError == nil, "directory promise failed")
         try require(try Data(contentsOf: dragDirectory.appendingPathComponent("tree/nested/test.txt")) == Data("recursive drag".utf8), "directory drag bytes differ")
         try require(fm.fileExists(atPath: dragDirectory.appendingPathComponent("tree/nested/empty").path), "empty directory was lost")
+        // Finder queues multiple promises before their worker completions reach
+        // the main queue. A fatal first task closes the transport; later files
+        // and directories must report errors, never touch closed FileHandles.
+        activeClient?.cancel()
+        var failedPromises = 0, unexpectedSuccesses = 0
+        let failedNames = [files[0].lastPathComponent, files[1].lastPathComponent, "tree"]
+        for (index, name) in failedNames.enumerated() {
+            model.downloadPromise(remote: remote.appendingPathComponent(name).path,
+                                  destination: local.appendingPathComponent("failed-promise-\(index)"),
+                                  connectionID: model.connectionID) { error in
+                failedPromises += 1
+                if error == nil { unexpectedSuccesses += 1 }
+            }
+        }
+        try wait { failedPromises == failedNames.count }
+        try require(unexpectedSuccesses == 0 && !model.connected && !model.busy,
+                    "Failed promise batch left a live/stuck connection")
+        try require(failedNames.indices.allSatisfy { !fm.fileExists(atPath: local.appendingPathComponent("failed-promise-\($0)").path) },
+                    "Queued promises created destinations after transport failure")
+        model.connect(); try wait { !model.busy }
+        try require(model.connected, "Reconnect after failed promise batch failed")
+        print("PASS: failed queued file/directory promises complete without closed-handle access; reconnect succeeds")
         model.showWindow(); try require(model.detached && model.connected, "detaching lost connection")
         model.dock(); try require(!model.detached && model.connected, "docking lost connection")
         let previousID = model.connectionID

@@ -125,6 +125,11 @@ final class FeatureTests {
         checkEqual(try first.realpath(".").hasSuffix("/\(root.lastPathComponent)/remote"), true)
         checkThrows(try first.upload(source, to: target) { done, _ in if done >= 65536 { first.cancel() } })
         first.close()
+        first.close() // Explicit close followed by deinit must remain harmless.
+        checkThrows(try first.realpath("."))
+        checkThrows(try first.attributes(at: target))
+        checkThrows(try first.downloadItem(target, to: local.appendingPathComponent("closed")) { _, _, _ in })
+        checkThrows(try first.connect())
         checkFalse(FileManager.default.fileExists(atPath: target))
         let second = try client(); defer { second.close() }
         var resumeOffset: UInt64?

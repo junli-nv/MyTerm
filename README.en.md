@@ -249,9 +249,9 @@ To keep formatted questions and replies while using MyTerm's direct drag-to-copy
 fullscreen_transcript = false
 ```
 
-Settings, Codex integration and SSH configuration windows move to the active desktop when opened. In the normal history buffer of embedded Codex tabs, MyTerm handles trackpad/wheel scrolling: output continues while you read history, and following resumes when you return to the bottom. Full-screen applications handle their own scrolling; history remains subject to line and memory limits.
+Settings, Codex integration and SSH configuration windows move to the active desktop when opened. Codex tabs use ordinary terminal scroll routing: when a process requests mouse reporting, it receives scrolling; otherwise MyTerm scrolls local history. MyTerm no longer forcibly intercepts wheel events in Codex normal buffers. Copy and right-click paste settings remain unchanged. History remains subject to line and memory limits.
 
-Known issue: scrolling through history while Codex continues producing output can still jump unexpectedly to much earlier content. User testing confirmed that this change does not resolve the issue; further investigation is pending.
+Known issue: scrolling through history while Codex continues producing output can still jump to much earlier content. The forced scrolling override in 3.3.3 did not resolve this and was reported to make it worse; it has been reverted. The original issue still needs investigation.
 
 In the ordinary conversation view of Codex CLI 0.157.1, Scrollback does not enable mouse reporting. With MyTerm selection-copy enabled, simply drag to select and release the mouse to copy—**no Shift needed**. Right-click still pastes when that option is enabled. In Fullscreen mode or another view that captures the mouse, hold Shift while dragging and until you release the mouse to select locally. Shift+right-click opens the menu.
 

@@ -57,12 +57,14 @@ private struct Wire {
     }
 }
 
-/// Serial SFTP v3 client. Every operation runs off the UI thread. cancel() is thread-safe.
+/// Serial SFTP v3 client. Operations, connect() and close() share one worker queue.
+/// Only cancel() may run concurrently; closed clients cannot be reused.
 public final class SFTPClient {
     private let process = Process()
     private let input = Pipe(), output = Pipe(), errors = Pipe()
     private let lock = NSLock()
     private var cancelled = false
+    private var closed = false
     private var diagnostics = Data()
     private var supportsAtomicRename = false
     private var requestID: UInt32 = 0
@@ -72,9 +74,10 @@ public final class SFTPClient {
         process.executableURL = URL(fileURLWithPath: executable); process.arguments = arguments
     }
     public func connect() throws {
+        try checkCancelled()
         process.standardInput = input; process.standardOutput = output; process.standardError = errors
         errors.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
+            guard let data = try? handle.read(upToCount: 8192), !data.isEmpty else { return }
             guard let self else { return }
             self.lock.lock(); self.diagnostics.append(data)
             if self.diagnostics.count > 8192 { self.diagnostics = self.diagnostics.suffix(8192) }
@@ -98,6 +101,12 @@ public final class SFTPClient {
     }
     public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
     public func close() {
+        // Queued file promises may still reference this client after an earlier
+        // transfer failed. Invalidate it before closing any Foundation handles.
+        lock.lock()
+        guard !closed else { lock.unlock(); return }
+        closed = true; cancelled = true
+        lock.unlock()
         errors.fileHandleForReading.readabilityHandler = nil
         try? input.fileHandleForWriting.close()
         if process.isRunning { process.terminate() }
@@ -124,6 +133,7 @@ public final class SFTPClient {
         return SFTPError(code: 7, message: "SFTP 连接已断开。请先在终端完成 SSH 登录，再连接 SFTP。\n\(log)")
     }
     private func read(_ count: Int, deadline: Date) throws -> Data {
+        try checkCancelled()
         var result = Data()
         let fd = output.fileHandleForReading.fileDescriptor
         while result.count < count {
@@ -136,6 +146,7 @@ public final class SFTPClient {
         return result
     }
     private func send(type: UInt8, data: Data) throws {
+        try checkCancelled()
         var packet = Wire(); packet.put(UInt32(data.count + 1)); packet.data.append(type); packet.data.append(data)
         let deadline = Date().addingTimeInterval(30), fd = input.fileHandleForWriting.fileDescriptor
         // Suppress SIGPIPE for this descriptor instead of changing process-wide signal behavior.
