@@ -1266,3 +1266,6 @@
 "传输已取消，SFTP 保持连接。" = "Transfer cancelled; SFTP remains connected.";
 
 "ZMODEM 未收到文件。" = "ZMODEM did not receive any files.";
+
+"上下分屏并选择会话…" = "Split Top/Bottom and Choose Session…";
+"左右分屏并选择会话…" = "Split Left/Right and Choose Session…";

@@ -216,6 +216,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.keyEquivalentModifierMask = binding.modifiers; item.target = self
         }
         windows.addItem(.separator())
+        windows.addItem(withTitle: L10n.text("上下分屏并选择会话…"), action: #selector(chooseHorizontalSplit), keyEquivalent: "").target = self
+        windows.addItem(withTitle: L10n.text("左右分屏并选择会话…"), action: #selector(chooseVerticalSplit), keyEquivalent: "").target = self
         let nextTab = windows.addItem(withTitle: L10n.text("下一个会话页"), action: #selector(selectNextTab), keyEquivalent: "\t")
         nextTab.keyEquivalentModifierMask = [.control]; nextTab.target = self
         let previousTab = windows.addItem(withTitle: L10n.text("上一个会话页"), action: #selector(selectPreviousTab), keyEquivalent: "\t")
@@ -250,9 +252,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func splitHorizontally() { openSplit(.horizontal) }
     @objc private func splitVertically() { openSplit(.vertical) }
-    private func openSplit(_ axis: PaneAxis) {
+    @objc private func chooseHorizontalSplit() { openSplit(.horizontal, chooseSession: true) }
+    @objc private func chooseVerticalSplit() { openSplit(.vertical, chooseSession: true) }
+    private func openSplit(_ axis: PaneAxis, chooseSession: Bool = false) {
         guard NSApp.keyWindow === window, window.attachedSheet == nil else { return }
-        workspace.requestSplit(axis)
+        workspace.requestSplit(axis, chooseSession: chooseSession)
     }
     @objc private func newTerminal() { workspace.newLocal() }
     @objc private func selectNextTab() {

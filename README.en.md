@@ -148,7 +148,7 @@ Normal Bash/SSH exits close their panes; the last pane closes its tab. Unexpecte
 
 ### Split panes within a tab
 
-Use `⌘⇧H` for top/bottom and `⌘⇧V` for left/right splits, or use the Window menu or tab context menu. Choose a new local terminal, duplicate the current SSH connection, connect a saved server, or move an existing SSH, local Shell or Codex session. Moving retains the process, output and session ID; duplicating SSH creates an independent connection.
+Use `⌘⇧H` for top/bottom and `⌘⇧V` for left/right splits, or use the Window menu or tab context menu. By default, split the focused pane directly: local Bash opens an independent Bash in the same directory, and SSH opens an independent connection with the current connection configuration, without a chooser. Use Split Top/Bottom and Choose Session… or Split Left/Right and Choose Session… to connect a saved server or move an existing SSH, local Shell or Codex session. Codex panes still show the chooser to avoid implicitly duplicating AI tasks. Moving retains the process, output and session ID; duplicating SSH creates an independent connection.
 
 Panes can be split again: each new split halves only the selected region, preserving other panes and manually adjusted divider proportions. Window resizing retains those proportions. Drag dividers to resize panes. Enlarge the window when a pane is too small. Click a terminal or pane title to focus it; the title dot marks the active pane. The top-right SFTP control follows the active pane and opens a separate window while split, preserving terminal space. Codex execution controls scroll horizontally in narrow panes. A pane’s close button and `⌘W` close that pane and expand the remaining panes; a tab’s close button closes all its panes. Move to Separate Tab detaches a pane. Tab switching remembers the last active pane, and Codex authorization stays scoped to each session.
 
@@ -231,6 +231,8 @@ Renewal, approval mode and settings appear on one row, with horizontal scrolling
 SSH commands support multiline scripts (LF newlines and tabs, up to 4096 UTF-8 bytes by default), approved as one submission. Command timeout defaults to 60 seconds and output capacity to 1 MiB; all three limits are configurable.
 
 Multiple Codex tabs can use one SSH tab with independent authorization, quotas, approval and output progress. Renewing, stopping or closing one Codex tab leaves the others intact. Approved commands on the same SSH connection run serially; waiting does not require reauthorization. Closing or disconnecting SSH invalidates the associated execution grants. External MCP clients can read shared sessions but cannot reuse internal execution grants.
+
+Execution tools return compact metadata by default while retaining full output and approval state. With no new output, `command_status` waits up to 20 seconds; pages contain up to 16 KiB to reduce repeated calls. Ask Codex to query an existing job with `verbose=true` for details without rerunning it. Codex still controls how tool names and arguments are displayed.
 
 See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md) for workflow, queue states and limits.
 

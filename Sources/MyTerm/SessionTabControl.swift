@@ -39,6 +39,8 @@ struct SessionTabControl: NSViewRepresentable {
             menu.addItem(.separator())
             add("上下分屏") { workspace.requestSplit(.horizontal) }
             add("左右分屏") { workspace.requestSplit(.vertical) }
+            add("上下分屏并选择会话…") { workspace.requestSplit(.horizontal, chooseSession: true) }
+            add("左右分屏并选择会话…") { workspace.requestSplit(.vertical, chooseSession: true) }
             add("关闭会话") { workspace.closeTab(containing: session.id) }
             return menu
         }

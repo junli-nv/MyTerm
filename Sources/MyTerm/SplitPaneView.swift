@@ -31,6 +31,8 @@ struct SplitPaneView: View {
                         Menu {
                             Button("上下分屏") { workspace.focusPane(id); workspace.requestSplit(.horizontal) }
                             Button("左右分屏") { workspace.focusPane(id); workspace.requestSplit(.vertical) }
+                            Button("上下分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.horizontal, chooseSession: true) }
+                            Button("左右分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.vertical, chooseSession: true) }
                             Button("广播命令") { workspace.beginBroadcast() }
                             Button("移为独立标签") { workspace.detachPane(id) }
                         } label: { Image(systemName: "rectangle.split.2x2") }.menuStyle(.borderlessButton).fixedSize()

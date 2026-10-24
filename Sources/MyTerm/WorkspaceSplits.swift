@@ -41,13 +41,23 @@ extension Workspace {
         guard let terminal = selected?.terminal, let window = terminal.window else { return }
         window.makeFirstResponder(terminal)
     }
-    func requestSplit(_ axis: PaneAxis) {
+    func requestSplit(_ axis: PaneAxis, chooseSession: Bool = false) {
         guard let id = selectedID, selected != nil else { return }
         if let terminal = selected?.terminal, terminal.window != nil {
             let space = axis == .vertical ? terminal.bounds.width : terminal.bounds.height
             if space < (axis == .vertical ? 480 : 280) { error = "当前区域太小，请先放大窗口或调整分隔线。"; return }
         }
-        splitRequest = SplitRequest(target: id, axis: axis)
+        guard let source = selected else { return }
+        // Codex is not a shell connection that can be duplicated implicitly.
+        if chooseSession || source.isCodexSession {
+            splitRequest = SplitRequest(target: id, axis: axis)
+            return
+        }
+        let existingIDs = Set(sessions.map(\.id))
+        duplicate(source)
+        guard let created = selected, !existingIDs.contains(created.id) else { return }
+        moveToSplit(created.id, beside: id, axis: axis)
+        focusSelectedPane()
     }
     /// Moving a live pane changes membership only; Codex associations retain UUIDs.
     @discardableResult

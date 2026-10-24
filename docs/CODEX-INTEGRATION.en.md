@@ -100,6 +100,14 @@ Each command defaults to 60 seconds and 1 MiB of retained output; both are confi
 
 Switching back to per-command approval does not withdraw approval from queued work. Use Cancel Current Command in the current tab to cancel it. Each client must finish reading its own previous command output, without waiting for other clients to consume theirs. Expiry rejects queued jobs; renew in the existing tab before submitting them again.
 
+## Compact tool records
+
+Execution tool replies are compact by default: repeated command, reason and authorization prose are omitted; full command output, current approval mode, limits, errors and pagination remain. Ask Codex to use `verbose=true` for detailed metadata. Inspect an existing job with `command_status` rather than executing it again. This parameter affects only the current reply, does not change approval permissions, and cannot hide tool names or arguments rendered by Codex.
+
+When a running or queued job has no new output, one `command_status` call waits up to 20 seconds, returning on output, a state change or an error. Waiting occurs in the MCP adapter, leaving app approval and cancellation responsive. Codex still displays actual tool calls, but frequent empty polling is unnecessary.
+
+Command output pages contain up to 16 KiB (UTF-8 boundaries can shorten a page), reducing calls for large outputs; every page must still be read.
+
 ## MCP tools and approval layers
 
 | Tool | Purpose |

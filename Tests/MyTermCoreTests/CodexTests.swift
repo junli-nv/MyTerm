@@ -3,6 +3,7 @@ import MyTermCore
 
 func checkCodexIntegration() throws {
     try checkCodexExecution()
+    try checkCodexCommandWait()
     var connection = CodexConnection()
     checkEqual(connection.executable, "/opt/homebrew/bin/codex")
     let custom = CodexConnection(executable: "/custom/bin/codex")
@@ -115,10 +116,76 @@ func checkCodexIntegration() throws {
     checkEqual(cache.read(scope: "one", text: "redrawn", cursor: second["cursor"] as? String)["reset"] as? Bool, true)
     cache.clear()
     checkEqual(cache.read(scope: "one", text: "hello world", cursor: second["cursor"] as? String)["reset"] as? Bool, true)
+    // Exercise the actual MCP wire response, including explicit detailed replies.
+    for tool in ["execute_command", "command_status", "cancel_command"] {
+        for verbose in [false, true] {
+            for state in ["awaiting_approval", "queued", "running", "completed", "failed", "cancelled"] {
+                let fixture: [String: Any] = ["command": "printf hello", "reason": "diagnosis", "session_id": "session",
+                    "job_id": "job", "state": state, "output": "full output\n中文", "next_offset": 123,
+                    "total_bytes": 456, "all_output_delivered": false, "incomplete": true,
+                    "incomplete_reason": "timeout", "truncated": true, "exit_code": 1,
+                    "execution_authorization": ["active": true, "approval_mode": "session_always_allow",
+                        "guidance": "long explanation", "source": "MyTerm user interface", "timeout_seconds": 60]]
+                var args: [String: Any] = [:]
+                if verbose { args["verbose"] = true }
+                let reply = CodexMCP.response(["jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                    "params": ["name": tool, "arguments": args]]) { _, forwarded in
+                        checkEqual(forwarded["verbose"] == nil, true)
+                        return fixture
+                    }
+                let result = reply?["result"] as! [String: Any]
+                let content = result["content"] as! [[String: Any]]
+                let decoded = try JSONSerialization.jsonObject(with: Data((content[0]["text"] as! String).utf8)) as! [String: Any]
+                checkEqual(decoded["command"] as? String, verbose ? "printf hello" : nil)
+                let authorization = decoded["execution_authorization"] as! [String: Any]
+                checkEqual(authorization["guidance"] as? String, verbose ? "long explanation" : nil)
+                checkEqual(authorization["approval_mode"] as? String, "session_always_allow")
+                for key in ["job_id", "state", "output", "next_offset", "total_bytes", "all_output_delivered",
+                            "incomplete", "incomplete_reason", "truncated", "exit_code"] {
+                    checkEqual(NSDictionary(dictionary: [key: decoded[key]!]), NSDictionary(dictionary: [key: fixture[key]!]))
+                }
+            }
+        }
+    }
     var invoked = false
     let initReply = CodexMCP.response(["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": ["protocolVersion": "2025-06-18"]]) { _, _ in invoked = true; return [:] }
     checkEqual((initReply?["result"] as? [String: Any])?["protocolVersion"] as? String, "2025-06-18")
     checkEqual(invoked, false)
     let unknown = CodexMCP.response(["jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": ["name": "unknown_command"]]) { _, _ in invoked = true; return [:] }
     checkEqual(unknown?["error"] != nil, true); checkEqual(invoked, false)
+}
+
+private func checkCodexCommandWait() throws {
+    for terminal in ["completed", "failed", "cancelled", "awaiting_approval", "rejected"] {
+        var clock: TimeInterval = 0
+        var count = 0
+        let reply = try CodexCommandWait.reply(tool: "command_status", now: { clock }, sleep: { clock += $0 }) {
+            count += 1
+            return ["state": count == 1 ? "running" : terminal, "output": ""]
+        }
+        checkEqual(reply["state"] as? String, terminal)
+        checkEqual(count, 2)
+    }
+    var clock: TimeInterval = 0
+    var count = 0
+    _ = try CodexCommandWait.reply(tool: "command_status", now: { clock }, sleep: { clock += $0 }) {
+        count += 1; return ["state": "running", "output": ""]
+    }
+    checkEqual(clock, 20); checkEqual(count, 21)
+    for tool in ["command_status", "execute_command", "cancel_command"] {
+        for value: [String: Any] in [["state": "running", "output": "new output"],
+                                    ["state": "awaiting_approval", "output": ""],
+                                    ["state": "running", "output": "", "incomplete": true]] {
+            var slept = false
+            let reply = try CodexCommandWait.reply(tool: tool, sleep: { _ in slept = true }) { value }
+            checkEqual(slept, false)
+            checkEqual(NSDictionary(dictionary: reply), NSDictionary(dictionary: value))
+        }
+    }
+    var fetches = 0
+    checkThrows(try CodexCommandWait.reply(tool: "command_status", sleep: { _ in }) {
+        fetches += 1
+        if fetches > 1 { throw ConfigurationError.invalid("revoked") }
+        return ["state": "running", "output": ""]
+    })
 }

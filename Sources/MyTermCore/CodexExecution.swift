@@ -121,7 +121,7 @@ public final class CodexCommandProcess {
     public func snapshot(offset: Int) throws -> [String: Any] {
         lock.lock(); defer { lock.unlock() }
         guard offset >= 0, offset <= bytes.count else { throw ConfigurationError.invalid("Invalid output offset") }
-        let end = CommandOutputPage.end(in: bytes, from: offset, limit: 2048, running: state == "running")
+        let end = CommandOutputPage.end(in: bytes, from: offset, limit: 16 * 1024, running: state == "running")
         return ["state": state, "output": String(decoding: bytes[offset..<end], as: UTF8.self),
                 "next_offset": end, "total_bytes": bytes.count, "truncated": truncated,
                 "incomplete": truncated || cancelled, "incomplete_reason": incompleteReason,

@@ -11,6 +11,7 @@ private struct SplitCheckRoot: View {
 
 enum SplitPaneCheck {
     static func run() throws {
+        try directSplits()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-split-check-\(UUID())")
         let workspace = Workspace(applicationSupportDirectory: directory)
         let window = NSWindow(contentRect: NSRect(x: 50, y: 60, width: 1000, height: 700), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -126,6 +127,48 @@ enum SplitPaneCheck {
 }
 
 extension SplitPaneCheck {
+    private static func directSplits() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("myterm-direct-split-\(UUID())")
+        let workspace = Workspace(applicationSupportDirectory: directory)
+        defer { workspace.stopAll(); try? FileManager.default.removeItem(at: directory) }
+        // No views are mounted: verify connection definitions without starting SSH.
+        workspace.newLocal(directory: directory.path)
+        let local = workspace.selected!
+        workspace.requestSplit(.vertical)
+        guard let localCopy = workspace.selected, localCopy.id != local.id,
+              localCopy.executable == "/bin/bash", localCopy.directory == local.directory,
+              workspace.splitRequest == nil else { throw ConfigurationError.invalid("Direct local split failed") }
+        workspace.focusPane(local.id)
+        workspace.requestSplit(.horizontal)
+        guard let nested = workspace.selected,
+              workspace.layout(containing: local.id).leaves == [local.id, nested.id, localCopy.id] else {
+            throw ConfigurationError.invalid("Direct nested split targeted the wrong pane")
+        }
+        try directSSHCheck(workspace)
+    }
+    private static func directSSHCheck(_ workspace: Workspace) throws {
+        var server = Server(host: "split-fixture.invalid")
+        server.user = "fixture"; server.port = "2222"
+        workspace.connect(server)
+        let source = workspace.selected!
+        source.encoding = .utf8
+        workspace.requestSplit(.horizontal)
+        guard let copy = workspace.selected, copy.id != source.id,
+              copy.sourceServer == source.sourceServer, copy.terminal !== source.terminal,
+              copy.encoding == source.encoding, workspace.splitRequest == nil,
+              workspace.layout(containing: source.id).leaves == [source.id, copy.id] else {
+            throw ConfigurationError.invalid("Direct SSH split lost configuration or independent identity")
+        }
+        copy.isCodexSession = true
+        let count = workspace.sessions.count
+        workspace.requestSplit(.vertical)
+        guard workspace.sessions.count == count, workspace.splitRequest?.target == copy.id else {
+            throw ConfigurationError.invalid("Codex split must retain explicit session choice")
+        }
+        workspace.splitRequest = nil
+        print("PASS: direct local/SSH splits, independent identity, focused nested target and Codex chooser fallback")
+    }
+
     static func shortcuts(window: NSWindow, workspace: Workspace) throws {
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         let deadline = Date().addingTimeInterval(2)
@@ -142,14 +185,24 @@ extension SplitPaneCheck {
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                 context: nil, characters: binding.key.uppercased(), charactersIgnoringModifiers: binding.key.uppercased(),
                 isARepeat: false, keyCode: binding.key == "h" ? 4 : 9)!
+            guard let source = workspace.selected else { throw ConfigurationError.invalid("No split target") }
+            let before = Set(workspace.sessions.map(\.id))
             let handled = SplitShortcutDispatch.handle(event, workspace: workspace)
-            guard handled,
-                  workspace.splitRequest?.axis == axis, workspace.splitRequest?.target == workspace.selectedID else {
-                throw ConfigurationError.invalid("Split shortcut did not open chooser: \(selector), handled=\(String(describing: handled)), keyWindow=\(NSApp.keyWindow === window), error=\(workspace.error ?? "none")")
+            guard handled, workspace.splitRequest == nil, let created = workspace.selected,
+                  !before.contains(created.id), workspace.layout(containing: source.id).leaves.contains(created.id) else {
+                throw ConfigurationError.invalid("Split shortcut did not directly split the focused pane")
             }
-            workspace.splitRequest = nil
-            guard NSApp.sendAction(item.action!, to: item.target, from: item), workspace.splitRequest?.axis == axis else {
+            workspace.close(created); workspace.focusPane(source.id)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            guard NSApp.sendAction(item.action!, to: item.target, from: item), workspace.splitRequest == nil,
+                  let menuCreated = workspace.selected, menuCreated.id != source.id else {
                 throw ConfigurationError.invalid("Split menu action failed")
+            }
+            workspace.close(menuCreated); workspace.focusPane(source.id)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            workspace.requestSplit(axis, chooseSession: true)
+            guard workspace.splitRequest?.target == source.id, workspace.splitRequest?.axis == axis else {
+                throw ConfigurationError.invalid("Explicit split chooser unavailable")
             }
             workspace.splitRequest = nil
         }
@@ -157,6 +210,6 @@ extension SplitPaneCheck {
               menuItems.first(where: { $0.action.map(NSStringFromSelector) == "showHistory" })?.keyEquivalent == "" else {
             throw ConfigurationError.invalid("Split shortcuts conflict with paste/history")
         }
-        print("PASS: split keyboard shortcuts: key routing and native menu actions, active-pane chooser, paste preserved and history conflict removed")
+        print("PASS: split keyboard shortcuts: key routing and native menu actions, direct active-pane split and explicit chooser, paste preserved and history conflict removed")
     }
 }

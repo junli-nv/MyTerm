@@ -6,6 +6,18 @@
 保留仓库记录的各版本说明，按版本从新到旧排列。旧 Release 安装包清理后，本日志和各版本原始说明仍保留。历史说明中的安装路径、依赖及限制以对应版本为准。当前使用方法见 [README](README.md)，不要将历史版本的限制作为当前行为。英文入口提供各版本摘要，完整原始记录保留在本文件及各版本说明中。
 
 
+<a id="version-3.3.7"></a>
+
+# MyTerm 3.3.7
+
+默认直接拆分当前本地或 SSH 区域，保留显式选择会话入口。 [Release notes](packaging/RELEASE-NOTES-3.3.7.md)
+
+<a id="version-3.3.6"></a>
+
+# MyTerm 3.3.6
+
+Codex SSH 执行工具默认精简返回，支持显式详细元数据，保留完整输出和审批状态。 [Release notes](packaging/RELEASE-NOTES-3.3.6.md)
+
 <a id="version-3.3.5"></a>
 
 # MyTerm 3.3.5
