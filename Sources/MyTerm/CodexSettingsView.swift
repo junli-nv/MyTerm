@@ -173,6 +173,11 @@ final class CodexChooserState: ObservableObject {
     @Published var includeHistory = false
     @Published var execute = true
     @Published var resume = false
+    @Published var legacyPicker = false
+    @Published var clusterID: UUID?
+    @Published var clusterName = ""
+    @Published var conversationID: String?
+    @Published var conversationTitle = ""
 }
 
 struct CodexHistoryLimits: View {

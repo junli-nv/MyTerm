@@ -71,6 +71,13 @@ enum CodexBridgeCheck {
         while bridge.busy && Date() < failureDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
         try require(!failureContinued, "Missing credentials started analysis")
         try require(bridge.loginStatus.contains("未找到") && !bridge.checkingLogin && bridge.proxyTestStatus.contains("配置已修改"), "Signed-out result missing or overwrote proxy state")
+        let tabsBeforeCancelledLogin = workspace.sessions.count
+        var cancelledLoginContinued = false
+        bridge.checkLogin(loginIfNeeded: true, shouldContinue: { false }) { cancelledLoginContinued = true }
+        let cancelledLoginDeadline = Date().addingTimeInterval(3)
+        while bridge.busy && Date() < cancelledLoginDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(!cancelledLoginContinued && workspace.sessions.count == tabsBeforeCancelledLogin,
+                    "Cancelled login check opened a login or analysis tab")
         var completions = 0
         ended.onProcessExit = { if $0 == 0 { completions += 1 } }
         ended.handleProcessTermination(exitCode: 0)
@@ -242,6 +249,14 @@ enum CodexBridgeCheck {
             try require(localDocument.frame.width <= localScroll.contentSize.width + 1, "Local work overflows horizontally")
             try snapshotChooser(view, name: "codex-local-settings-" + locale.rawValue)
             let chooserSelection = CodexChooserState()
+            var clusterCatalog = CodexClusterCatalog()
+            let fixtureCluster = try clusterCatalog.addCluster("Cluster UI fixture")
+            let fixtureThread = UUID().uuidString
+            clusterCatalog.conversations.append(.init(id: fixtureThread, clusterID: fixtureCluster.id,
+                title: "Operations / 日常运维", lastOpened: Date()))
+            try clusterCatalog.save(to: workspace.credentialStore.directory.deletingLastPathComponent().appendingPathComponent("codex-clusters.json"))
+            chooserSelection.clusterID = fixtureCluster.id
+            chooserSelection.conversationID = fixtureThread
             let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection))
             window.contentView = chooser
             window.setContentSize(NSSize(width: 640, height: 480))
@@ -258,6 +273,7 @@ enum CodexBridgeCheck {
             language.selection = locale
             chooserSelection.execute = true
             chooserSelection.resume = true
+            chooserSelection.legacyPicker = false
             chooserSelection.includeHistory = true // Exercise the longest form, including optional history limits.
             RunLoop.main.run(until: Date().addingTimeInterval(0.2)); chooser.layoutSubtreeIfNeeded()
             guard let chooserScroll = descendants(chooser).compactMap({ $0 as? NSScrollView }).first, let chooserDoc = chooserScroll.documentView else { throw ConfigurationError.invalid("Session chooser missing scrollable list") }
@@ -528,6 +544,35 @@ enum CodexBridgeCheck {
             _ = try bridge.read("list_sessions", arguments: [:], client: association.uuidString)
             throw ConfigurationError.invalid("Closed resume association retained access")
         } catch { try require(error.localizedDescription.contains("association is closed"), "Resume cleanup failed") }
+        let clusterThread = UUID().uuidString
+        let clusterLaunch = CodexConversationLaunch(threadID: clusterThread, directory: root.path,
+            label: "Codex · Cluster · Operations", isNew: true)
+        bridge.launch(sessionID: reconnected.id, checkSavedLogin: false, resume: true, conversation: clusterLaunch)
+        guard let clusterTab = workspace.selected else { throw ConfigurationError.invalid("Cluster launch missing") }
+        try require(clusterTab.codexThreadID == clusterThread && clusterTab.label == clusterLaunch.label && clusterTab.directory == root.path,
+                    "Cluster label, identity or project directory lost")
+        try require(clusterTab.arguments.contains(clusterThread) && clusterTab.arguments.last?.contains(reconnected.id.uuidString) == true,
+                    "New named thread did not receive fresh SSH bootstrap")
+        let tabCount = workspace.sessions.count
+        bridge.launch(sessionID: session.id, checkSavedLogin: false, resume: true, conversation: clusterLaunch)
+        try require(workspace.sessions.count == tabCount && bridge.message.contains("另一个标签"), "Same conversation opened with two SSH bindings")
+        workspace.close(clusterTab)
+        let continued = CodexConversationLaunch(threadID: clusterThread, directory: root.path, label: clusterLaunch.label, isNew: false)
+        bridge.launch(sessionID: session.id, checkSavedLogin: false, resume: true, conversation: continued)
+        guard let continuedTab = workspace.selected else { throw ConfigurationError.invalid("Cluster resume missing") }
+        try require(Array(continuedTab.arguments.suffix(2)) == ["resume", clusterThread], "Cluster resume replayed initial prompt")
+        let currentAssociation = bridge.executionID(for: session.id, tab: continuedTab.id)
+        let currentBinding = try bridge.read("list_sessions", arguments: [:], client: currentAssociation.uuidString)
+        try require((currentBinding["connection_instructions"] as? String)?.contains(session.id.uuidString) == true,
+                    "Cluster resume did not bind current SSH")
+        workspace.close(continuedTab)
+        let cancelledModel = CodexClusterModel(root: root.appendingPathComponent("cancelled-cluster"))
+        let cancelledCluster = cancelledModel.add("Cancelled fixture")!
+        cancelledModel.cancelLaunch()
+        var cancelledOpened = false
+        cancelledModel.prepare(clusterID: cancelledCluster, conversationID: nil, title: "Must not start", serverID: nil, bridge: bridge) { _ in cancelledOpened = true }
+        try require(!cancelledModel.busy && !cancelledOpened && cancelledModel.catalog.conversations.isEmpty, "Cancelled preparation launched a thread")
+        print("PASS: named cluster launch/resume, fresh SSH binding, duplicate-tab rejection and cancelled preparation")
         print("PASS: resume native picker, fresh SSH UUID and context, old UUID rejection, read-only grant and association cleanup")
         bridge.allowed.remove(hidden.id)
         let beforeFailedLaunch = workspace.sessions.count

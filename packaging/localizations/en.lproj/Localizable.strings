@@ -1269,3 +1269,61 @@
 
 "上下分屏并选择会话…" = "Split Top/Bottom and Choose Session…";
 "左右分屏并选择会话…" = "Split Left/Right and Choose Session…";
+
+"名称需为 1–100 个字符，不能包含控制字符。" = "Names must contain 1–100 characters without control characters.";
+
+"集群数量已达上限。" = "The cluster limit has been reached.";
+
+"无法生成唯一对话名称。" = "Could not create a unique conversation name. Please try again.";
+
+"集群对话索引格式无效。" = "The cluster conversation index is invalid.";
+
+"集群目录无效。" = "The cluster directory is invalid.";
+
+"集群对话索引过大。" = "The cluster conversation index is too large.";
+
+"Codex 返回了无效的会话信息。" = "Codex returned invalid conversation metadata.";
+
+"无法读取 Codex 会话信息。" = "Could not read Codex conversation metadata.";
+
+"Codex 会话管理进程已退出，请检查 CLI 版本和配置。" = "The Codex conversation process exited. Check the CLI version and configuration.";
+
+"Codex 会话信息过大。" = "Codex conversation metadata is too large.";
+
+"Codex 会话管理超时，请检查 CLI 和代理配置。" = "Codex conversation management timed out. Check the CLI and proxy settings.";
+
+"该 Codex 对话不属于所选集群目录。" = "This Codex conversation does not belong to the selected cluster directory.";
+
+"请选择所选集群中的对话。" = "Choose a conversation from the selected cluster.";
+
+"集群对话数量已达上限。" = "The cluster conversation limit has been reached.";
+
+"正在准备集群对话…" = "Preparing cluster conversation…";
+
+"该 Codex 对话已在另一个标签中打开，请切换到该标签。" = "This Codex conversation is already open in another tab. Switch to that tab.";
+
+"日常运维" = "Daily operations";
+
+"集群与对话" = "Clusters and conversations";
+
+"从全部 Codex 历史中恢复（旧版入口）" = "Resume from all Codex history (legacy picker)";
+
+"在 Codex 原生列表中选择旧对话；重新关联本次 SSH，不自动归入集群。" = "Choose a previous conversation in the native Codex picker. It reconnects to the selected SSH session without automatically assigning a cluster.";
+
+"集群" = "Cluster";
+
+"请选择集群" = "Choose a cluster";
+
+"新集群名称" = "New cluster name";
+
+"创建集群" = "Create cluster";
+
+"继续已有集群对话" = "Continue an existing cluster conversation";
+
+"该集群还没有对话，请新建对话。" = "This cluster has no conversations yet. Create a new conversation.";
+
+"对话名称（默认日常运维）" = "Conversation name (default: Daily operations)";
+
+"集群是稳定的项目分类，SSH 只是连接入口。继续对话保留名称与历史；新建同名对话才追加日期和时分秒。恢复后请先确认当前目标。" = "The cluster is a stable project; SSH is its connection entry point. Continuing keeps the name and history. Only duplicate new names gain a date and time including seconds. Confirm the current target after resuming.";
+
+"集群对话 ID 或目录无效。" = "The cluster conversation ID or directory is invalid.";

@@ -8,6 +8,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     weak var codexExecutionBridge: CodexBridge?
     var codexTargetSessionID: UUID?
     var isCodexSession = false
+    var codexThreadID: String?
     private(set) var inputGeneration = UUID()
     let id = UUID()
     let startedAt = Date()

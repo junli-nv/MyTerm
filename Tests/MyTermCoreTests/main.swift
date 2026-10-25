@@ -2,6 +2,21 @@ import Foundation
 import Darwin
 import MyTermCore
 
+if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--codex-cluster-fixture" {
+    let environment = ProcessInfo.processInfo.environment
+    let client = try CodexThreadClient(executable: CommandLine.arguments[2], environment: environment)
+    let id = try client.create(directory: CommandLine.arguments[3], name: "日常运维")
+    checkEqual(try client.read(id, directory: CommandLine.arguments[3]), "日常运维")
+    client.close()
+    let reopened = try CodexThreadClient(executable: CommandLine.arguments[2], environment: environment)
+    checkEqual(try reopened.read(id, directory: CommandLine.arguments[3]), "日常运维")
+    checkThrows(try reopened.read(id, directory: "/different-cluster"))
+    _ = try reopened.call("thread/name/set", params: ["threadId": id, "name": "GPU 与网络排查"])
+    checkEqual(try reopened.read(id, directory: CommandLine.arguments[3]), "GPU 与网络排查")
+    reopened.close()
+    print(id)
+    exit(0)
+}
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-execution-fixture" {
     let arguments = try CodexExecutionPolicy.arguments(controlPath: CommandLine.arguments[2], host: "127.0.0.1", command: """
     printf 'mux-execution-fixture\\n'
@@ -135,6 +150,7 @@ let checks: [(String, () throws -> Void)] = [
     ("Child ignoring HUP and TERM is closed and reaped", ptyTests.testUncooperativeChildCleanup),
     ("Compression, authentication, proxies, jumps and forwards", features.connectionOptions),
     ("SSH Include discovery and saved sessions", features.importAndSessions),
+    ("Codex cluster catalog, stable identity and collision titles", checkCodexClusters),
     ("Codex read-only MCP, proxy isolation and snapshot cursors", checkCodexIntegration),
     ("Zmodem handshake detection across chunks", features.zmodemDetection),
     ("Recursive SFTP directories, resume, conflicts and symlinks", features.sftpDirectories),

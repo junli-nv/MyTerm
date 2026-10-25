@@ -103,3 +103,5 @@ SSH 配置检查回归覆盖仍被跳板引用的已删除节点、当前与快�
 跳板机管理回归覆盖独立保存、引用保护、编辑传播、删除、双语小窗口、会话备份兼容；`scripts/jump-probe-check.py` 使用临时密钥和本机隔离 sshd 验证直连、多级路径、错误密钥及取消，不连接用户服务器。
 
 `scripts/jump-password-probe-check.py` 使用仅支持密码认证、拒绝所有远端通道的隔离 SSH 服务，验证跳板测试复用密码、拒绝错误密码、不请求 Shell/exec 及连接清理。发布 GUI 检查会运行此项，默认使用 `.test-venv/bin/python`（安装 `scripts/requirements-password-test.txt`），可通过 `MYTERM_PASSWORD_TEST_PYTHON` 指定解释器。此项模拟受限服务器能力，不代表已在真实 Windows 主机上完成验证。
+
+- `scripts/codex-cluster-check.py .build/release/MyTermChecks`：隔离 CODEX_HOME、本地假模型，真实 Codex 创建/命名/改名/持久化、目录隔离和原生 UUID 恢复；不调用模型。
