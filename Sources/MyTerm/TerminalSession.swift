@@ -13,6 +13,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     let id = UUID()
     let startedAt = Date()
     @Published var historyLogging: HistoryLoggingMode = .inherit
+    @Published private(set) var appearance = TabAppearance()
     @Published var label: String
     let executable: String
     private(set) var arguments: [String]
@@ -53,6 +54,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         self.executable = executable
         self.arguments = arguments
         self.server = server
+        self.appearance = server?.tabAppearance ?? TabAppearance()
         self.historyLogging = server?.historyLogging ?? .inherit
         self.configuredServer = server
         self.connectionContext = context
@@ -74,6 +76,12 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
         themeSubscription = ThemePreferences.shared.$theme.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
             guard let self else { return }; ThemePreferences.shared.apply(to: self.terminal)
         }
+    }
+
+    func setAppearance(_ value: TabAppearance) {
+        appearance = value
+        configuredServer?.tabAppearance = value == TabAppearance() ? nil : value
+        server?.tabAppearance = value == TabAppearance() ? nil : value
     }
 
     func start() {

@@ -121,6 +121,7 @@ let serverTests = ServerTests()
 let ptyTests = PTYTests()
 let features = FeatureTests()
 let checks: [(String, () throws -> Void)] = [
+    ("Tab appearance persistence and connection isolation", checkTabAppearance),
     ("Bounded opt-in terminal diagnostics, expiry, clearing and concurrent events", checkTerminalDiagnostics),
     ("Release versions, trusted assets and installer SHA-256 validation", checkAppRelease),
     ("Pane layouts, collapse, snapshot compatibility and shortcut conflicts", checkPaneLayouts),

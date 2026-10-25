@@ -4,6 +4,41 @@ import MyTermCore
 import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
+    private(set) var historySearch: TerminalHistorySearch?
+    func showHistorySearch() {
+        if historySearch == nil {
+            let bar = TerminalHistorySearch(terminal: self)
+            historySearch = bar; addSubview(bar)
+        }
+        positionHistorySearch()
+        historySearch?.show()
+    }
+    func navigateHistorySearch(next: Bool) {
+        if historySearch == nil || historySearch?.isHidden == true { showHistorySearch() }
+        historySearch?.navigate(next: next)
+    }
+    private func positionHistorySearch() {
+        let width = min(420, max(0, bounds.width - 16))
+        historySearch?.frame = NSRect(x: max(8, bounds.width - width - 8), y: isFlipped ? 8 : max(0, bounds.height - 104), width: width, height: 96)
+    }
+    override func layout() { super.layout(); positionHistorySearch() }
+    override func performFindPanelAction(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem else { return }
+        switch item.tag {
+        case Int(NSFindPanelAction.next.rawValue): navigateHistorySearch(next: true)
+        case Int(NSFindPanelAction.previous.rawValue): navigateHistorySearch(next: false)
+        default: showHistorySearch()
+        }
+    }
+    override func performTextFinderAction(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem else { return }
+        switch NSTextFinder.Action(rawValue: item.tag) {
+        case .nextMatch: navigateHistorySearch(next: true)
+        case .previousMatch: navigateHistorySearch(next: false)
+        case .hideFindInterface: historySearch?.dismissSearch()
+        default: showHistorySearch()
+        }
+    }
     let diagnosticTrace = TerminalDiagnosticTrace()
     var onPaneFocus: (() -> Void)?
     var paneIsActive = true

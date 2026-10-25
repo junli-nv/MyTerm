@@ -13,7 +13,9 @@ extension Workspace {
         let ids = layouts.flatMap(\.leaves)
         let ordered = ids.compactMap { id in sessions.first(where: { $0.id == id }) }
         var saved = SavedSession(name: name, tabs: ordered.map {
-            SessionTab(server: $0.sourceServer, directory: $0.sourceServer == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging)
+            var tab = SessionTab(server: $0.sourceServer, directory: $0.sourceServer == nil ? $0.directory : nil, encoding: $0.encoding, historyLogging: $0.historyLogging)
+            tab.tabAppearance = $0.appearance == TabAppearance() ? nil : $0.appearance
+            return tab
         }, selectedIndex: ids.firstIndex(where: { $0 == selectedID }) ?? 0)
         saved.paneSessionIDs = ids; saved.paneLayouts = layouts
         return saved

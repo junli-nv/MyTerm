@@ -1357,3 +1357,57 @@
 "请先关闭该集群的 Codex 标签。" = "Close the Codex tabs for this cluster first.";
 
 "请选择可写入的文件夹。" = "Select a writable folder.";
+
+"环境标识最多 24 个字符，不能包含控制字符。" = "Environment labels may contain up to 24 characters and no control characters.";
+
+"标签颜色与环境标识" = "Tab color and environment label";
+
+"标签颜色与环境标识…" = "Tab color and environment label…";
+
+"环境标识（例如 PROD / TEST，最多 24 字）" = "Environment label (e.g. PROD / TEST, up to 24 characters)";
+
+"标签颜色" = "Tab color";
+
+"仅用于视觉区分，不改变连接目标或执行权限。" = "Visual identification only; connection targets and execution permissions are unchanged.";
+
+"已保存的 SSH 配置会记住标识；其他标签随保存的会话一起保留。" = "Saved SSH configurations remember these labels; other tabs retain them in saved sessions.";
+
+"搜索终端历史…" = "Search terminal history…";
+
+"搜索终端历史" = "Search terminal history";
+
+"输入后按回车搜索" = "Type text, then press Return to search";
+
+"上一个匹配（Shift+回车）" = "Previous match (Shift+Return)";
+
+"下一个匹配（回车）" = "Next match (Return)";
+
+"关闭搜索（Esc）" = "Close search (Esc)";
+
+"选项" = "Options";
+
+"整词匹配" = "Whole word";
+
+"只搜索终端仍保留的输出；全屏程序只包含已呈现的缓冲内容。" = "Search retained terminal output only; full-screen programs expose only their rendered buffer content.";
+
+"搜索文本最多 4096 个字符" = "Search text is limited to 4096 characters";
+
+"已定位匹配，可继续查找" = "Match selected; continue to find more";
+
+"未找到匹配" = "No match found";
+
+"下一个匹配" = "Find next";
+
+"上一个匹配" = "Find previous";
+
+"默认" = "Default";
+
+"橙色" = "Orange";
+
+"紫色" = "Purple";
+
+"灰色" = "Gray";
+
+"正则表达式" = "Regular expression";
+
+"正则表达式无效" = "Invalid regular expression";

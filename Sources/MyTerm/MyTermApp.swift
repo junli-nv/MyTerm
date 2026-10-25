@@ -206,8 +206,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: L10n.text("复制"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         edit.addItem(withTitle: L10n.text("粘贴"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: L10n.text("全选"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-        let find = edit.addItem(withTitle: L10n.text("查找文本"), action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
-        find.tag = NSTextFinder.Action.showFindInterface.rawValue
+        let find = edit.addItem(withTitle: L10n.text("搜索终端历史…"), action: #selector(findTerminalHistory), keyEquivalent: "f")
+        find.target = self
+        let nextMatch = edit.addItem(withTitle: L10n.text("下一个匹配"), action: #selector(findNextTerminalMatch), keyEquivalent: "g")
+        nextMatch.target = self
+        let previousMatch = edit.addItem(withTitle: L10n.text("上一个匹配"), action: #selector(findPreviousTerminalMatch), keyEquivalent: "g")
+        previousMatch.target = self; previousMatch.keyEquivalentModifierMask = [.command, .shift]
         let windows = submenu("窗口")
         let shortcuts = SplitShortcutPreferences.shared.value
         for (title, action, binding) in [("上下分屏", #selector(splitHorizontally), shortcuts.horizontal),
@@ -268,6 +272,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         workspace.selectAdjacentTab(-1)
     }
     @objc private func toggleSidebar() { workspace.sidebarVisible.toggle() }
+    private var searchTerminal: MouseTerminalView? {
+        guard NSApp.keyWindow === window, window.attachedSheet == nil else { return nil }
+        return workspace.selected?.terminal
+    }
+    @objc private func findTerminalHistory() { searchTerminal?.showHistorySearch() }
+    @objc private func findNextTerminalMatch() { searchTerminal?.navigateHistorySearch(next: true) }
+    @objc private func findPreviousTerminalMatch() { searchTerminal?.navigateHistorySearch(next: false) }
     @objc private func showHistory() { workspace.showHistory() }
     @objc private func exportHistory() { workspace.exportHistory() }
     @objc private func importSSH() { workspace.importPresented = true }
@@ -541,6 +552,7 @@ struct ServerEditor: View {
             }.layoutPriority(1)
             ScrollView(.vertical) { VStack(alignment: .leading, spacing: 14) {
                 EditorTextField(title: "名称", text: $draft.server.name, prompt: "例如：开发服务器")
+                TabAppearanceEditor(appearance: Binding(get: { draft.server.tabAppearance ?? TabAppearance() }, set: { draft.server.tabAppearance = $0 }))
                 EditorTextField(title: "主机", text: $draft.server.host, prompt: "IP、域名或 SSH 别名")
                 EditorTextField(title: "用户名", text: $draft.server.user, prompt: "留空使用 SSH 配置")
                 EditorTextField(title: "端口", text: $draft.server.port, prompt: "留空使用 SSH 配置 / 22")

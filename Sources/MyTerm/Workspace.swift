@@ -293,6 +293,7 @@ final class Workspace: ObservableObject {
         if let server = session.sourceServer { connect(server) }
         else { newLocal(directory: session.directory) }
         if selectedID != session.id, let selected {
+            selected.setAppearance(session.appearance)
             selected.encoding = session.encoding
             setHistoryLogging(session.historyLogging, for: selected)
         }
@@ -384,7 +385,11 @@ final class Workspace: ObservableObject {
             }
             servers = updated
             jumpProfiles = try repository.loadProfiles()
-            for session in sessions { session.updateSharedJumps(from: servers, profiles: jumpProfiles) }
+            for session in sessions {
+                session.updateSharedJumps(from: servers, profiles: jumpProfiles)
+                if session.sourceServer?.id == server.id { session.setAppearance(server.tabAppearance ?? TabAppearance()) }
+            }
+            objectWillChange.send()
             return true
         } catch { self.error = error.localizedDescription; return false }
     }
@@ -449,6 +454,7 @@ final class Workspace: ObservableObject {
                 newLocal(directory: directory)
             }
             if sessions.count > previousCount, let selected {
+                selected.setAppearance(tab.tabAppearance ?? tab.server?.tabAppearance ?? TabAppearance())
                 selected.encoding = tab.encoding ?? .utf8
                 setHistoryLogging(tab.historyLogging ?? selected.historyLogging, for: selected)
             }

@@ -24,6 +24,7 @@ struct SplitPaneView: View {
                                 if workspace.broadcastTargets[id] != nil {
                                     Image(systemName: "antenna.radiowaves.left.and.right").foregroundStyle(.orange).help("广播目标")
                                 }
+                                SessionEnvironmentBadge(session: session)
                                 Text(session.label).lineLimit(1)
                                 Spacer(minLength: 0)
                             }.contentShape(Rectangle())
@@ -33,6 +34,8 @@ struct SplitPaneView: View {
                             Button("左右分屏") { workspace.focusPane(id); workspace.requestSplit(.vertical) }
                             Button("上下分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.horizontal, chooseSession: true) }
                             Button("左右分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.vertical, chooseSession: true) }
+                            Button("标签颜色与环境标识…") { workspace.editTabAppearance(session) }
+                            Button("搜索终端历史…") { workspace.focusPane(id); session.terminal.showHistorySearch() }
                             Button("广播命令") { workspace.beginBroadcast() }
                             Button("移为独立标签") { workspace.detachPane(id) }
                         } label: { Image(systemName: "rectangle.split.2x2") }.menuStyle(.borderlessButton).fixedSize()

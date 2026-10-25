@@ -132,6 +132,8 @@ The right-hand `+` and blank-strip menu offer local sessions, SSH configurations
 | --- | --- |
 | `⌘T` | New local Bash session |
 | `⌘N` | Add server |
+| `⌘F` | Search current terminal history |
+| `⌘G` / `⌘⇧G` | Next / previous match |
 | `⌘W` | Close current pane; the last pane closes its tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Cycle forward/back through tabs |
 | `⌃⌘S` | Toggle sidebar |
@@ -145,6 +147,18 @@ The sidebar uses a two-level **group → session** tree. Groups can be expanded,
 Saved tab collections can be restored, renamed, updated or deleted. They retain order, connection definitions, the active pane and local directories, up to 100 sessions including split panes. An exit snapshot is saved when quitting. Restoration appends tabs and establishes new connections; it does not restore processes or feed old text into the terminal. Use tmux when remote programs must survive disconnection.
 
 Normal Bash/SSH exits close their panes; the last pane closes its tab. Unexpected SSH disconnects retain output; focus the terminal and press `R`/`r`, or use Reconnect. Local Bash runs as an interactive login shell and follows `~/.profile` and Bash startup rules. Local directory tracking uses OSC 7; otherwise the initial directory is retained.
+
+### Terminal history search
+
+Use `⌘F` or the tab context menu’s **Search terminal history…** to open search in the active pane. Enter text and press Return to find next, or Shift+Return to find previous; arrow buttons and `⌘G` / `⌘⇧G` also navigate. Options provide case-sensitive, whole-word and regular-expression matching. Matches are selected and revealed, with explicit no-match feedback. Esc or the close button closes search and returns focus to the terminal.
+
+Search defaults to literal text (up to 4096 characters). Enable regular expressions in Options if needed; invalid patterns display an error. It searches the terminal’s retained memory buffer without enabling logging, reading disk history or sending the search text to SSH/local processes. Chinese and soft-wrapped text are supported; navigate again after a font or window resize. Searches run only on Return, navigation shortcuts or arrow clicks; ongoing output does not trigger rescanning. Full-screen programs expose only rendered buffer content, not unseen history inside tmux/less. Output already evicted by history limits cannot be searched.
+
+### Tab colors and environment labels
+
+In SSH configuration or the tab context menu’s **Tab color and environment label…**, choose a color and enter a label such as red `PROD` or green `TEST`. Labels support up to 24 characters. Tabs show a color stripe and text; split-pane headers also show the identification. Clear the text and select Default to reset. These are visual identifiers only: connection addresses, authentication and execution permissions are unchanged.
+
+Saved SSH configurations persist the identification and update open tabs sharing that configuration. Temporary SSH, local and Codex tabs can also be labeled; their metadata is retained in saved session snapshots. Duplicated connections and direct splits inherit it. MyTerm JSON session exports/imports and preferences backups retain the metadata; OpenSSH configuration does not carry these UI fields. Tab titles and environment labels are independent.
 
 ### Split panes within a tab
 

@@ -39,6 +39,7 @@ public struct SessionArchive: Codable {
                 throw ConfigurationError.invalid("会话名称、标签数量或选中位置无效。")
             }
             for tab in session.tabs {
+                _ = try tab.tabAppearance?.validated()
                 if let server = tab.server { _ = try server.validated() }
                 if let path = tab.directory, path.contains("\0") {
                     throw ConfigurationError.invalid("本地会话目录无效。")

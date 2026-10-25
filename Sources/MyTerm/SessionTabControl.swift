@@ -10,7 +10,7 @@ struct SessionTabControl: NSViewRepresentable {
     func makeNSView(context: Context) -> SessionTabNativeView { SessionTabNativeView() }
     func updateNSView(_ view: SessionTabNativeView, context: Context) {
         view.configure(title: session.label, symbol: session.executable == "/usr/bin/ssh" ? "network" : "terminal",
-                       selected: workspace.selectedID.map { workspace.tabID(containing: $0) } == session.id, sessionID: session.id)
+                       selected: workspace.selectedID.map { workspace.tabID(containing: $0) } == session.id, sessionID: session.id, appearance: session.appearance)
         view.select = { [weak workspace] in workspace?.selectTab(session) }
         // A context click chooses its target without synchronously moving the
         // first responder during AppKit's menu tracking transition.
@@ -33,6 +33,8 @@ struct SessionTabControl: NSViewRepresentable {
                 modes.addItem(item)
             }
             logging.submenu = modes; menu.addItem(logging)
+            add("标签颜色与环境标识…") { workspace.editTabAppearance(session) }
+            add("搜索终端历史…") { workspace.selectTab(session); workspace.selected?.terminal.showHistorySearch() }
             add("更改标签名称…") { workspace.renameTab(session) }
             if session.sourceServer != nil { add("更改 SSH 配置…") { workspace.editConnection(session) } }
             if session.canReconnect { add("重新连接", action: session.reconnect) }
@@ -62,6 +64,8 @@ final class SessionTabNativeView: NSView, NSDraggingSource {
     private var targeted = false
     private let title = NSTextField(labelWithString: "")
     private let icon = NSImageView()
+    private let badge = NSTextField(labelWithString: "")
+    private var tabAppearance = TabAppearance()
     private let closeButton = TabBarNativeButton()
     private static let dragType = SessionTabDrag.pasteboardType
     override init(frame: NSRect) {
@@ -74,33 +78,47 @@ final class SessionTabNativeView: NSView, NSDraggingSource {
         closeButton.target = closeButton
         closeButton.action = #selector(TabBarNativeButton.activate)
         closeButton.onActivate = { [weak self] in self?.close?() }
-        addSubview(icon); addSubview(title); addSubview(closeButton)
+        badge.font = .boldSystemFont(ofSize: 10); badge.lineBreakMode = .byTruncatingTail
+        badge.wantsLayer = true; badge.layer?.cornerRadius = 3
+        addSubview(icon); addSubview(title); addSubview(badge); addSubview(closeButton)
         registerForDraggedTypes([Self.dragType])
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    func configure(title text: String, symbol: String, selected: Bool, sessionID: UUID) {
+    func configure(title text: String, symbol: String, selected: Bool, sessionID: UUID, appearance: TabAppearance = TabAppearance()) {
         if title.stringValue != text { title.stringValue = text; invalidateIntrinsicContentSize() }
+        self.tabAppearance = appearance
+        badge.stringValue = appearance.environment; badge.isHidden = appearance.environment.isEmpty
+        badge.layer?.backgroundColor = appearance.color.nsColor.withAlphaComponent(0.2).cgColor
+        icon.contentTintColor = appearance.color == .automatic ? .labelColor : appearance.color.nsColor
+        toolTip = [appearance.environment, text].filter { !$0.isEmpty }.joined(separator: " · ")
+        invalidateIntrinsicContentSize()
         icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         self.selected = selected; self.sessionID = sessionID
         closeButton.toolTip = L10n.text("关闭会话")
         closeButton.setAccessibilityLabel(L10n.text("关闭会话"))
-        setAccessibilityLabel(text)
+        setAccessibilityLabel(toolTip ?? text)
         needsDisplay = true; needsLayout = true
     }
     override var intrinsicContentSize: NSSize {
-        NSSize(width: max(90, min(340, title.intrinsicContentSize.width + 60)), height: 30)
+        NSSize(width: max(90, min(340, title.intrinsicContentSize.width + 60 + badgeWidth)), height: 30)
     }
+    private var badgeWidth: CGFloat { tabAppearance.environment.isEmpty ? 0 : min(100, badge.intrinsicContentSize.width + 8) }
     override func layout() {
         super.layout()
         icon.frame = NSRect(x: 9, y: (bounds.height - 14) / 2, width: 14, height: 14)
-        title.frame = NSRect(x: 28, y: (bounds.height - 16) / 2, width: max(0, bounds.width - 55), height: 16)
+        badge.frame = NSRect(x: 28, y: (bounds.height - 16) / 2, width: badgeWidth, height: 16)
+        title.frame = NSRect(x: 28 + badgeWidth, y: (bounds.height - 16) / 2, width: max(0, bounds.width - 55 - badgeWidth), height: 16)
         closeButton.frame = NSRect(x: bounds.width - 24, y: 0, width: 24, height: bounds.height)
     }
     override func draw(_ dirtyRect: NSRect) {
         let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 7, yRadius: 7)
         if selected { NSColor.labelColor.withAlphaComponent(0.1).setFill(); shape.fill() }
+        if tabAppearance.color != .automatic {
+            tabAppearance.color.nsColor.setFill()
+            NSBezierPath(roundedRect: NSRect(x: 7, y: 1, width: max(0, bounds.width - 14), height: 3), xRadius: 1.5, yRadius: 1.5).fill()
+        }
         if targeted { NSColor.controlAccentColor.setStroke(); shape.lineWidth = 2; shape.stroke() }
     }
     override var mouseDownCanMoveWindow: Bool { false }

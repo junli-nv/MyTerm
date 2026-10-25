@@ -5,6 +5,7 @@ public struct SessionTab: Codable, Equatable {
     public var directory: String?
     public var historyLogging: HistoryLoggingMode?
     public var encoding: TerminalEncoding?
+    public var tabAppearance: TabAppearance?
     public init(server: Server? = nil, directory: String? = nil, encoding: TerminalEncoding? = nil, historyLogging: HistoryLoggingMode? = nil) {
         self.server = server; self.directory = directory; self.encoding = encoding; self.historyLogging = historyLogging
     }
@@ -44,7 +45,10 @@ public struct SessionRepository {
             guard !session.tabs.isEmpty, session.tabs.count <= 100, session.tabs.indices.contains(session.selectedIndex) else {
                 throw ConfigurationError.invalid("保存的会话标签或选中位置无效。")
             }
-            for tab in session.tabs { if let server = tab.server { _ = try server.validated() } }
+            for tab in session.tabs {
+                _ = try tab.tabAppearance?.validated()
+                if let server = tab.server { _ = try server.validated() }
+            }
         }
         return sessions
     }

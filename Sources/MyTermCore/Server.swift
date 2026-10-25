@@ -17,6 +17,7 @@ public struct Server: Identifiable, Codable, Equatable {
     public var authentication: AuthenticationMode?
     public var x11Forwarding: X11Forwarding?
     public var historyLogging: HistoryLoggingMode?
+    public var tabAppearance: TabAppearance?
     public var debugLogging: Bool?
     public var trzszEnabled: Bool?
     public var dragUploadProtocol: DragUploadProtocol?
@@ -35,6 +36,8 @@ public struct Server: Identifiable, Codable, Equatable {
 
     public func validated() throws -> Server {
         var result = self
+        result.tabAppearance = try tabAppearance?.validated()
+        if result.tabAppearance == TabAppearance() { result.tabAppearance = nil }
         result.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         result.host = host.trimmingCharacters(in: .whitespacesAndNewlines)
         result.user = user.trimmingCharacters(in: .whitespacesAndNewlines)
