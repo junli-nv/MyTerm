@@ -1327,3 +1327,33 @@
 "集群是稳定的项目分类，SSH 只是连接入口。继续对话保留名称与历史；新建同名对话才追加日期和时分秒。恢复后请先确认当前目标。" = "The cluster is a stable project; SSH is its connection entry point. Continuing keeps the name and history. Only duplicate new names gain a date and time including seconds. Confirm the current target after resuming.";
 
 "集群对话 ID 或目录无效。" = "The cluster conversation ID or directory is invalid.";
+
+"MyTerm 独立维护此列表；在 Codex 中删除对话不会自动移除这里的记录。" = "MyTerm maintains this list separately. Deleting a conversation in Codex does not remove its entry here.";
+
+"移除对话记录" = "Remove conversation entry";
+
+"删除集群" = "Delete cluster";
+
+"移除对话记录？" = "Remove conversation entry?";
+
+"删除集群及其对话记录？" = "Delete cluster and its conversation entries?";
+
+"仅移除 MyTerm 的分类、对话索引及关联，不删除 Codex 历史或目录中的文件。仍打开的对话需先关闭标签。" = "Only MyTerm categories, conversation entries and associations are removed. Codex history and project files are kept. Close any open conversation tabs first.";
+
+"新集群存储目录" = "Storage directory for new clusters";
+
+"选择目录…" = "Choose directory…";
+
+"恢复默认目录" = "Restore default directory";
+
+"更改仅影响新集群；已有集群保留原目录，不移动文件或修改 Codex 历史。" = "Changes apply to new clusters only. Existing clusters keep their directories; files and Codex history are not moved or modified.";
+
+"当前集群目录" = "Current cluster directory";
+
+"集群工作目录必须是有效的绝对路径。" = "The cluster working directory must be a valid absolute path.";
+
+"请先关闭该对话的 Codex 标签。" = "Close the Codex tab for this conversation first.";
+
+"请先关闭该集群的 Codex 标签。" = "Close the Codex tabs for this cluster first.";
+
+"请选择可写入的文件夹。" = "Select a writable folder.";

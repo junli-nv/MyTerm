@@ -566,6 +566,23 @@ enum CodexBridgeCheck {
         try require((currentBinding["connection_instructions"] as? String)?.contains(session.id.uuidString) == true,
                     "Cluster resume did not bind current SSH")
         workspace.close(continuedTab)
+        let managedRoot = root.appendingPathComponent("managed-catalog")
+        let management = CodexClusterModel(root: managedRoot)
+        let managedID = management.add("Managed fixture")!
+        let originalDirectory = management.directory(for: managedID)!
+        try FileManager.default.createDirectory(at: originalDirectory, withIntermediateDirectories: true)
+        let sentinel = originalDirectory.appendingPathComponent("keep.txt")
+        try Data("keep".utf8).write(to: sentinel)
+        management.setProjectsDirectory(root)
+        try require(management.directory(for: managedID)?.path == originalDirectory.path, "Default path change moved old cluster")
+        let newerID = management.add("Custom location")!
+        try require(management.directory(for: newerID)?.deletingLastPathComponent().path == root.path, "Custom cluster location ignored")
+        let reloadedManagement = CodexClusterModel(root: managedRoot)
+        try require(reloadedManagement.projectsDirectory.path == root.path, "Custom location not persisted")
+        try require(management.removeCluster(managedID, openThreads: []), "Cluster removal failed")
+        try require(FileManager.default.fileExists(atPath: sentinel.path), "Cluster removal deleted project files")
+        try require(!CodexClusterModel(root: managedRoot).catalog.clusters.contains { $0.id == managedID }, "Removed cluster reappeared")
+        print("PASS: local cluster removal preserves files; custom directory and original paths persist")
         let cancelledModel = CodexClusterModel(root: root.appendingPathComponent("cancelled-cluster"))
         let cancelledCluster = cancelledModel.add("Cancelled fixture")!
         cancelledModel.cancelLaunch()

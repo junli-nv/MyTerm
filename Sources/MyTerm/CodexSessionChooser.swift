@@ -112,6 +112,7 @@ struct CodexSessionChooser: View {
                 } else {
                     TextField("对话名称（默认日常运维）", text: $selection.conversationTitle)
                 }
+                CodexClusterManagement(clusters: clusters, workspace: workspace, selection: selection)
                 Text("集群是稳定的项目分类，SSH 只是连接入口。继续对话保留名称与历史；新建同名对话才追加日期和时分秒。恢复后请先确认当前目标。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }

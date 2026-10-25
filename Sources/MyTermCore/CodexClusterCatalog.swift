@@ -4,6 +4,7 @@ public struct CodexCluster: Codable, Identifiable, Equatable {
     public let id: UUID
     public let name: String
     public let folder: String
+    public var directory: String? = nil
 }
 public struct CodexClusterConversation: Codable, Identifiable, Equatable {
     public let id: String
@@ -17,6 +18,7 @@ public struct CodexClusterConversation: Codable, Identifiable, Equatable {
 /// Stores MyTerm's organization only. Codex owns transcripts, authentication and titles.
 public struct CodexClusterCatalog: Codable {
     public var version = 1
+    public var projectsDirectory: String? = nil
     public var clusters: [CodexCluster] = []
     public var conversations: [CodexClusterConversation] = []
     public var serverClusters: [String: UUID] = [:]
@@ -39,6 +41,35 @@ public struct CodexClusterCatalog: Codable {
         clusters.append(cluster)
         return cluster
     }
+    /// Pin existing paths before changing the default; Codex histories retain their original cwd.
+    public mutating func setProjectsDirectory(_ directory: String?, defaultDirectory: URL) throws {
+        if let directory { try Self.validateDirectory(directory) }
+        for i in clusters.indices {
+            clusters[i].directory = directoryURL(for: clusters[i], defaultDirectory: defaultDirectory).path
+        }
+        projectsDirectory = directory
+    }
+    public func directoryURL(for cluster: CodexCluster, defaultDirectory: URL) -> URL {
+        if let path = cluster.directory { return URL(fileURLWithPath: path) }
+        return (projectsDirectory.map { URL(fileURLWithPath: $0) } ?? defaultDirectory).appendingPathComponent(cluster.folder)
+    }
+    private static func validateDirectory(_ path: String) throws {
+        guard path.hasPrefix("/"), !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            throw ConfigurationError.invalid("集群工作目录必须是有效的绝对路径。")
+        }
+    }
+    public mutating func removeConversation(_ id: String, openThreads: Set<String>) throws {
+        guard !openThreads.contains(id) else { throw ConfigurationError.invalid("请先关闭该对话的 Codex 标签。") }
+        conversations.removeAll { $0.id == id }
+    }
+    public mutating func removeCluster(_ id: UUID, openThreads: Set<String>) throws {
+        guard !conversations.contains(where: { $0.clusterID == id && openThreads.contains($0.id) }) else {
+            throw ConfigurationError.invalid("请先关闭该集群的 Codex 标签。")
+        }
+        conversations.removeAll { $0.clusterID == id }
+        serverClusters = serverClusters.filter { $0.value != id }
+        clusters.removeAll { $0.id == id }
+    }
     public func uniqueTitle(_ input: String, cluster: UUID, now: Date = Date()) throws -> String {
         let base = try Self.validatedName(input)
         let used = Set(conversations.filter { $0.clusterID == cluster }.map(\.title))
@@ -56,7 +87,9 @@ public struct CodexClusterCatalog: Codable {
         guard version == 1, clusters.count <= 500, conversations.count <= 10000,
               Set(clusters.map(\.id)).count == clusters.count,
               Set(conversations.map(\.id)).count == conversations.count else { throw ConfigurationError.invalid("集群对话索引格式无效。") }
+        if let projectsDirectory { try Self.validateDirectory(projectsDirectory) }
         for cluster in clusters {
+            if let directory = cluster.directory { try Self.validateDirectory(directory) }
             _ = try Self.validatedName(cluster.name)
             guard !cluster.folder.isEmpty, !cluster.folder.contains("/"), !cluster.folder.contains("\\"),
                   cluster.folder != ".", cluster.folder != ".." else { throw ConfigurationError.invalid("集群目录无效。") }
