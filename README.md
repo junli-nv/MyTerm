@@ -8,9 +8,11 @@
 
 macOS 原生 SSH 工作台，使用 SwiftUI / AppKit 管理界面、SwiftTerm 提供终端、系统 OpenSSH 负责认证和连接。支持本地 Bash、多标签 SSH、会话分组、文件传输，以及本地 Codex 启动和按 SSH 会话授权的 Codex 接入。
 
-## 安装与构建
+<a id="安装与构建"></a>
 
-从 [最新 Release](https://github.com/junli-nv/MyTerm/releases/latest) 下载适合设备架构的 DMG，打开后将 MyTerm 拖入“应用程序”。版本、构建号与附件校验值以 Release 页面和 `SHA256SUMS.txt` 为准。发布包使用临时签名（ad-hoc），未进行 Developer ID 签名与 Apple 公证。
+## 安装与首次使用
+
+从 [最新 Release](https://github.com/junli-nv/MyTerm/releases/latest) 下载适合设备架构的 DMG，打开后将 MyTerm 拖入“应用程序”。版本、构建号与附件校验值以 Release 页面和 `SHA256SUMS.txt` 为准。发布包使用临时签名（ad-hoc），未进行 Developer ID 签名与 Apple 公证。通常直接安装 DMG 即可，无需编译源码。
 
 ### 从零安装 MyTerm
 
@@ -23,7 +25,6 @@ MyTerm 应用要求 macOS 14 或更高版本。先在“关于本机”确认芯
 | ZMODEM | 本机及远端的 `sz` / `rz`（本机可用 `brew install lrzsz`）；见下方传输说明 |
 | trzsz / tmux 传输 | MyTerm 内置客户端，远端需安装 `trz` / `tsz`；见下方传输说明 |
 | X11 转发 | 额外安装并运行 XQuartz，详见下文 X11 说明 |
-| 源码构建和开发测试 | Swift/开发工具及测试依赖，见下方构建说明和[测试文档](docs/TESTING.md) |
 
 1. 从[最新 Release](https://github.com/junli-nv/MyTerm/releases/latest)下载 DMG 和 `SHA256SUMS.txt`，不要使用来源不明的重新打包文件。
 2. 在 macOS“终端”中进入下载目录，运行 `shasum -a 256 <下载的DMG文件路径>`（用实际路径替换占位符），将结果与校验文件中的对应条目比较。
@@ -36,9 +37,11 @@ MyTerm 应用要求 macOS 14 或更高版本。先在“关于本机”确认芯
 
 如果看不到“仍要打开”，先重新尝试启动；受组织管理的 Mac 可能需要管理员放行。如果提示文件损坏或会损害电脑，先核对校验值并重新下载，无法解决时反馈具体提示；不要直接关闭整个系统的 Gatekeeper。
 
-### 安装 Homebrew 和 Codex CLI（使用 Codex 时）
+### 按需安装依赖：Homebrew、文件传输和 Codex
 
-已有 `brew` 和 `codex` 时可跳过安装，先用 `brew --version`、`codex --version` 检查。MyTerm 不会自动安装它们。
+只使用 SSH、本地 Bash 和 SFTP，无需安装下面这些额外工具。按所需功能选择即可，MyTerm 不会自动安装这些依赖。已有 Homebrew 时，先用 `brew --version` 检查，再跳过 Homebrew 安装步骤。
+
+#### 1. 安装 Homebrew（软件包管理工具）
 
 在系统“终端”中按 [Homebrew 官方安装说明](https://brew.sh/)运行：
 
@@ -55,6 +58,30 @@ brew --version
 
 让新终端也能找到 `brew`，需按安装程序的 Next steps 配置实际使用的 shell；Bash 示例使用 `~/.profile`。不要把 Apple Silicon 的路径套用到 Intel 或自定义安装目录。
 
+#### 2. 安装文件传输工具（可选）
+
+**ZMODEM（`rz` / `sz`）：** 在本机 Mac 安装 [lrzsz](https://formulae.brew.sh/formula/lrzsz)：
+
+```bash
+brew install lrzsz
+command -v rz
+command -v sz
+```
+
+远端机器也需要安装 lrzsz。例如 Debian/Ubuntu 可在**远端 SSH 会话内**运行 `sudo apt install lrzsz`；其他系统使用对应的软件包管理器。本机安装不会替远端安装。SFTP 不需要 lrzsz。
+
+**trzsz（`trz` / `tsz`，用于 tmux 和目录传输）：** MyTerm 已内置客户端，在 MyTerm 中进行 SSH 传输无需在本机另装客户端。远端按 [trzsz-go 安装指南](https://trzsz.github.io/go.html)安装命令。若远端是安装了 Homebrew 的 Mac 或 Linux，可运行：
+
+```bash
+brew install trzsz-go
+command -v trz
+command -v tsz
+```
+
+这些命令应在实际执行 `trz` / `tsz` 的机器上运行。远端没有 Homebrew 时，可按上游指引安装对应系统与架构的二进制。如果本机其他 Shell 也需要这些命令，同样可以使用上述 Homebrew 安装命令。[trzsz-go 软件包](https://formulae.brew.sh/formula/trzsz-go)还提供 `trzsz` 中继命令，供从跳板机 tmux 手动继续连接下一台机器时使用。Homebrew 的 `trzsz` 与 `trzsz-go` 包互相冲突，选择其一即可，不要同时安装。具体传输与续传操作见下方使用说明。
+
+#### 3. 安装 Codex CLI（可选）
+
 安装 [Homebrew 的 Codex CLI 包](https://formulae.brew.sh/cask/codex)，并确认命令路径：
 
 ```bash
@@ -65,36 +92,19 @@ codex --version
 
 已有 Homebrew 安装的 Codex 可用 `brew upgrade --cask codex` 更新。CLI 的使用与登录方式见 [OpenAI 官方文档](https://learn.chatgpt.com/docs/codex/cli)。
 
+### 首次使用 Codex：登录、代理与辅助程序权限
+
 打开 **MyTerm → Codex 接入… → Codex 配置**，填写 `command -v codex` 返回的完整路径。默认值为 `/opt/homebrew/bin/codex`；Intel Homebrew 通常为 `/usr/local/bin/codex`，其他安装方式以实际路径为准。已有自定义路径不会被默认值覆盖。
 
 需要代理时，先在这里设置独立的 HTTP/SOCKS5 代理并测试，再点击登录、检查登录状态；该代理不会改变 SSH 自己的代理。MyTerm 中的代理仅供其启动的 Codex 使用，不能解决此前 Homebrew/CLI 下载阶段的网络问题，安装阶段需先确保终端能访问下载站点。登录成功后可选择“本地工作”，或先打开 SSH，再从“SSH 会话接入”启动分析。详细步骤见 [Codex 接入指南](docs/CODEX-INTEGRATION.md)。
 
-### Codex 首次运行验证
-
 安装或升级 Codex 后，建议先完成一次[辅助程序权限与 SSH 接入验证](docs/PERMISSIONS.md#codex-helper-permissions)。Codex 自身的辅助程序（例如 `codex-code-mode-host`）可能单独触发 macOS 提示；登录成功或 MyTerm MCP 检查通过，不代表这些程序已获准运行。指南说明如何提前触发、针对具体提示放行并复测；MyTerm 不会自动授予系统权限。
 
-### 从源码构建与打包
+正式使用 SSH 分析前，建议完成以下验证：
 
-源码构建需要 macOS 14+、Swift 6.0+。在仓库根目录运行：
-
-```bash
-bash scripts/build-app.sh
-open dist/MyTerm.app
-```
-
-默认生成当前 Mac 架构的 Debug 应用；`bash scripts/build-app.sh release` 生成优化构建。依赖源码和二进制随仓库提供，版本、补丁及第三方声明见 [SwiftTerm 补丁说明](vendor/SwiftTerm/MYTERM-PATCH.md) 和 [trzsz 说明](vendor/trzsz/1.2.0/README.md)。
-
-发布与安装验证：
-
-```bash
-bash scripts/package-release.sh
-bash scripts/create-dmg.sh
-bash scripts/install-release.sh
-```
-
-版本由 [packaging/Info.plist](packaging/Info.plist) 定义，产物输出到 `dist/releases/<版本号>/`，包含 ZIP、DMG、发布说明与 SHA-256 校验文件。打包脚本会拒绝覆盖已有同版本目录。
-
-发布流程对 Debug、Release、从 DMG 复制的应用执行窗口与功能检查，并核对应用包的文件、权限及符号链接。安装脚本从已验证 DMG 更新 `/Applications/MyTerm.app`，再次检查签名、内容和窗口行为，通过后打开安装版，并将 `dist/MyTerm.app` 同步为相同产物；安装验证失败时恢复原应用。
+1. 启动一个测试用 SSH 分析 Codex 标签，取消允许执行命令及读取已有输出，只要求发现 MyTerm 工具并确认 SSH 关联。
+2. 若系统拦截了某个辅助程序，确认来源可信后按实际提示处理。无法验证开发者时，可按上面的“隐私与安全性 → 仍要打开”步骤放行；其他类型权限需分别处理。
+3. 关闭失败的 Codex 标签，重新启动并复测，不要只以登录成功为准。仍失败时，按上述指南记录系统提示并导出诊断包。
 
 ### 检查更新
 
@@ -213,11 +223,7 @@ Codex 标签、尚未认证的 SSH、已断开的会话和正在进行 ZMODEM �
 
 ### ZMODEM
 
-本机和远端需提供 `rz` / `sz`，本机可安装：
-
-```bash
-brew install lrzsz
-```
+本机和远端需提供 `rz` / `sz`，安装步骤见前面的“按需安装依赖”。
 
 应用查找 `/opt/homebrew/bin`、`/usr/local/bin` 和 `/usr/bin` 中的工具，不将 lrzsz 打包进应用。远端执行 `sz 文件名` 后选择本地接收目录，执行 `rz` 后选择本地发送文件。下载先接收到独立暂存目录，成功后对本地同名文件提示覆盖、跳过、全部覆盖或全部跳过，不自动加后缀。再次下载同一 SSH 配置到同一目录时，若有保留的未完成文件，可选择续传或重新下载。ZMODEM 续传需自行确认源文件未改变，不具备 SFTP 的身份/元数据校验。上传默认覆盖，也可明确选择续传；远端接收器的限制仍然适用。暂存文件位于应用支持目录的 `MyTerm/ZmodemPartial` 下，失败或取消后保留的文件可供重试。状态栏显示进度、速度并可取消；速度包含协议开销与重传。
 
@@ -370,6 +376,51 @@ MyTerm 内关闭 macOS 长按字母的重音字符菜单，英文输入法下长
 
 偏好备份通过口令派生密钥并使用 AES-256-GCM 加密校验；忘记口令无法恢复。恢复先验证，再确认替换配置并关闭连接；写入失败尝试回滚。应用内密钥路径会适配用户目录，恢复后重启以应用全部偏好。
 
+## 终端问题诊断
+
+遇到输出不自动滚动、回车没有响应等偶发问题，可打开 **帮助 → 终端诊断…**：
+
+1. 复现前点击“开始新记录”，回到原标签操作。
+2. 问题发生后点击“标记刚刚发生问题”，然后“停止记录”。
+3. 点击“导出诊断包…”，将 ZIP 连同问题时间、复现步骤、预期与实际行为交给维护者分析。请另行注明 Codex CLI 版本（`codex --version`）、输入法和是否使用 tmux。
+
+终端事件默认不记录。每次记录最多 15 分钟，最多保留最新 5000 条事件；仅在内存保存，退出应用清空，开始新记录会覆盖上次记录。关闭诊断窗口不会停止记录，也不会自动上传。导出包含应用/macOS 版本、进程历史峰值内存、匿名终端标识与类型、滚动/选择/焦点状态、键盘协议、回车事件和数据字节数；不包含输入文字、输出正文、密码、令牌、主机名或配置文件。输出事件会合并采样，不是完整流量统计。
+
+此记录可帮助判断 MyTerm 是否收到回车、是否进入发送路径及输出时的滚动状态，不能证明 Codex 已处理按键，也不能单凭一次快照判断内存泄漏。诊断包不替代按需开启的会话文本日志；如另附截图或文本日志，请先检查敏感信息。
+
+MCP 握手故障：先开始记录，再启动接入 SSH 的 Codex 标签，复现后停止并导出。诊断包的 `mcp` 字段包含辅助进程 PID/父 PID、事件时间、初始化/工具发现阶段、标准输入 EOF、输入大小超限及管道读写错误码，不包含协议正文、命令或凭据。MCP 元数据保存在 `~/Library/Application Support/MyTerm/mcp-diagnostics.json`（仅当前用户可读写），最多 256 条，共用 15 分钟记录窗口；清除或开始新记录会覆盖旧记录，退出应用后仍可导出。未启动成功或遭强制终止的进程可能没有退出事件；最后一条事件不是退出原因的证明。请另附问题时间和 Codex 版本。
+
+路径、代理、登录与 MCP 检查集中在“Codex 配置”。“SSH 会话接入”不再重复显示依赖项或配置正常说明；只有配置无效时显示原因及“前往 Codex 配置”入口。启动校验和自动登录检查仍保留。签名与 Gatekeeper 信息仅随诊断包导出，不作为 MCP 健康状态的判定依据。
+
+在 **Codex 配置 → SSH MCP 接口 → 检查 SSH MCP 接口** 可实际测试应用辅助进程的初始化和工具发现，显示检查时间；与登录、代理和外部注册检查独立。失败显示阶段、原因及错误码。不读取 SSH 输出、不执行命令；通过不代表外部 Codex 环境、GUI 桥接授权或远端 SSH 连通性正常。间歇故障请使用终端诊断记录。
+
+系统权限、按需授权、安全评估与排查边界见 [macOS 权限与安全检查](docs/PERMISSIONS.md)。不要把完全磁盘访问或辅助功能当作 MCP 故障的通用修复。
+
+诊断包包含中文 `诊断摘要.txt` 和英文 `Diagnostic-Summary.en.txt`，请先阅读其中的已观察阶段、影响、建议与判断边界；`diagnostic.json` 保留原始错误码和带时间的 `mcpHealth` 主动检查结果。Codex 接口检查页面也显示可读说明，数字技术详情默认收起。正常 EOF 或 Gatekeeper 未通过不会被单独认定为故障根因。主动检查与辅助进程事件分别解释，缺少事件不代表检查通过。摘要采用本机固定规则，不调用模型，不包含终端正文或凭据。
+
+## 从源码构建与打包
+
+源码构建需要 macOS 14+、Swift 6.0+。在仓库根目录运行：
+
+```bash
+bash scripts/build-app.sh
+open dist/MyTerm.app
+```
+
+默认生成当前 Mac 架构的 Debug 应用；`bash scripts/build-app.sh release` 生成优化构建。依赖源码和二进制随仓库提供，版本、补丁及第三方声明见 [SwiftTerm 补丁说明](vendor/SwiftTerm/MYTERM-PATCH.md) 和 [trzsz 说明](vendor/trzsz/1.2.0/README.md)。
+
+发布与安装验证：
+
+```bash
+bash scripts/package-release.sh
+bash scripts/create-dmg.sh
+bash scripts/install-release.sh
+```
+
+版本由 [packaging/Info.plist](packaging/Info.plist) 定义，产物输出到 `dist/releases/<版本号>/`，包含 ZIP、DMG、发布说明与 SHA-256 校验文件。打包脚本会拒绝覆盖已有同版本目录。
+
+发布流程对 Debug、Release、从 DMG 复制的应用执行窗口与功能检查，并核对应用包的文件、权限及符号链接。安装脚本从已验证 DMG 更新 `/Applications/MyTerm.app`，再次检查签名、内容和窗口行为，通过后打开安装版，并将 `dist/MyTerm.app` 同步为相同产物；安装验证失败时恢复原应用。
+
 ## 测试与源码
 
 完整功能与测试入口对应关系、统一回归命令及验证边界见 [测试与维护](docs/TESTING.md)。
@@ -408,25 +459,3 @@ bash scripts/check.sh
 - `Tests/MyTermCoreTests`、`scripts/`：核心、集成、打包及安装验证。
 
 功能变更和历史发布记录统一维护在 [CHANGELOG.md](CHANGELOG.md)，README 描述使用方式与边界，不维护固定的“最新版本”编号。
-
-## 终端问题诊断
-
-遇到输出不自动滚动、回车没有响应等偶发问题，可打开 **帮助 → 终端诊断…**：
-
-1. 复现前点击“开始新记录”，回到原标签操作。
-2. 问题发生后点击“标记刚刚发生问题”，然后“停止记录”。
-3. 点击“导出诊断包…”，将 ZIP 连同问题时间、复现步骤、预期与实际行为交给维护者分析。请另行注明 Codex CLI 版本（`codex --version`）、输入法和是否使用 tmux。
-
-终端事件默认不记录。每次记录最多 15 分钟，最多保留最新 5000 条事件；仅在内存保存，退出应用清空，开始新记录会覆盖上次记录。关闭诊断窗口不会停止记录，也不会自动上传。导出包含应用/macOS 版本、进程历史峰值内存、匿名终端标识与类型、滚动/选择/焦点状态、键盘协议、回车事件和数据字节数；不包含输入文字、输出正文、密码、令牌、主机名或配置文件。输出事件会合并采样，不是完整流量统计。
-
-此记录可帮助判断 MyTerm 是否收到回车、是否进入发送路径及输出时的滚动状态，不能证明 Codex 已处理按键，也不能单凭一次快照判断内存泄漏。诊断包不替代按需开启的会话文本日志；如另附截图或文本日志，请先检查敏感信息。
-
-MCP 握手故障：先开始记录，再启动接入 SSH 的 Codex 标签，复现后停止并导出。诊断包的 `mcp` 字段包含辅助进程 PID/父 PID、事件时间、初始化/工具发现阶段、标准输入 EOF、输入大小超限及管道读写错误码，不包含协议正文、命令或凭据。MCP 元数据保存在 `~/Library/Application Support/MyTerm/mcp-diagnostics.json`（仅当前用户可读写），最多 256 条，共用 15 分钟记录窗口；清除或开始新记录会覆盖旧记录，退出应用后仍可导出。未启动成功或遭强制终止的进程可能没有退出事件；最后一条事件不是退出原因的证明。请另附问题时间和 Codex 版本。
-
-路径、代理、登录与 MCP 检查集中在“Codex 配置”。“SSH 会话接入”不再重复显示依赖项或配置正常说明；只有配置无效时显示原因及“前往 Codex 配置”入口。启动校验和自动登录检查仍保留。签名与 Gatekeeper 信息仅随诊断包导出，不作为 MCP 健康状态的判定依据。
-
-在 **Codex 配置 → SSH MCP 接口 → 检查 SSH MCP 接口** 可实际测试应用辅助进程的初始化和工具发现，显示检查时间；与登录、代理和外部注册检查独立。失败显示阶段、原因及错误码。不读取 SSH 输出、不执行命令；通过不代表外部 Codex 环境、GUI 桥接授权或远端 SSH 连通性正常。间歇故障请使用终端诊断记录。
-
-系统权限、按需授权、安全评估与排查边界见 [macOS 权限与安全检查](docs/PERMISSIONS.md)。不要把完全磁盘访问或辅助功能当作 MCP 故障的通用修复。
-
-诊断包包含中文 `诊断摘要.txt` 和英文 `Diagnostic-Summary.en.txt`，请先阅读其中的已观察阶段、影响、建议与判断边界；`diagnostic.json` 保留原始错误码和带时间的 `mcpHealth` 主动检查结果。Codex 接口检查页面也显示可读说明，数字技术详情默认收起。正常 EOF 或 Gatekeeper 未通过不会被单独认定为故障根因。主动检查与辅助进程事件分别解释，缺少事件不代表检查通过。摘要采用本机固定规则，不调用模型，不包含终端正文或凭据。

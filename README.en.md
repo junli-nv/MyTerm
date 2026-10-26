@@ -8,9 +8,11 @@ Author: Junli Zhang · [GitHub](https://github.com/junli-nv)
 
 A native macOS SSH workspace built with SwiftUI/AppKit, SwiftTerm and system OpenSSH. It supports local Bash, SSH tabs, session groups, file transfers, standalone local Codex and Codex integration authorized per SSH session.
 
-## Install and build
+<a id="install-and-build"></a>
 
-Download the DMG for your architecture from the [latest release](https://github.com/junli-nv/MyTerm/releases/latest), open it and drag MyTerm into Applications. The release page and `SHA256SUMS.txt` provide the version, build and checksums. Packages are ad-hoc signed, without Developer ID signing or Apple notarization.
+## Install and first use
+
+Download the DMG for your architecture from the [latest release](https://github.com/junli-nv/MyTerm/releases/latest), open it and drag MyTerm into Applications. The release page and `SHA256SUMS.txt` provide the version, build and checksums. Packages are ad-hoc signed, without Developer ID signing or Apple notarization. Normally, install the DMG directly; building from source is unnecessary.
 
 ### Install MyTerm from scratch
 
@@ -23,7 +25,6 @@ MyTerm requires macOS 14 or later. Check About This Mac first: use an `arm64` pa
 | ZMODEM | Local and remote `sz` / `rz` (`brew install lrzsz` locally); see the transfer section |
 | trzsz / tmux transfers | Client bundled with MyTerm; install `trz` / `tsz` remotely; see the transfer section |
 | X11 forwarding | Install and run XQuartz; see the X11 section below |
-| Source builds and development tests | Swift/developer tools and test dependencies; see the build instructions and [testing guide](docs/TESTING.en.md) |
 
 1. Download the DMG and `SHA256SUMS.txt` from the [latest release](https://github.com/junli-nv/MyTerm/releases/latest), avoiding unknown repackaged copies.
 2. In macOS Terminal, change to the download directory and run `shasum -a 256 <downloaded-DMG-path>` (replace the placeholder with the actual path). Compare the result with the matching checksum entry.
@@ -36,9 +37,11 @@ Packages are ad-hoc signed, without Developer ID signing or Apple notarization. 
 
 If Open Anyway is missing, try launching the app again; managed Macs may require administrator approval. For a damaged-app or will-damage-your-computer warning, verify the checksum and download again; report the exact warning if unresolved. Do not disable Gatekeeper system-wide.
 
-### Install Homebrew and Codex CLI (for Codex features)
+### Optional dependencies: Homebrew, file transfers and Codex
 
-If already installed, skip installation and check `brew --version` and `codex --version`. MyTerm does not install them automatically.
+Basic SSH, local Bash and SFTP work without these extra tools. Install only what you need below; MyTerm does not install these dependencies automatically. If Homebrew is already installed, check `brew --version` and skip its installation.
+
+#### 1. Install Homebrew (package manager)
 
 Run the command from the [official Homebrew instructions](https://brew.sh/) in Terminal:
 
@@ -55,6 +58,30 @@ brew --version
 
 Follow Next steps for your actual shell so new terminals also find `brew`; Bash examples use `~/.profile`. Do not use the Apple Silicon path for Intel or custom installations.
 
+#### 2. Install file-transfer tools (optional)
+
+**ZMODEM (`rz` / `sz`):** install [lrzsz](https://formulae.brew.sh/formula/lrzsz) on your Mac:
+
+```bash
+brew install lrzsz
+command -v rz
+command -v sz
+```
+
+The remote machine also needs lrzsz. On Debian/Ubuntu, for example, run `sudo apt install lrzsz` **in the remote SSH session**; use the appropriate package manager on other systems. Installing it on your Mac does not install it remotely. SFTP does not require lrzsz.
+
+**trzsz (`trz` / `tsz`, for tmux and directory transfers):** MyTerm already bundles the client, so your Mac needs no additional client installation for MyTerm SSH transfers. Install the remote commands using the [trzsz-go installation guide](https://trzsz.github.io/go.html). For a remote Mac or Linux host with Homebrew, run:
+
+```bash
+brew install trzsz-go
+command -v trz
+command -v tsz
+```
+
+Run these commands on the machine that will execute `trz` / `tsz`. On hosts without Homebrew, use the upstream binaries for that operating system and architecture. If you also need these commands in your Mac's local shell, the same Homebrew command applies. The [trzsz-go package](https://formulae.brew.sh/formula/trzsz-go) also supplies the `trzsz` relay command for manually connecting onward from a jump host's tmux. Homebrew's `trzsz` and `trzsz-go` packages conflict; choose one, not both. See the transfer section below for usage and resume behavior.
+
+#### 3. Install Codex CLI (optional)
+
 Install the [Homebrew Codex CLI package](https://formulae.brew.sh/cask/codex) and check its path:
 
 ```bash
@@ -65,36 +92,19 @@ codex --version
 
 Update an existing Homebrew Codex installation with `brew upgrade --cask codex`. See the [official OpenAI documentation](https://learn.chatgpt.com/docs/codex/cli) for CLI usage and authentication.
 
+### First Codex use: login, proxy and helper permissions
+
 Open **MyTerm → Codex Integration… → Codex Configuration** and enter the full path returned by `command -v codex`. The default is `/opt/homebrew/bin/codex`; Intel Homebrew commonly uses `/usr/local/bin/codex`. Other installation methods may differ. Saved custom paths are not overwritten by the default.
 
 If a proxy is needed, configure and test the independent HTTP/SOCKS5 proxy here before signing in and checking login status. It does not change the SSH proxy. This proxy applies to Codex started by MyTerm, not earlier Homebrew/CLI downloads; ensure Terminal can reach download sites during installation. Once signed in, choose Local Work or open an SSH connection and start analysis from SSH Session Access. See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md).
 
-### Verify Codex on first use
-
 After installing or updating Codex, complete the [helper-permission and SSH integration check](docs/PERMISSIONS.en.md#codex-helper-permissions). Codex helpers (such as `codex-code-mode-host`) may trigger separate macOS prompts; successful login or a passing MyTerm MCP check does not establish that these programs can run. The guide explains how to trigger the check early, handle the specific prompt and retest. MyTerm does not automatically grant system permissions.
 
-### Build and package from source
+Before using SSH analysis for real work:
 
-Building requires macOS 14+ and Swift 6.0+. Run from the repository root:
-
-```bash
-bash scripts/build-app.sh
-open dist/MyTerm.app
-```
-
-The default is a Debug app for the current Mac architecture; `bash scripts/build-app.sh release` creates an optimized build. Dependencies are vendored. See the [SwiftTerm patch notes](vendor/SwiftTerm/MYTERM-PATCH.md) and [trzsz notes](vendor/trzsz/1.2.0/README.md) for dependency versions, modifications and notices.
-
-Package and validate an installation:
-
-```bash
-bash scripts/package-release.sh
-bash scripts/create-dmg.sh
-bash scripts/install-release.sh
-```
-
-[packaging/Info.plist](packaging/Info.plist) defines the version. Artifacts go into `dist/releases/<version>/`: ZIP, DMG, release notes and SHA-256 checksums. Packaging refuses to overwrite an existing version directory.
-
-The release workflow checks Debug, Release and an app copied from the actual DMG, comparing bundle files, permissions and symlinks. Installation copies that validated app to `/Applications/MyTerm.app`, verifies its contents, signature and window behavior, then opens it and synchronizes `dist/MyTerm.app` to the same bundle. Failed installation validation restores the previous app.
+1. Start a test SSH-analysis Codex tab with command execution and existing-output reading unchecked. Ask it only to discover MyTerm tools and confirm the SSH association.
+2. If macOS blocks a named helper, verify its source and follow the matching system prompt. For an unidentified-developer warning, use Privacy & Security → Open Anyway as described above; other permission categories require their own handling.
+3. Close the failed Codex tab and start a new one to retest. A successful login alone is not sufficient. If it still fails, follow the linked guide to record the prompt and export diagnostics.
 
 ### Check for updates
 
@@ -207,11 +217,7 @@ Rates reflect newly transferred bytes for the current file, excluding bytes comp
 
 ### ZMODEM
 
-Both local and remote systems need `rz`/`sz`. Install locally with:
-
-```bash
-brew install lrzsz
-```
+Both local and remote systems need `rz`/`sz`; see Optional dependencies above for installation.
 
 MyTerm searches `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin`; lrzsz is not bundled. Remote `sz filename` asks for a local receive directory; `rz` asks for local upload files. Downloads first receive into private staging, then offer Overwrite, Skip, Overwrite All or Skip All for existing local files without suffixing names. Retained partial files for the same SSH configuration and destination can be resumed or restarted. ZMODEM resume requires you to confirm that the source is unchanged; it does not provide SFTP identity/metadata validation. Uploads default to overwrite with an explicit resume choice, subject to the remote receiver. Retained staging files under Application Support/MyTerm/ZmodemPartial are available for retry. The transfer bar shows status, speed and cancellation. Rates include protocol overhead and retries.
 
@@ -374,6 +380,51 @@ Use File → SSH Configuration Check & Export… to inspect references from side
 
 Backups use a password-derived key and AES-256-GCM integrity protection. Lost backup passwords cannot be recovered. Restore validates first, then confirms configuration replacement and closes connections; failed writes attempt rollback. Managed-key paths adapt to the destination home directory. Restart after restoring to apply all preferences.
 
+## Diagnosing terminal issues
+
+For intermittent scrolling or Enter-key problems, open **Help → Terminal Diagnostics…**:
+
+1. Click **Start New Capture** before reproducing the issue, then return to the affected tab.
+2. After the issue occurs, click **Mark Incident**, then **Stop Recording**.
+3. Choose **Export Diagnostics…** and share the ZIP with the incident time, reproduction steps, and expected versus actual behavior. Also specify the Codex CLI version (`codex --version`), input method, and whether tmux was involved.
+
+Terminal event recording is off by default. Each capture lasts up to 15 minutes and retains the latest 5,000 events in memory. Quitting clears it; starting a new capture replaces the previous one. Closing the diagnostic window does not stop recording. Nothing is uploaded automatically. Exports contain app/macOS versions, process peak resident memory, anonymous terminal identifiers/types, scrolling/selection/focus state, keyboard protocol flags, Return events, and byte counts. They exclude input/output text, passwords, tokens, hostnames, and configuration files. Output events are sampled and aggregated, not a complete traffic count.
+
+This helps determine whether MyTerm received Return, reached its send path, and followed output. It cannot prove that Codex processed a key or establish a memory leak from one snapshot. Diagnostics do not replace optional session text logs; review any separate screenshots or text logs for sensitive information before sharing them.
+
+For MCP handshake failures, start recording before opening a Codex tab associated with SSH, then reproduce, stop and export. The `mcp` field contains helper PID/parent PID, timestamps, initialization/tool-discovery stages, stdin EOF, input-limit failures and pipe read/write error numbers; it excludes protocol bodies, commands and credentials. MCP metadata is stored in `~/Library/Application Support/MyTerm/mcp-diagnostics.json` (owner-only access), bounded to 256 entries and the same 15-minute capture window. Clearing or starting a new capture replaces it; it remains exportable after quitting. A process that fails to launch or is forcibly terminated may have no exit event; its last event alone does not prove the exit cause. Include the incident time and Codex version.
+
+Codex path, proxy, login and MCP checks belong to Codex Configuration. SSH Session Access no longer repeats dependency or healthy-configuration descriptions; only invalid configuration shows its reason and a return-to-configuration button. Startup validation and automatic login checks remain enabled. Signature and Gatekeeper observations remain in diagnostic exports only; they do not determine MCP health.
+
+In **Codex configuration → SSH MCP interface → Check SSH MCP interface**, test the actual bundled helper initialization and tool discovery. The timestamped result is separate from login, proxy and external registration checks. Failures show the stage and reason/code. No SSH outputs or commands are accessed; success does not verify the external Codex environment, GUI bridge authorization or remote SSH connectivity. Use Terminal Diagnostics for intermittent failures.
+
+See [macOS permissions and security checks](docs/PERMISSIONS.en.md) for required versus conditional permissions, signature/Gatekeeper diagnostics and their limits. Do not grant Full Disk Access or Accessibility as a generic MCP fix.
+
+Diagnostic archives include `诊断摘要.txt` (Chinese) and `Diagnostic-Summary.en.txt` (English). Read these first for observed stages, impact, next steps and limits of the evidence. `diagnostic.json` retains raw codes and the timestamped `mcpHealth` check result. The Codex interface check also displays a readable explanation, with numeric details collapsed. A normal EOF or a failed Gatekeeper assessment alone is not classified as a root cause. Explicit checks and captured helper events are described separately; missing events are not proof of success. Summaries use fixed local rules, not a model, and contain no terminal text or credentials.
+
+## Build and package from source
+
+Building requires macOS 14+ and Swift 6.0+. Run from the repository root:
+
+```bash
+bash scripts/build-app.sh
+open dist/MyTerm.app
+```
+
+The default is a Debug app for the current Mac architecture; `bash scripts/build-app.sh release` creates an optimized build. Dependencies are vendored. See the [SwiftTerm patch notes](vendor/SwiftTerm/MYTERM-PATCH.md) and [trzsz notes](vendor/trzsz/1.2.0/README.md) for dependency versions, modifications and notices.
+
+Package and validate an installation:
+
+```bash
+bash scripts/package-release.sh
+bash scripts/create-dmg.sh
+bash scripts/install-release.sh
+```
+
+[packaging/Info.plist](packaging/Info.plist) defines the version. Artifacts go into `dist/releases/<version>/`: ZIP, DMG, release notes and SHA-256 checksums. Packaging refuses to overwrite an existing version directory.
+
+The release workflow checks Debug, Release and an app copied from the actual DMG, comparing bundle files, permissions and symlinks. Installation copies that validated app to `/Applications/MyTerm.app`, verifies its contents, signature and window behavior, then opens it and synchronizes `dist/MyTerm.app` to the same bundle. Failed installation validation restores the previous app.
+
 ## Tests and source
 
 See [Testing and maintenance](docs/TESTING.en.md) for the unified runner, feature coverage and validation limits.
@@ -410,25 +461,3 @@ bash scripts/check.sh
 - `Tests/MyTermCoreTests`, `scripts/`: core/integration checks, packaging and installation validation.
 
 Version changes belong in the [release history](CHANGELOG.en.md). README documents usage and limits without hardcoding a latest-version number.
-
-## Diagnosing terminal issues
-
-For intermittent scrolling or Enter-key problems, open **Help → Terminal Diagnostics…**:
-
-1. Click **Start New Capture** before reproducing the issue, then return to the affected tab.
-2. After the issue occurs, click **Mark Incident**, then **Stop Recording**.
-3. Choose **Export Diagnostics…** and share the ZIP with the incident time, reproduction steps, and expected versus actual behavior. Also specify the Codex CLI version (`codex --version`), input method, and whether tmux was involved.
-
-Terminal event recording is off by default. Each capture lasts up to 15 minutes and retains the latest 5,000 events in memory. Quitting clears it; starting a new capture replaces the previous one. Closing the diagnostic window does not stop recording. Nothing is uploaded automatically. Exports contain app/macOS versions, process peak resident memory, anonymous terminal identifiers/types, scrolling/selection/focus state, keyboard protocol flags, Return events, and byte counts. They exclude input/output text, passwords, tokens, hostnames, and configuration files. Output events are sampled and aggregated, not a complete traffic count.
-
-This helps determine whether MyTerm received Return, reached its send path, and followed output. It cannot prove that Codex processed a key or establish a memory leak from one snapshot. Diagnostics do not replace optional session text logs; review any separate screenshots or text logs for sensitive information before sharing them.
-
-For MCP handshake failures, start recording before opening a Codex tab associated with SSH, then reproduce, stop and export. The `mcp` field contains helper PID/parent PID, timestamps, initialization/tool-discovery stages, stdin EOF, input-limit failures and pipe read/write error numbers; it excludes protocol bodies, commands and credentials. MCP metadata is stored in `~/Library/Application Support/MyTerm/mcp-diagnostics.json` (owner-only access), bounded to 256 entries and the same 15-minute capture window. Clearing or starting a new capture replaces it; it remains exportable after quitting. A process that fails to launch or is forcibly terminated may have no exit event; its last event alone does not prove the exit cause. Include the incident time and Codex version.
-
-Codex path, proxy, login and MCP checks belong to Codex Configuration. SSH Session Access no longer repeats dependency or healthy-configuration descriptions; only invalid configuration shows its reason and a return-to-configuration button. Startup validation and automatic login checks remain enabled. Signature and Gatekeeper observations remain in diagnostic exports only; they do not determine MCP health.
-
-In **Codex configuration → SSH MCP interface → Check SSH MCP interface**, test the actual bundled helper initialization and tool discovery. The timestamped result is separate from login, proxy and external registration checks. Failures show the stage and reason/code. No SSH outputs or commands are accessed; success does not verify the external Codex environment, GUI bridge authorization or remote SSH connectivity. Use Terminal Diagnostics for intermittent failures.
-
-See [macOS permissions and security checks](docs/PERMISSIONS.en.md) for required versus conditional permissions, signature/Gatekeeper diagnostics and their limits. Do not grant Full Disk Access or Accessibility as a generic MCP fix.
-
-Diagnostic archives include `诊断摘要.txt` (Chinese) and `Diagnostic-Summary.en.txt` (English). Read these first for observed stages, impact, next steps and limits of the evidence. `diagnostic.json` retains raw codes and the timestamped `mcpHealth` check result. The Codex interface check also displays a readable explanation, with numeric details collapsed. A normal EOF or a failed Gatekeeper assessment alone is not classified as a root cause. Explicit checks and captured helper events are described separately; missing events are not proof of success. Summaries use fixed local rules, not a model, and contain no terminal text or credentials.
