@@ -69,6 +69,10 @@ Open **MyTerm → Codex Integration… → Codex Configuration** and enter the f
 
 If a proxy is needed, configure and test the independent HTTP/SOCKS5 proxy here before signing in and checking login status. It does not change the SSH proxy. This proxy applies to Codex started by MyTerm, not earlier Homebrew/CLI downloads; ensure Terminal can reach download sites during installation. Once signed in, choose Local Work or open an SSH connection and start analysis from SSH Session Access. See the [Codex integration guide](docs/CODEX-INTEGRATION.en.md).
 
+### Verify Codex on first use
+
+After installing or updating Codex, complete the [helper-permission and SSH integration check](docs/PERMISSIONS.en.md#codex-helper-permissions). Codex helpers (such as `codex-code-mode-host`) may trigger separate macOS prompts; successful login or a passing MyTerm MCP check does not establish that these programs can run. The guide explains how to trigger the check early, handle the specific prompt and retest. MyTerm does not automatically grant system permissions.
+
 ### Build and package from source
 
 Building requires macOS 14+ and Swift 6.0+. Run from the repository root:

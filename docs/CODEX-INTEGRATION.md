@@ -30,6 +30,8 @@ MyTerm 独立维护集群和对话列表，因此在 Codex 中删除对话后，
 
 集群列表只管理通过此入口创建的对话，旧会话可用“从全部 Codex 历史中恢复（旧版入口）”；不自动改名或迁移，不保证自动创建 Codex 桌面端的项目侧栏条目。集群索引及 Codex 历史暂不包含在 MyTerm 偏好备份中。跨机器恢复还需迁移 Codex 自身历史并处理工作目录变化；仅复制索引无法恢复对话。
 
+安装或升级 Codex 后，先按[首次验证流程](PERMISSIONS.md#codex-helper-permissions)检查实际 SSH 接入。MyTerm 的接口检查只验证 MyTerm MCP 进程，不会启动 Codex 自身的辅助程序；辅助程序被 macOS 拦截时，仍可能出现 `host exited during handshake`。以系统弹窗和实际诊断为依据，不能仅凭该错误确定权限问题。
+
 ## SSH 分析启动
 
 1. 打开 SSH 标签，再打开 **MyTerm → Codex 接入…**。

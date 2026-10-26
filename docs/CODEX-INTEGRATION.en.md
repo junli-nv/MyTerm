@@ -32,6 +32,8 @@ MyTerm maintains its cluster and conversation list independently, so deleting a 
 
 The cluster list contains conversations created through this entry point. Resume from all Codex history (legacy picker) remains available for old chats. They are not automatically renamed or migrated, and automatic desktop project-sidebar creation is not guaranteed. The cluster index and Codex history are not included in MyTerm preferences backups. Moving to another computer also requires transferring Codex history and handling directory changes; copying the index alone cannot restore chats.
 
+After installing or updating Codex, follow the [first-run verification procedure](PERMISSIONS.en.md#codex-helper-permissions) to test actual SSH integration. MyTerm’s interface check verifies only its own MCP process, without launching Codex’s helpers. A helper blocked by macOS can still cause `host exited during handshake`; use the system prompt and diagnostics as evidence rather than assuming every such error is a permission issue.
+
 ## Starting SSH analysis
 
 1. Open an SSH tab, then **MyTerm → Codex Integration**.
