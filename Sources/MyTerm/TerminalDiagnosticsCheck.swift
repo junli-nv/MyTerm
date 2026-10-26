@@ -10,7 +10,7 @@ enum TerminalDiagnosticsCheck {
         model.log.record(.marker)
         let data = try model.report(workspace: workspace)
         let object = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-        guard object["schema"] as? Int == 1, let trace = object["trace"] as? [String: Any],
+        guard object["schema"] as? Int == 2, object["mcp"] is [String: Any], let trace = object["trace"] as? [String: Any],
               (trace["entries"] as? [Any])?.count == 2 else {
             throw ConfigurationError.invalid("Diagnostic report schema or events invalid")
         }

@@ -49,30 +49,54 @@ struct SessionEnvironmentBadge: View {
 }
 
 extension Workspace {
-    func editTabAppearance(_ session: TerminalSession) {
-        let alert = NSAlert(); alert.messageText = L10n.text("标签颜色与环境标识")
-        alert.informativeText = L10n.text("已保存的 SSH 配置会记住标识；其他标签随保存的会话一起保留。")
-        let field = NSTextField(string: session.appearance.environment)
-        field.placeholderString = L10n.text("环境标识（例如 PROD / TEST，最多 24 字）")
-        field.frame = NSRect(x: 0, y: 40, width: 360, height: 24)
-        let colors = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 180, height: 28))
+    func editTab(_ session: TerminalSession) {
+        selectedID = session.id
+        let alert = NSAlert(); alert.messageText = L10n.text("编辑标签")
+        alert.informativeText = L10n.text("名称仅修改当前标签；颜色与环境标识同步到已保存的 SSH 配置及引用它的标签。其他标签随保存的会话一起保留。")
+        let name = NSTextField(string: session.label)
+        name.identifier = NSUserInterfaceItemIdentifier("tab.editor.name")
+        let environment = NSTextField(string: session.appearance.environment)
+        environment.identifier = NSUserInterfaceItemIdentifier("tab.editor.environment")
+        environment.toolTip = L10n.text("环境标识（例如 PROD / TEST，最多 24 字）")
+        let colors = NSPopUpButton()
+        colors.identifier = NSUserInterfaceItemIdentifier("tab.editor.color")
         colors.addItems(withTitles: TabColor.allCases.map { L10n.text($0.title) })
         colors.selectItem(at: TabColor.allCases.firstIndex(of: session.appearance.color) ?? 0)
-        let form = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 70))
-        form.addSubview(field); form.addSubview(colors); alert.accessoryView = form
+        let form = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 108))
+        for (index, row) in [("标签名称", name as NSView), ("环境标识", environment as NSView), ("标签颜色", colors as NSView)].enumerated() {
+            let y = CGFloat(2 - index) * 36
+            let label = NSTextField(labelWithString: L10n.text(row.0))
+            label.frame = NSRect(x: 0, y: y + 3, width: 110, height: 24)
+            row.1.frame = NSRect(x: 116, y: y, width: 324, height: 28)
+            form.addSubview(label); form.addSubview(row.1)
+        }
+        alert.accessoryView = form
         alert.addButton(withTitle: L10n.text("保存")); alert.addButton(withTitle: L10n.text("取消"))
-        alert.window.initialFirstResponder = field
+        alert.window.initialFirstResponder = name
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        setTabAppearance(TabAppearance(color: TabColor.allCases[max(0, colors.indexOfSelectedItem)], environment: field.stringValue), for: session)
+        updateTab(session, name: name.stringValue, appearance: TabAppearance(
+            color: TabColor.allCases[max(0, colors.indexOfSelectedItem)], environment: environment.stringValue))
     }
-    func setTabAppearance(_ value: TabAppearance, for session: TerminalSession) {
+    /// Validate and persist metadata before renaming, so a failed save changes neither field.
+    func updateTab(_ session: TerminalSession, name: String, appearance: TabAppearance) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { error = "请输入标签名称。"; return }
+        let validated: TabAppearance
+        do { validated = try appearance.validated() }
+        catch { self.error = error.localizedDescription; return }
+        guard validated == session.appearance || setTabAppearance(validated, for: session) else { return }
+        objectWillChange.send(); session.label = name
+    }
+    @discardableResult
+    func setTabAppearance(_ value: TabAppearance, for session: TerminalSession) -> Bool {
         do {
             let value = try value.validated()
             if let id = session.sourceServer?.id, var saved = servers.first(where: { $0.id == id }) {
                 saved.tabAppearance = value
-                guard save(saved) else { return }
+                guard save(saved) else { return false }
             } else { session.setAppearance(value) }
             objectWillChange.send()
-        } catch { self.error = error.localizedDescription }
+            return true
+        } catch { self.error = error.localizedDescription; return false }
     }
 }

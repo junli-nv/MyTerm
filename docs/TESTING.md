@@ -105,3 +105,5 @@ SSH 配置检查回归覆盖仍被跳板引用的已删除节点、当前与快�
 `scripts/jump-password-probe-check.py` 使用仅支持密码认证、拒绝所有远端通道的隔离 SSH 服务，验证跳板测试复用密码、拒绝错误密码、不请求 Shell/exec 及连接清理。发布 GUI 检查会运行此项，默认使用 `.test-venv/bin/python`（安装 `scripts/requirements-password-test.txt`），可通过 `MYTERM_PASSWORD_TEST_PYTHON` 指定解释器。此项模拟受限服务器能力，不代表已在真实 Windows 主机上完成验证。
 
 - `scripts/codex-cluster-check.py .build/release/MyTermChecks`：隔离 CODEX_HOME、本地假模型，真实 Codex 创建/命名/改名/持久化、目录隔离和原生 UUID 恢复；不调用模型。
+
+MCP 诊断管道回归：`python scripts/mcp-diagnostics-check.py /path/to/MyTerm.app`，使用隔离临时文件，覆盖握手、工具发现、EOF、错误输入、大小上限、关闭输出管道及隐私边界，不调用 SSH 工具。打包、DMG 和安装检查都会运行。

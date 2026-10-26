@@ -19,10 +19,12 @@ if [[ ! -x "$python_bin" ]]; then python_bin=python3; fi
 "$python_bin" scripts/codex-cluster-check.py .build/release/MyTermChecks
 /bin/bash scripts/build-app.sh debug "$check_dir/MyTerm.app"
 "$python_bin" scripts/window-controls-check.py "$check_dir/MyTerm.app"
+"$python_bin" scripts/mcp-diagnostics-check.py "$check_dir/MyTerm.app"
 mkdir -p "$release_dir"
 /bin/bash scripts/build-app.sh release "$release_dir/MyTerm.app"
 /usr/bin/codesign --verify --deep --strict "$release_dir/MyTerm.app"
 "$python_bin" scripts/window-controls-check.py "$release_dir/MyTerm.app"
+"$python_bin" scripts/mcp-diagnostics-check.py "$release_dir/MyTerm.app"
 "$python_bin" scripts/codex-resume-check.py "$release_dir/MyTerm.app"
 cp "packaging/RELEASE-NOTES-$version.md" "$release_dir/RELEASE-NOTES.md"
 archive="MyTerm-$version-macos-$architecture.zip"

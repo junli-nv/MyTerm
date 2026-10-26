@@ -16,7 +16,11 @@ enum TabAppearanceCheck {
         let second = TerminalSession(label: "fixture copy", executable: "/usr/bin/ssh", arguments: [], server: server)
         workspace.sessions = [first, second]
         let metadata = TabAppearance(color: .red, environment: "PROD")
-        workspace.setTabAppearance(metadata, for: first)
+        workspace.updateTab(first, name: "renamed", appearance: metadata)
+        try require(first.label == "renamed" && second.label == "fixture copy", "Combined editor renamed another tab")
+        workspace.updateTab(first, name: "invalid", appearance: TabAppearance(color: .blue, environment: String(repeating: "x", count: 25)))
+        try require(first.label == "renamed" && first.appearance == metadata, "Invalid metadata partially renamed the tab")
+        workspace.error = nil
         try require(first.appearance == metadata && second.appearance == metadata, "Open tabs did not update together")
         try require(first.sourceServer?.tabAppearance == metadata, "Reconnect/duplicate snapshot stale")
         let repository = workspace.repository

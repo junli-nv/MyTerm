@@ -105,3 +105,5 @@ Jump-host regressions cover independent persistence, reference protection, propa
 `scripts/jump-password-probe-check.py` runs an isolated password-only SSH server that rejects all remote channels. It verifies saved-password reuse, wrong-password rejection, absence of shell/exec requests and connection cleanup. Release GUI checks run it using `.test-venv/bin/python` with `scripts/requirements-password-test.txt`; override with `MYTERM_PASSWORD_TEST_PYTHON`. This simulates restricted server capabilities, not validation on an actual Windows host.
 
 - `scripts/codex-cluster-check.py .build/release/MyTermChecks`: real Codex create/name/rename/persistence, directory isolation and native UUID resume with isolated CODEX_HOME and a loopback mock provider; no model requests.
+
+MCP diagnostic pipe regression: `python scripts/mcp-diagnostics-check.py /path/to/MyTerm.app` uses isolated temporary files to cover handshake, discovery, EOF, malformed input, size limits, closed output pipes and privacy boundaries without calling SSH tools. Packaging, DMG and installation checks all run it.

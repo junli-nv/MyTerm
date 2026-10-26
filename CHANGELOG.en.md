@@ -5,6 +5,18 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.3.12"></a>
+
+# MyTerm 3.3.12
+
+Simplify Codex settings: MCP status reflects the actual interface, with security assessments retained in diagnostics only. SSH access removes duplicate dependency descriptions and shows configuration guidance only on errors. Tab menus consolidate name, color and environment into Edit Tab. [Release notes](packaging/RELEASE-NOTES-3.3.12.md)
+
+<a id="version-3.3.11"></a>
+
+# MyTerm 3.3.11
+
+Add opt-in MCP lifecycle diagnostics to exported archives: initialization, tool discovery and pipe termination reasons without protocol payloads. Codex settings gain an actual interface check and SSH setup gains a default project. [Release notes](packaging/RELEASE-NOTES-3.3.11.md)
+
 <a id="version-3.3.10"></a>
 
 # MyTerm 3.3.10

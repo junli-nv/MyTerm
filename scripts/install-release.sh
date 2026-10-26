@@ -39,6 +39,7 @@ replacing=1
 "$python_bin" scripts/verify-app-copy.py "$release_dir/MyTerm.app" "$target"
 /usr/bin/codesign --verify --deep --strict "$target"
 "$python_bin" scripts/window-controls-check.py "$target"
+"$python_bin" scripts/mcp-diagnostics-check.py "$target"
 # The convenience development path uses the exact tested bundle, not another build.
 /bin/rm -rf -- "$PWD/dist/MyTerm.app"
 /usr/bin/ditto "$target" "$PWD/dist/MyTerm.app"

@@ -26,12 +26,14 @@ final class TerminalDiagnostics: ObservableObject {
         let state: TerminalDiagnosticLog.State
     }
     private struct Report: Encodable {
-        let schema = 1
+        let schema = 2
         let version: String, build: String, macOS: String
         let captured: Date
         let peakResidentBytes: Int64
         let terminals: [TerminalInfo]
         let trace: TerminalDiagnosticLog.Snapshot
+        let mcp: CodexMCPDiagnosticLog.Snapshot
+        let mcpSecurity: CodexMCPSecurityCheck.Report?
     }
     func report(workspace: Workspace) throws -> Data {
         var usage = rusage()
@@ -44,7 +46,7 @@ final class TerminalDiagnostics: ObservableObject {
         let report = Report(version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
             build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             macOS: ProcessInfo.processInfo.operatingSystemVersionString, captured: Date(),
-            peakResidentBytes: Int64(usage.ru_maxrss), terminals: terminals, trace: log.snapshot())
+            peakResidentBytes: Int64(usage.ru_maxrss), terminals: terminals, trace: log.snapshot(), mcp: CodexMCPDiagnosticLog.shared.snapshot(), mcpSecurity: workspace.codex.mcpSecurity)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
         return try encoder.encode(report)
     }
@@ -95,19 +97,19 @@ private struct TerminalDiagnosticsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(L10n.text("终端诊断")).font(.title2.bold())
-                    Text(L10n.text("默认关闭，仅在内存记录。每次最多 15 分钟、5000 条事件，超出后保留最新记录。不采集输入文字、输出正文、密码、令牌、主机名或配置文件；不自动上传。"))
+                    Text(L10n.text("默认关闭。终端事件仅在内存记录，MCP 元数据写入本机私有文件。每次最多 15 分钟，保留最新 5000 条终端事件和 256 条 MCP 事件。不采集输入文字、输出正文、密码、令牌、主机名或配置文件；不自动上传。"))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(L10n.text(snapshot.recording ? "正在记录诊断" : "诊断记录已停止") + " · \(snapshot.entries.count) / 5000")
                     HStack {
                         Button(L10n.text(snapshot.recording ? "停止记录" : "开始新记录")) {
-                            if snapshot.recording { model.log.stop() } else { model.log.start() }
+                            if snapshot.recording { model.log.stop(); CodexMCPDiagnosticLog.shared.stop() } else { model.log.start(); CodexMCPDiagnosticLog.shared.start() }
                             model.message = ""
                         }
                         Button(L10n.text("标记刚刚发生问题")) { model.log.record(.marker); model.message = "已标记问题时间。" }.disabled(!snapshot.recording)
-                        Button(L10n.text("清除记录")) { model.log.clear(); model.message = "" }
+                        Button(L10n.text("清除记录")) { model.log.clear(); CodexMCPDiagnosticLog.shared.clear(); model.message = "" }
                     }
                     Button(L10n.text("导出诊断包…")) { model.export(workspace: workspace) }.disabled(model.exporting)
-                    Text(L10n.text("复现前开始记录，出现问题后标记时间并停止，再导出诊断包。关闭此窗口不会停止记录；退出应用会清空记录。"))
+                    Text(L10n.text("复现前开始记录，再启动 Codex 标签；出现问题后停止并导出。关闭此窗口不会停止记录；退出应用清空终端事件，MCP 记录保留至清除或开始新记录。"))
                         .font(.caption).fixedSize(horizontal: false, vertical: true)
                     if !model.message.isEmpty { Text(L10n.text(model.message)).fixedSize(horizontal: false, vertical: true) }
                 }.padding(20).frame(maxWidth: .infinity, alignment: .leading)

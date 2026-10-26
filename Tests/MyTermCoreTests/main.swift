@@ -2,6 +2,11 @@ import Foundation
 import Darwin
 import MyTermCore
 
+if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--mcp-health-check" {
+    let result = CodexMCPHealthCheck.run(executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+    print("success=\(result.success) stage=\(result.stage.rawValue) reason=\(result.reason) code=\(String(describing: result.code))")
+    exit(result.success ? 0 : 1)
+}
 if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--codex-cluster-fixture" {
     let environment = ProcessInfo.processInfo.environment
     let client = try CodexThreadClient(executable: CommandLine.arguments[2], environment: environment)
@@ -122,6 +127,8 @@ let ptyTests = PTYTests()
 let features = FeatureTests()
 let checks: [(String, () throws -> Void)] = [
     ("Tab appearance persistence and connection isolation", checkTabAppearance),
+    ("MCP health probe launch failure, early exit and bounded timeout", checkMCPHealthFailures),
+    ("MCP diagnostic lifecycle, bounds, expiry and symlink protection", checkMCPDiagnostics),
     ("Bounded opt-in terminal diagnostics, expiry, clearing and concurrent events", checkTerminalDiagnostics),
     ("Release versions, trusted assets and installer SHA-256 validation", checkAppRelease),
     ("Pane layouts, collapse, snapshot compatibility and shortcut conflicts", checkPaneLayouts),

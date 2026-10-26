@@ -92,6 +92,10 @@ enum CodexBridgeCheck {
         try registration.write(to: fixture)
         try "#!/bin/bash\ncat \"$(dirname \"$0\")/registration.json\"\n".write(to: loginCLI, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: loginCLI.path)
+        bridge.checkMCP()
+        let mcpDeadline = Date().addingTimeInterval(22)
+        while bridge.checkingMCP && Date() < mcpDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        try require(bridge.mcpStatus == "SSH MCP 初始化和工具发现通过" && bridge.mcpCheckedAt != nil && bridge.mcpSecurity?.executableAllowed == true, "Real MCP health check failed: " + bridge.mcpStatus + " " + bridge.mcpDetail)
         bridge.refreshRegistration()
         let registrationDeadline = Date().addingTimeInterval(3)
         while bridge.checkingRegistration && Date() < registrationDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
@@ -255,6 +259,12 @@ enum CodexBridgeCheck {
             clusterCatalog.conversations.append(.init(id: fixtureThread, clusterID: fixtureCluster.id,
                 title: "Operations / 日常运维", lastOpened: Date()))
             try clusterCatalog.save(to: workspace.credentialStore.directory.deletingLastPathComponent().appendingPathComponent("codex-clusters.json"))
+            let defaultSelection = CodexChooserState()
+            window.contentView = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: defaultSelection))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            let defaultCatalog = try CodexClusterCatalog.load(from: workspace.credentialStore.directory.deletingLastPathComponent().appendingPathComponent("codex-clusters.json"))
+            try require(defaultCatalog.clusters.contains { $0.id == defaultSelection.clusterID && $0.name == "Default" }, "Chooser did not provide a persisted default project")
+            try require(!defaultSelection.resume, "Default project unexpectedly resumed an old conversation")
             chooserSelection.clusterID = fixtureCluster.id
             chooserSelection.conversationID = fixtureThread
             let chooser = NSHostingView(rootView: CodexSessionChooser(workspace: workspace, bridge: bridge, selection: chooserSelection))

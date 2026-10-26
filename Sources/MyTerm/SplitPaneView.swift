@@ -34,7 +34,7 @@ struct SplitPaneView: View {
                             Button("左右分屏") { workspace.focusPane(id); workspace.requestSplit(.vertical) }
                             Button("上下分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.horizontal, chooseSession: true) }
                             Button("左右分屏并选择会话…") { workspace.focusPane(id); workspace.requestSplit(.vertical, chooseSession: true) }
-                            Button("标签颜色与环境标识…") { workspace.editTabAppearance(session) }
+                            Button("编辑标签…") { workspace.editTab(session) }
                             Button("搜索终端历史…") { workspace.focusPane(id); session.terminal.showHistorySearch() }
                             Button("广播命令") { workspace.beginBroadcast() }
                             Button("移为独立标签") { workspace.detachPane(id) }

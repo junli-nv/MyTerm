@@ -27,6 +27,10 @@ struct CodexSessionChooser: View {
             .onAppear {
                 selection.selected = nil; selection.includeHistory = false; selection.execute = true
                 selection.conversationTitle = L10n.text("日常运维")
+                if selection.clusterID == nil {
+                    selection.clusterID = clusters.add("Default")
+                    selection.conversationID = nil; selection.resume = false
+                }
             }
             .onChange(of: selection.selected) { _, id in
                 guard let session = workspace.sessions.first(where: { $0.id == id }), let server = session.sourceServer else { return }
@@ -84,8 +88,10 @@ struct CodexSessionChooser: View {
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
             } else {
                 Picker("集群", selection: Binding(get: { selection.clusterID }, set: { selectCluster($0) })) {
-                    Text("请选择集群").tag(Optional<UUID>.none)
-                    ForEach(clusters.catalog.clusters) { cluster in Text(cluster.name).tag(Optional(cluster.id)) }
+                    if !clusters.catalog.clusters.contains(where: { $0.name == "Default" }) {
+                        Text("默认项目").tag(Optional<UUID>.none)
+                    }
+                    ForEach(clusters.catalog.clusters) { cluster in Text(cluster.name == "Default" ? L10n.text("默认项目") : cluster.name).tag(Optional(cluster.id)) }
                 }
                 HStack {
                     TextField("新集群名称", text: $selection.clusterName)
@@ -123,7 +129,7 @@ struct CodexSessionChooser: View {
 
     private var actions: some View {
         CodexLaunchActions(
-            enabled: !bridge.busy && !clusters.busy && (selection.legacyPicker || (selection.clusterID != nil && (!selection.resume || selection.conversationID != nil))) && (!selection.execute || (try? bridge.launchExecutionSettings.validate()) != nil)
+            enabled: !bridge.busy && !clusters.busy && (selection.legacyPicker || (!selection.resume || selection.conversationID != nil)) && (!selection.execute || (try? bridge.launchExecutionSettings.validate()) != nil)
                 && workspace.sessions.contains(where: { $0.id == selection.selected && $0.server != nil }),
             cancel: { clusters.cancelLaunch(); dismiss() },
             launch: {
@@ -132,7 +138,7 @@ struct CodexSessionChooser: View {
                 if selection.legacyPicker {
                     bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory,
                         execute: selection.execute, limits: bridge.launchExecutionSettings, resume: true)
-                } else if let clusterID = selection.clusterID {
+                } else if let clusterID = selection.clusterID ?? clusters.add("Default") {
                     let target = selection.selected
                     let includeHistory = selection.includeHistory, execute = selection.execute
                     let limits = bridge.launchExecutionSettings

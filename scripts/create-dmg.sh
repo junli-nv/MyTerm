@@ -30,6 +30,7 @@ if [[ ! -x "$python_bin" ]]; then python_bin=python3; fi
 "$python_bin" scripts/verify-app-copy.py "$release_dir/MyTerm.app" "$stage/installed/MyTerm.app"
 /usr/bin/codesign --verify --deep --strict "$stage/installed/MyTerm.app"
 "$python_bin" scripts/window-controls-check.py "$stage/installed/MyTerm.app"
+"$python_bin" scripts/mcp-diagnostics-check.py "$stage/installed/MyTerm.app"
 /usr/bin/hdiutil detach "$mount_dir"
 mounted=0
 cd "$release_dir"

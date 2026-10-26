@@ -33,9 +33,8 @@ struct SessionTabControl: NSViewRepresentable {
                 modes.addItem(item)
             }
             logging.submenu = modes; menu.addItem(logging)
-            add("标签颜色与环境标识…") { workspace.editTabAppearance(session) }
+            add("编辑标签…") { workspace.editTab(session) }
             add("搜索终端历史…") { workspace.selectTab(session); workspace.selected?.terminal.showHistorySearch() }
-            add("更改标签名称…") { workspace.renameTab(session) }
             if session.sourceServer != nil { add("更改 SSH 配置…") { workspace.editConnection(session) } }
             if session.canReconnect { add("重新连接", action: session.reconnect) }
             menu.addItem(.separator())

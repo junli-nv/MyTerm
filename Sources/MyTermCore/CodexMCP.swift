@@ -122,25 +122,47 @@ public enum CodexMCP {
         return value
     }
     public static func run() {
+        let diagnostic = CodexMCPDiagnosticLog.shared
+        diagnostic.record(.started)
+        // Report a closed output pipe instead of dying silently from SIGPIPE.
+        signal(SIGPIPE, SIG_IGN)
         var buffered = Data()
         var chunk = [UInt8](repeating: 0, count: 4096)
         while true {
             let count = Darwin.read(STDIN_FILENO, &chunk, chunk.count)
             if count < 0 && errno == EINTR { continue }
-            guard count > 0 else { return }
+            guard count > 0 else {
+                diagnostic.record(count == 0 ? .inputEOF : .inputError, errorNumber: count < 0 ? errno : nil)
+                return
+            }
             buffered.append(contentsOf: chunk.prefix(count))
-            guard buffered.count <= 262144 else { return }
+            guard buffered.count <= 262144 else { diagnostic.record(.inputLimit); return }
             while let newline = buffered.firstIndex(of: 10) {
                 let line = Data(buffered.prefix(upTo: newline)); buffered = Data(buffered.suffix(from: newline + 1))
                 guard !line.isEmpty else { continue }
                 let reply: [String: Any]?
+                var completed: CodexMCPDiagnosticLog.Event?
                 if let request = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] {
+                    switch request["method"] as? String {
+                    case "initialize": diagnostic.record(.initializeReceived); completed = .initializeReplied
+                    case "notifications/initialized": diagnostic.record(.initialized)
+                    case "tools/list": diagnostic.record(.toolsListReceived); completed = .toolsListReplied
+                    default: break
+                    }
                     reply = response(request) { name, arguments in
                         return try CodexCommandWait.reply(tool: name) { try callApp(name, arguments: arguments) }
                     }
-                } else { reply = ["jsonrpc": "2.0", "id": NSNull(), "error": ["code": -32700, "message": "Parse error"]] }
+                } else { diagnostic.record(.parseError); reply = ["jsonrpc": "2.0", "id": NSNull(), "error": ["code": -32700, "message": "Parse error"]] }
                 if let reply, var bytes = try? JSONSerialization.data(withJSONObject: reply, options: [.sortedKeys]) {
-                    bytes.append(10); FileHandle.standardOutput.write(bytes)
+                    bytes.append(10)
+                    var offset = 0
+                    while offset < bytes.count {
+                        let written = bytes.withUnsafeBytes { Darwin.write(STDOUT_FILENO, $0.baseAddress!.advanced(by: offset), bytes.count - offset) }
+                        if written < 0 && errno == EINTR { continue }
+                        guard written > 0 else { diagnostic.record(.outputError, errorNumber: errno); return }
+                        offset += written
+                    }
+                    if let completed { diagnostic.record(completed) }
                 }
             }
         }

@@ -1411,3 +1411,57 @@
 "正则表达式" = "Regular expression";
 
 "正则表达式无效" = "Invalid regular expression";
+
+"默认关闭。终端事件仅在内存记录，MCP 元数据写入本机私有文件。每次最多 15 分钟，保留最新 5000 条终端事件和 256 条 MCP 事件。不采集输入文字、输出正文、密码、令牌、主机名或配置文件；不自动上传。" = "Off by default. Terminal events stay in memory; MCP metadata is stored in a private local file. Each capture lasts up to 15 minutes and retains the latest 5,000 terminal events and 256 MCP events. No input/output text, passwords, tokens, hostnames or configuration files are collected or uploaded automatically.";
+
+"复现前开始记录，再启动 Codex 标签；出现问题后停止并导出。关闭此窗口不会停止记录；退出应用清空终端事件，MCP 记录保留至清除或开始新记录。" = "Start recording before launching a Codex tab, then stop and export after reproducing the issue. Closing this window does not stop recording. Quitting clears terminal events; MCP records remain until cleared or a new capture starts.";
+
+"默认项目" = "Default project";
+
+"SSH MCP 接口" = "SSH MCP interface";
+
+"检查 SSH MCP 接口" = "Check SSH MCP interface";
+
+"尚未检查 SSH MCP 接口" = "SSH MCP interface not checked";
+
+"正在检查 SSH MCP 接口…" = "Checking SSH MCP interface…";
+
+"SSH MCP 初始化和工具发现通过" = "SSH MCP initialization and tool discovery passed";
+
+"SSH MCP 接口检查失败" = "SSH MCP interface check failed";
+
+"实际检查本机辅助进程的初始化和工具发现，不读取 SSH 输出、不执行命令。通过不代表 Codex 客户端或 SSH 授权正常；间歇故障请使用终端诊断记录。" = "Tests initialization and tool discovery of the local helper without reading SSH output or running commands. Success does not verify the Codex client or SSH authorization; use Terminal Diagnostics for intermittent failures.";
+
+"辅助程序可执行" = "Helper is executable";
+
+"辅助程序不存在或无执行权限" = "Helper is missing or not executable";
+
+"检测到下载隔离标记" = "Download quarantine flag detected";
+
+"未检测到下载隔离标记" = "No download quarantine flag detected";
+
+"代码签名校验通过" = "Code signature verification passed";
+
+"代码签名校验未完成" = "Code signature verification unavailable";
+
+"代码签名校验未通过" = "Code signature verification failed";
+
+"Gatekeeper 评估通过" = "Gatekeeper assessment passed";
+
+"Gatekeeper 评估未完成" = "Gatekeeper assessment unavailable";
+
+"Gatekeeper 评估未通过（不等于本次启动被拦截）" = "Gatekeeper assessment failed (does not prove this launch was blocked)";
+
+"系统评估不代表所有隐私权限已获准。临时签名应用可能评估未通过，但已获用户放行；请结合接口检查和实际系统提示判断。" = "System assessment does not verify all privacy permissions. An ad-hoc app may fail assessment yet have a user exception; consider the interface check and actual system prompt together.";
+
+"SSH MCP 辅助程序启动被拒绝：权限不足" = "SSH MCP helper launch denied: insufficient permissions";
+
+"编辑标签…" = "Edit Tab…";
+
+"编辑标签" = "Edit Tab";
+
+"标签名称" = "Tab name";
+
+"环境标识" = "Environment";
+
+"名称仅修改当前标签；颜色与环境标识同步到已保存的 SSH 配置及引用它的标签。其他标签随保存的会话一起保留。" = "The name changes only this tab. Color and environment are saved to its SSH configuration and shared tabs. Other tabs retain these values in saved sessions.";

@@ -110,6 +110,22 @@ struct CodexSettingsView: View {
                 Text("登录仅用于 Codex 账号，不开放任何 SSH 会话。登录信息保存在本机；启动分析时会自动检查，未登录则引导登录。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
+                Text("SSH MCP 接口").font(.headline)
+                HStack {
+                    Button("检查 SSH MCP 接口", action: bridge.checkMCP).disabled(bridge.checkingMCP)
+                    if bridge.checkingMCP { ProgressView().controlSize(.small) }
+                }
+                Text(L10n.text(bridge.mcpStatus)).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("codex-mcp-health-status")
+                if !bridge.mcpDetail.isEmpty {
+                    Text(bridge.mcpDetail).font(.caption.monospaced()).textSelection(.enabled)
+                }
+                if let checked = bridge.mcpCheckedAt {
+                    Text(L10n.text("最近检查：") + checked.formatted(date: .omitted, time: .standard)).font(.caption)
+                }
+                Text("实际检查本机辅助进程的初始化和工具发现，不读取 SSH 输出、不执行命令。通过不代表 Codex 客户端或 SSH 授权正常；间歇故障请使用终端诊断记录。")
+                    .font(.caption).fixedSize(horizontal: false, vertical: true)
+                Divider()
                 Text("外部 Codex／IDE（可选）").font(.headline)
                 Text("仅外部 Codex 或 IDE 需要注册 MCP；MyTerm 内的 Codex 标签会自动配置。外部客户端只能访问已授权的 SSH 会话。")
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
@@ -135,19 +151,11 @@ struct CodexSettingsView: View {
     @ViewBuilder private var sshConfiguration: some View {
         Text("选择已打开的 SSH 会话交给 Codex 分析。不会接入本地 Shell；默认启用命令执行，也可选择只读。审批方式由执行配置决定，可在会话中调整。")
             .fixedSize(horizontal: false, vertical: true)
-                Text("Codex 配置依赖").font(.headline)
                 if let issue = bridge.configurationIssue {
                     Text("请先完成 Codex 配置。").foregroundStyle(.orange)
                     Text(L10n.text(issue)).fixedSize(horizontal: false, vertical: true)
                     Button("前往 Codex 配置") { navigation.page = 0 }
-                } else {
-                    Text("Codex 路径及代理格式有效；启动时会自动检查登录状态。").fixedSize(horizontal: false, vertical: true)
-                    Text(L10n.text(bridge.loginStatus)).font(.caption).fixedSize(horizontal: false, vertical: true)
-                    if bridge.loginAvailable != true {
-                        Text("未登录时先完成登录，再自动继续所选 SSH 分析。").font(.caption).fixedSize(horizontal: false, vertical: true)
-                    }
                 }
-                Text("配置修改仅用于新启动的 Codex 标签；代理测试用于诊断，不是启动前的必选步骤。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
                 Text("SSH 会话分析").font(.headline)
                 HStack {

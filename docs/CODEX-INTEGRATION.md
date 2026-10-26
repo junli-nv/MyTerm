@@ -18,9 +18,9 @@
 
 ### 按集群组织 Codex 对话
 
-在 SSH 启动页先选择连接，再选择或创建集群，例如“GMI Dallas”。SSH 头节点只是连接入口；同一集群可使用不同头节点，同一个 SSH 连接也可用于不同集群。MyTerm 记住保存的 SSH 配置上次选择的集群，仍需在启动前核对。
+接入 SSH 时自动提供“默认项目”（内部名称 `Default`），无需先创建集群；也可选择已有集群。已有 SSH 的集群关联仍会被记住。默认项目与普通集群一样可以管理和删除；再次使用默认入口时会按需重建。在 SSH 启动页选择连接，按需选择或创建集群，例如“GMI Dallas”。SSH 头节点只是连接入口；同一集群可使用不同头节点，同一个 SSH 连接也可用于不同集群。MyTerm 记住保存的 SSH 配置上次选择的集群，仍需在启动前核对。
 
-有已有对话时默认继续最近打开的一项；取消“继续已有集群对话”可新建，对话名称默认“日常运维”，可跨天讨论多个话题。新名称默认不带日期，重名时追加 `MM-dd HH:mm:ss`；同秒仍重名则使用毫秒，不添加 `(1)`、`(2)`。MyTerm 标签显示 `Codex · 集群 · 对话`。在 Codex 中可用 `/rename` 改名，下次从 MyTerm 恢复时读取正式名称；列表在恢复前显示上次记录的名称，日期表示最近从 MyTerm 打开的日期。
+打开启动页时默认项目新建对话；手动选择集群或恢复已保存 SSH 的集群关联时，如有对话则默认继续最近打开的一项；取消“继续已有集群对话”可新建，对话名称默认“日常运维”，可跨天讨论多个话题。新名称默认不带日期，重名时追加 `MM-dd HH:mm:ss`；同秒仍重名则使用毫秒，不添加 `(1)`、`(2)`。MyTerm 标签显示 `Codex · 集群 · 对话`。在 Codex 中可用 `/rename` 改名，下次从 MyTerm 恢复时读取正式名称；列表在恢复前显示上次记录的名称，日期表示最近从 MyTerm 打开的日期。
 
 对话名称通过正式 `thread/name/set` 接口保存，恢复使用 Codex 对话 UUID，不依赖 SSH 标签的临时 UUID。每次恢复仍使用新的 SSH 关联和授权；先确认目标再继续旧任务。同一集群对话不能同时在多个 MyTerm 标签中打开，避免共享对话混入不同 SSH 上下文；可新建不同对话并行工作。
 
@@ -163,3 +163,9 @@ MyTerm 内置 Codex 标签随应用退出会走标签终止流程，正常情况
 - `scripts/codex-proxy-check.py`：本机 Codex CLI 的 HTTP / SOCKS5 代理及认证测试；先构建 Debug 的 `MyTermChecks` 和 `MyTermProxy`，不使用真实模型密钥。
 
 实现依据：[CodexConnection.swift](../Sources/MyTermCore/CodexConnection.swift)、[CodexMCP.swift](../Sources/MyTermCore/CodexMCP.swift)、[CodexBridge.swift](../Sources/MyTerm/CodexBridge.swift)。
+
+路径、代理、登录与 MCP 检查集中在“Codex 配置”。“SSH 会话接入”不再重复显示依赖项或配置正常说明；只有配置无效时显示原因及“前往 Codex 配置”入口。启动校验和自动登录检查仍保留。签名与 Gatekeeper 信息仅随诊断包导出，不作为 MCP 健康状态的判定依据。
+
+在 **Codex 配置 → SSH MCP 接口 → 检查 SSH MCP 接口** 可实际测试应用辅助进程的初始化和工具发现，显示检查时间；与登录、代理和外部注册检查独立。失败显示阶段、原因及错误码。不读取 SSH 输出、不执行命令；通过不代表外部 Codex 环境、GUI 桥接授权或远端 SSH 连通性正常。间歇故障请使用终端诊断记录。
+
+系统权限、按需授权、安全评估与排查边界见 [macOS 权限与安全检查](PERMISSIONS.md)。不要把完全磁盘访问或辅助功能当作 MCP 故障的通用修复。

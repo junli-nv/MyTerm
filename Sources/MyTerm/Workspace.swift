@@ -299,19 +299,6 @@ final class Workspace: ObservableObject {
         }
     }
 
-    func renameTab(_ session: TerminalSession) {
-        selectedID = session.id
-        let alert = NSAlert(); alert.messageText = L10n.text("更改标签名称")
-        let field = NSTextField(string: session.label)
-        field.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
-        alert.accessoryView = field; alert.addButton(withTitle: L10n.text("保存")); alert.addButton(withTitle: L10n.text("取消"))
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { error = "请输入标签名称。"; return }
-        objectWillChange.send(); session.label = name
-    }
-
     func editConnection(_ session: TerminalSession) {
         guard let server = session.sourceServer else { return }
         selectedID = session.id

@@ -6,9 +6,10 @@ import MyTermCore
 enum SessionTabRenameCheck {
     static func run(window: NSWindow, workspace: Workspace) throws {
         guard let session = workspace.sessions.first else { return }
+        let originalAppearance = session.appearance
         let originalName = session.label
         let originalSelection = workspace.selectedID
-        defer { session.label = originalName; workspace.selectedID = originalSelection }
+        defer { session.setAppearance(originalAppearance); session.label = originalName; workspace.selectedID = originalSelection }
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("Tab rename: " + message) }
         }
@@ -27,17 +28,21 @@ enum SessionTabRenameCheck {
         func displayedName() throws -> String? {
             descendants(try tab()).compactMap { $0 as? NSTextField }.first?.stringValue
         }
-        func rename(_ name: String, cancel: Bool = false) throws {
+        func rename(_ name: String, cancel: Bool = false, environment: String? = nil) throws {
             let menu = try tab().buildMenu!()!
-            guard let index = menu.items.firstIndex(where: { $0.title == L10n.text("更改标签名称…") }) else {
+            guard let index = menu.items.firstIndex(where: { $0.title == L10n.text("编辑标签…") }) else {
                 throw ConfigurationError.invalid("Rename menu item missing")
             }
             var edited = false
             let timer = Timer(timeInterval: 0.05, repeats: false) { _ in
                 if let root = NSApp.modalWindow?.contentView,
-                   let field = descendants(root).compactMap({ $0 as? NSTextField }).first(where: { $0.isEditable }) {
+                   let field = descendants(root).compactMap({ $0 as? NSTextField }).first(where: { $0.identifier?.rawValue == "tab.editor.name" }) {
                     NSApp.modalWindow?.makeFirstResponder(nil)
                     field.stringValue = name
+                    if let environment {
+                        descendants(root).compactMap { $0 as? NSTextField }.first { $0.identifier?.rawValue == "tab.editor.environment" }?.stringValue = environment
+                        descendants(root).compactMap { $0 as? NSPopUpButton }.first { $0.identifier?.rawValue == "tab.editor.color" }?.selectItem(at: 1)
+                    }
                     edited = true
                 }
                 NSApp.stopModal(withCode: cancel ? .alertSecondButtonReturn : .alertFirstButtonReturn)
@@ -57,7 +62,10 @@ enum SessionTabRenameCheck {
         try rename(longName)
         try require(session.label == longName && displayedName() == longName, "Repeated rename left a stale title")
         try require(try tab().frame.width > shortWidth, "Tab width did not grow with its title")
-        try rename("Cancelled", cancel: true)
+        try rename(longName, environment: "TEST")
+        try require(session.appearance.environment == "TEST" && session.appearance.color == .red, "Combined editor did not apply metadata")
+        try rename("Cancelled", cancel: true, environment: "CANCELLED")
+        try require(session.appearance.environment == "TEST", "Cancel changed metadata")
         try require(session.label == longName && displayedName() == longName, "Cancel changed the title")
         if let other = workspace.sessions.first(where: { $0.id != session.id }) {
             workspace.selectedID = other.id
