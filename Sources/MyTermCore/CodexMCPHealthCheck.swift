@@ -3,12 +3,15 @@ import Darwin
 
 /// Tests the actual adapter, not registration metadata. Never calls a tool or reads a session.
 public enum CodexMCPHealthCheck {
-    public enum Stage: String { case launch, initialize, tools }
-    public struct Result {
+    public enum Stage: String, Codable { case launch, initialize, tools }
+    public struct Result: Codable {
         public let success: Bool
         public let stage: Stage
         public let reason: String
         public let code: Int32?
+        public init(success: Bool, stage: Stage, reason: String, code: Int32?) {
+            self.success = success; self.stage = stage; self.reason = reason; self.code = code
+        }
     }
     public static func run(executable: URL, arguments: [String] = ["--myterm-mcp"], timeout: TimeInterval = 8) -> Result {
         if FileManager.default.fileExists(atPath: executable.path), access(executable.path, X_OK) != 0 {

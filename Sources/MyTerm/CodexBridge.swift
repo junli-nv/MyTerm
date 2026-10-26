@@ -37,6 +37,7 @@ final class CodexBridge: ObservableObject {
         }
     }
     @Published var busy = false
+    @Published private(set) var mcpHealth: CodexDiagnosticSummary.Health?
     @Published private(set) var mcpSecurity: CodexMCPSecurityCheck.Report?
     @Published private(set) var checkingMCP = false
     @Published private(set) var mcpStatus = "尚未检查 SSH MCP 接口"
@@ -44,11 +45,12 @@ final class CodexBridge: ObservableObject {
     @Published private(set) var mcpCheckedAt: Date?
     func checkMCP() {
         guard !checkingMCP, let executable = Bundle.main.executableURL else { return }
-        checkingMCP = true; mcpSecurity = nil; mcpStatus = "正在检查 SSH MCP 接口…"; mcpDetail = ""
+        checkingMCP = true; mcpHealth = nil; mcpSecurity = nil; mcpStatus = "正在检查 SSH MCP 接口…"; mcpDetail = ""
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let security = CodexMCPSecurityCheck.run(executable: executable)
             let result = CodexMCPHealthCheck.run(executable: executable)
             RunLoop.main.perform {
+                self?.mcpHealth = CodexDiagnosticSummary.Health(checkedAt: Date(), result: result)
                 self?.checkingMCP = false; self?.mcpCheckedAt = Date(); self?.mcpSecurity = security
                 self?.mcpStatus = result.success ? "SSH MCP 初始化和工具发现通过" : result.reason == "permission_denied" ? "SSH MCP 辅助程序启动被拒绝：权限不足" : "SSH MCP 接口检查失败"
                 self?.mcpDetail = result.success ? "" : "stage=\(result.stage.rawValue), reason=\(result.reason)" + (result.code.map { ", code=\($0)" } ?? "")

@@ -117,8 +117,15 @@ struct CodexSettingsView: View {
                 }
                 Text(L10n.text(bridge.mcpStatus)).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("codex-mcp-health-status")
+                if let health = bridge.mcpHealth {
+                    Text(MyTermCore.CodexDiagnosticSummary.explanation(health.result,
+                        language: language.identifier == "en" ? .english : .chinese))
+                        .font(.callout).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                }
                 if !bridge.mcpDetail.isEmpty {
-                    Text(bridge.mcpDetail).font(.caption.monospaced()).textSelection(.enabled)
+                    DisclosureGroup(L10n.text("技术详情")) {
+                        Text(bridge.mcpDetail).font(.caption.monospaced()).textSelection(.enabled)
+                    }
                 }
                 if let checked = bridge.mcpCheckedAt {
                     Text(L10n.text("最近检查：") + checked.formatted(date: .omitted, time: .standard)).font(.caption)

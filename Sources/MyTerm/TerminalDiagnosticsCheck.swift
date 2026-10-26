@@ -10,7 +10,7 @@ enum TerminalDiagnosticsCheck {
         model.log.record(.marker)
         let data = try model.report(workspace: workspace)
         let object = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-        guard object["schema"] as? Int == 2, object["mcp"] is [String: Any], let trace = object["trace"] as? [String: Any],
+        guard object["schema"] as? Int == 3, object["mcp"] is [String: Any], let trace = object["trace"] as? [String: Any],
               (trace["entries"] as? [Any])?.count == 2 else {
             throw ConfigurationError.invalid("Diagnostic report schema or events invalid")
         }
@@ -24,10 +24,14 @@ enum TerminalDiagnosticsCheck {
         try process.run(); process.waitUntilExit()
         let contents = extracted.appendingPathComponent("MyTerm-Diagnostics")
         let names = try FileManager.default.contentsOfDirectory(atPath: contents.path).sorted()
-        guard process.terminationStatus == 0, names == ["README.txt", "diagnostic.json"],
+        guard process.terminationStatus == 0, Set(names) == Set(["README.txt", "diagnostic.json", "诊断摘要.txt", "Diagnostic-Summary.en.txt"]),
               try Data(contentsOf: contents.appendingPathComponent("diagnostic.json")) == data else {
             throw ConfigurationError.invalid("Diagnostic archive content mismatch")
         }
-        print("PASS: metadata diagnostic report and ZIP export round trip with exactly two expected files")
+        guard try String(contentsOf: contents.appendingPathComponent("诊断摘要.txt"), encoding: .utf8) == CodexDiagnosticSummary.document(data, language: .chinese),
+              try String(contentsOf: contents.appendingPathComponent("Diagnostic-Summary.en.txt"), encoding: .utf8) == CodexDiagnosticSummary.document(data, language: .english) else {
+            throw ConfigurationError.invalid("Exported diagnostic summary differs from its source metadata")
+        }
+        print("PASS: metadata diagnostic report and ZIP export round trip with bilingual readable summaries and expected files")
     }
 }

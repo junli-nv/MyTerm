@@ -26,13 +26,14 @@ final class TerminalDiagnostics: ObservableObject {
         let state: TerminalDiagnosticLog.State
     }
     private struct Report: Encodable {
-        let schema = 2
+        let schema = 3
         let version: String, build: String, macOS: String
         let captured: Date
         let peakResidentBytes: Int64
         let terminals: [TerminalInfo]
         let trace: TerminalDiagnosticLog.Snapshot
         let mcp: CodexMCPDiagnosticLog.Snapshot
+        let mcpHealth: CodexDiagnosticSummary.Health?
         let mcpSecurity: CodexMCPSecurityCheck.Report?
     }
     func report(workspace: Workspace) throws -> Data {
@@ -46,7 +47,7 @@ final class TerminalDiagnostics: ObservableObject {
         let report = Report(version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
             build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             macOS: ProcessInfo.processInfo.operatingSystemVersionString, captured: Date(),
-            peakResidentBytes: Int64(usage.ru_maxrss), terminals: terminals, trace: log.snapshot(), mcp: CodexMCPDiagnosticLog.shared.snapshot(), mcpSecurity: workspace.codex.mcpSecurity)
+            peakResidentBytes: Int64(usage.ru_maxrss), terminals: terminals, trace: log.snapshot(), mcp: CodexMCPDiagnosticLog.shared.snapshot(), mcpHealth: workspace.codex.mcpHealth, mcpSecurity: workspace.codex.mcpSecurity)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
         return try encoder.encode(report)
     }
@@ -58,7 +59,9 @@ final class TerminalDiagnostics: ObservableObject {
         let contents = root.appendingPathComponent("MyTerm-Diagnostics")
         try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         try data.write(to: contents.appendingPathComponent("diagnostic.json"), options: .atomic)
-        let instructions = "诊断包不包含输入文字、输出正文、密码、主机名或配置文件。请附上问题发生时间、复现步骤和预期行为。\nThis archive contains metadata only, not input/output text, passwords, hostnames or configuration files. Include the incident time, reproduction steps and expected behavior.\n"
+        try CodexDiagnosticSummary.document(data, language: .chinese).write(to: contents.appendingPathComponent("诊断摘要.txt"), atomically: true, encoding: .utf8)
+        try CodexDiagnosticSummary.document(data, language: .english).write(to: contents.appendingPathComponent("Diagnostic-Summary.en.txt"), atomically: true, encoding: .utf8)
+        let instructions = "请先阅读诊断摘要.txt；技术详情见 diagnostic.json。诊断包不包含输入文字、输出正文、密码、主机名或配置文件。请附上问题发生时间、复现步骤和预期行为。\nRead Diagnostic-Summary.en.txt first; technical details are in diagnostic.json. This archive contains metadata only, not input/output text, passwords, hostnames or configuration files. Include the incident time, reproduction steps and expected behavior.\n"
         try instructions.write(to: contents.appendingPathComponent("README.txt"), atomically: true, encoding: .utf8)
         let zip = root.appendingPathComponent("report.zip")
         let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")

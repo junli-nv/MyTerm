@@ -95,7 +95,7 @@ enum CodexBridgeCheck {
         bridge.checkMCP()
         let mcpDeadline = Date().addingTimeInterval(22)
         while bridge.checkingMCP && Date() < mcpDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
-        try require(bridge.mcpStatus == "SSH MCP 初始化和工具发现通过" && bridge.mcpCheckedAt != nil && bridge.mcpSecurity?.executableAllowed == true, "Real MCP health check failed: " + bridge.mcpStatus + " " + bridge.mcpDetail)
+        try require(bridge.mcpStatus == "SSH MCP 初始化和工具发现通过" && bridge.mcpHealth?.result.success == true && bridge.mcpCheckedAt != nil && bridge.mcpSecurity?.executableAllowed == true, "Real MCP health check failed: " + bridge.mcpStatus + " " + bridge.mcpDetail)
         bridge.refreshRegistration()
         let registrationDeadline = Date().addingTimeInterval(3)
         while bridge.checkingRegistration && Date() < registrationDeadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }

@@ -30,3 +30,5 @@ macOS 没有供本应用统一读取所有 TCC 权限状态的公开接口；上
 Apple 建议 macOS 程序使用 Apple 签发的签名身份，以便本地网络隐私机制稳定识别应用；临时签名与版本更新是需要排查的因素，不足以单独证明此次故障根因。
 
 参考：[安全打开应用](https://support.apple.com/en-us/102445)、[文件访问保护](https://support.apple.com/en-ca/guide/security/secddd1d86a6/web)、[本地网络隐私说明](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)。
+
+诊断包包含中文 `诊断摘要.txt` 和英文 `Diagnostic-Summary.en.txt`，请先阅读其中的已观察阶段、影响、建议与判断边界；`diagnostic.json` 保留原始错误码和带时间的 `mcpHealth` 主动检查结果。Codex 接口检查页面也显示可读说明，数字技术详情默认收起。正常 EOF 或 Gatekeeper 未通过不会被单独认定为故障根因。主动检查与辅助进程事件分别解释，缺少事件不代表检查通过。摘要采用本机固定规则，不调用模型，不包含终端正文或凭据。

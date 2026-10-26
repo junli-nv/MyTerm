@@ -127,6 +127,7 @@ let ptyTests = PTYTests()
 let features = FeatureTests()
 let checks: [(String, () throws -> Void)] = [
     ("Tab appearance persistence and connection isolation", checkTabAppearance),
+    ("Bilingual diagnostic summaries, unknown evidence, EOF and multiple helpers", checkDiagnosticSummary),
     ("MCP health probe launch failure, early exit and bounded timeout", checkMCPHealthFailures),
     ("MCP diagnostic lifecycle, bounds, expiry and symlink protection", checkMCPDiagnostics),
     ("Bounded opt-in terminal diagnostics, expiry, clearing and concurrent events", checkTerminalDiagnostics),

@@ -5,6 +5,12 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.4"></a>
+
+# MyTerm 3.4
+
+Add readable Chinese/English diagnostic summaries with observations, impact, next steps and evidence limits. Collapse numeric details in the interface while retaining raw diagnostic metadata. [Release notes](packaging/RELEASE-NOTES-3.4.md)
+
 <a id="version-3.3.12"></a>
 
 # MyTerm 3.3.12

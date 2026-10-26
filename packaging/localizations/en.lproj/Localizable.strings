@@ -1465,3 +1465,5 @@
 "环境标识" = "Environment";
 
 "名称仅修改当前标签；颜色与环境标识同步到已保存的 SSH 配置及引用它的标签。其他标签随保存的会话一起保留。" = "The name changes only this tab. Color and environment are saved to its SSH configuration and shared tabs. Other tabs retain these values in saved sessions.";
+
+"技术详情" = "Technical details";
