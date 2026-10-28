@@ -423,6 +423,8 @@ bash scripts/install-release.sh
 
 ## 测试与源码
 
+开发接续与长期设计决策见[开发上下文](docs/DEVELOPMENT-CONTEXT.md)，贡献前请阅读[工作规范](AGENTS.md)。新 Codex 会话可直接使用上下文文档中的接手提示。
+
 完整功能与测试入口对应关系、统一回归命令及验证边界见 [测试与维护](docs/TESTING.md)。
 
 

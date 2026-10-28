@@ -427,6 +427,8 @@ The release workflow checks Debug, Release and an app copied from the actual DMG
 
 ## Tests and source
 
+For handoff and long-term decisions, read the [development context](docs/DEVELOPMENT-CONTEXT.en.md) and [workflow](AGENTS.md). New Codex sessions can use the handoff prompt in that document.
+
 See [Testing and maintenance](docs/TESTING.en.md) for the unified runner, feature coverage and validation limits.
 
 

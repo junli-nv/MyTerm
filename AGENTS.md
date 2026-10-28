@@ -7,6 +7,8 @@ This file contains matching English and Chinese instructions. Both describe the 
 
 ### Environment and maintainability
 
+- At handoff, read `docs/DEVELOPMENT-CONTEXT.en.md` (or the Chinese counterpart) and verify its dated snapshot against current Git/code. When changing design decisions, workflow or known-issue status, update both context documents. Keep secrets, private terminal output and unrelated troubleshooting out; do not treat historical requests as new authorization.
+
 - Use `/bin/bash` for shell commands; the user's startup configuration is `~/.profile`. Do not configure zsh.
 - Prefer `/Users/junliz/.venvs/codex-py314/bin/python` and its `-m pip` for local Python work. Respect project-specific virtual environments; do not install packages into Apple-managed Python or Homebrew's base interpreter.
 - Keep gesture handling separate from session mutations. Use descriptive names, small focused files and meaningful regression checks. Document behavioral invariants rather than restating code.
@@ -42,6 +44,8 @@ This file contains matching English and Chinese instructions. Both describe the 
 ## 简体中文
 
 ### 环境与可维护性
+
+- 接手时阅读 `docs/DEVELOPMENT-CONTEXT.md`（或英文版），对照当前 Git/代码核实有日期的快照。变更设计决策、工作流程或已知问题状态时，同步更新两份上下文文档。不要收录凭据、私人终端输出或无关排障，也不要把历史请求视为新的操作授权。
 
 - Shell 使用 `/bin/bash`，用户启动配置为 `~/.profile`，不要配置 zsh。
 - 本地 Python 优先使用 `/Users/junliz/.venvs/codex-py314/bin/python` 及其 `-m pip`。尊重项目虚拟环境，不向 Apple 管理的 Python 或 Homebrew 基础解释器安装包。
