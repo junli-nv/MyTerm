@@ -303,6 +303,8 @@ If a `[tui]` section already exists, update it rather than declaring it again; p
 
 ## Terminal display and interaction
 
+The separator between the tab strip and terminal is a single physical pixel with an opaque interface background. Terminal background opacity applies to the terminal area and should not expose windows behind this separator.
+
 **Settings → Language** supports Chinese, English and system language, applied immediately, including system commands such as AutoFill and Center in the Edit and Window menus, without restarting. Settings and Codex Integration use vertical sidebar navigation, a resizable window and independently scrolling content.
 
 **Theme & Font** provides system/dark/light appearance, dark/light presets with palette previews, a font dropdown and **5–36 pt** sizes. Reopen the theme page after installing fonts to refresh the list. Monospace fonts are recommended for terminal tables and tmux. Hold Ctrl and swipe up/down with two fingers to zoom in/out in 0.5 pt steps; momentum scrolling is ignored. With terminal focus, use `⌘+` (or `⌘=`) to enlarge and `⌘-` to shrink in 0.5 pt steps; like trackpad zoom, these update the global terminal font setting.

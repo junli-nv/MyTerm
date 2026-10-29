@@ -50,6 +50,10 @@ The SSH editor no longer offers whole-route saved jump presets. Use Choose Exist
 - Font minimum is 5 pt; Ctrl+two-finger gestures and `⌘+`/`⌘-` adjust in small steps. Themes include palettes, ANSI colors and opacity. Custom font-name entry and font-search controls were removed; font selection remains.
 - Settings and Codex integration use vertical navigation. Small windows scroll with confirmation/cancel accessible. Language switches immediately, including system-inserted menu items. Configuration windows follow the current desktop.
 
+The main window remains transparent to support terminal opacity. The tab/terminal separator uses a single physical pixel and needs its own opaque backing; do not fix chrome seams by disabling transparency for the entire window.
+
+Nested HSplitView hosts can reintroduce native titlebar safe-area insets below the custom strip. Overlay the line inside the strip, ignore the duplicated top safe area on the terminal surface, and disable the system titlebar separator. Regression checks must cover adjacent geometry, not just one opaque pixel row.
+
 ### File transfers
 
 SFTP is the file-management entry point; the separate SCP UI was removed. Preserve disconnect, reliable selection, multi-selection, context-menu download, drag/drop, recursive directories, speed, resume and detached windows. Upper-right access must not depend on expanding the bottom bar.

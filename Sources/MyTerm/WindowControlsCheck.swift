@@ -84,6 +84,29 @@ final class WindowControlsCheck {
         click(point)
         click(point, count: 2)
     }
+    private func checkTitleSeparator() {
+        guard let content = window.contentView,
+              let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds) else {
+            fail("Cannot capture title separator")
+        }
+        content.cacheDisplay(in: content.bounds, to: bitmap)
+        let scaleX = CGFloat(bitmap.pixelsWide) / content.bounds.width
+        let scaleY = CGFloat(bitmap.pixelsHigh) / content.bounds.height
+        // The line is the final physical pixel INSIDE the 30-point strip.
+        // Also check the adjacent native view's geometry: opacity on one row alone
+        // misses gaps introduced by fractional SwiftUI/AppKit layout rounding.
+        let row = Int(30 * scaleY) - 1
+        require(window.titlebarSeparatorStyle == .none, "System title separator duplicates custom line")
+        guard let terminal = workspace.selected?.terminal.enclosingScrollView else { fail("Missing selected terminal") }
+        let frame = terminal.convert(terminal.bounds, to: content)
+        let terminalTop = content.isFlipped ? frame.minY : content.bounds.height - frame.maxY
+        require(abs(terminalTop - 30) < 0.01, "Transparent gap between title strip and terminal: \(terminalTop) pt")
+        for fraction in [0.25, 0.5, 0.75] {
+            let column = Int(content.bounds.width * fraction * scaleX)
+            require((bitmap.colorAt(x: column, y: row)?.alphaComponent ?? 0) > 0.98,
+                    "Title separator exposes the transparent window backing")
+        }
+    }
     private func terminalFrame() -> NSRect {
         guard let scroll = fixture.terminal.enclosingScrollView else { fail("No terminal scroll view") }
         return scroll.convert(scroll.bounds, to: nil)
@@ -117,6 +140,7 @@ final class WindowControlsCheck {
             require(!fixture.statusBarVisible && !fixture.showSFTP && !workspace.sidebarVisible, "Panels must start hidden")
             baseline = terminalFrame()
             require(window.frame.height - baseline.maxY <= 34, "Title strip regressed to two rows")
+            checkTitleSeparator()
             clickButton("tabbar.status", edge: true)
         case 1:
             require(fixture.statusBarVisible, "Bottom bar did not open")
@@ -127,12 +151,14 @@ final class WindowControlsCheck {
             clickButton("tabbar.sftp", edge: true)
         case 3:
             require(fixture.showSFTP && terminalFrame().width < baseline.width - 150, "SFTP panel did not open")
+            checkTitleSeparator()
             clickButton("tabbar.sftp")
         case 4:
             require(!fixture.showSFTP && abs(terminalFrame().width - baseline.width) < 2, "SFTP panel did not close")
             clickButton("tabbar.sidebar", edge: true)
         case 5:
             require(workspace.sidebarVisible && terminalFrame().width < baseline.width - 150, "Sidebar did not open")
+            checkTitleSeparator()
             clickButton("tabbar.sidebar")
         case 6:
             require(!workspace.sidebarVisible && abs(terminalFrame().width - baseline.width) < 2, "Sidebar did not close")
@@ -152,6 +178,7 @@ final class WindowControlsCheck {
             guard let area = descendants(window.contentView!).first(where: { $0 is TabBarDragView }) else { fail("No tab drag area") }
             let after = area.convert(area.bounds, to: nil)
             require(abs(after.minX - tabAreaBeforeSwitch.minX) < 1 && abs(after.width - tabAreaBeforeSwitch.width) < 1, "Switching SSH/local shifted the tab strip")
+            checkTitleSeparator()
             require(!descendants(window.contentView!).contains(where: { $0.identifier?.rawValue == "tabbar.sftp" }), "Local shell must not expose SFTP control")
             clickButton("tabbar.status")
         case 10:

@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "MyTerm"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
         window.isOpaque = false
         window.backgroundColor = .clear
         window.minSize = NSSize(width: 850, height: 540)
@@ -302,6 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct WorkspaceView: View {
+    @Environment(\.displayScale) private var displayScale
     @ObservedObject var interfaceLanguage = LanguagePreferences.shared
     @ObservedObject var workspace: Workspace
     @ObservedObject var theme = ThemePreferences.shared
@@ -374,7 +376,13 @@ struct WorkspaceView: View {
                     Menu { newSessionActions } label: { Image(systemName: "plus") }
                         .menuStyle(.borderlessButton).fixedSize().padding(.horizontal, 10).help("选择新会话类型")
                 }.frame(height: 30).background(Color(nsColor: .windowBackgroundColor))
-                Divider()
+                    // Draw inside the integral-height strip: a fractional-height sibling
+                    // leaves a gap when AppKit rounds the terminal container's frame.
+                    .overlay(alignment: .bottom) {
+                        Color(nsColor: .separatorColor)
+                            .frame(height: 1 / max(displayScale, 1))
+                            .allowsHitTesting(false)
+                    }
         HSplitView {
             if workspace.sidebarVisible {
             VStack(alignment: .leading, spacing: 18) {
@@ -510,7 +518,11 @@ struct TerminalPane: View {
     var body: some View {
         VStack(spacing: 0) {
             HSplitView {
-                TerminalSurface(session: session, isFocused: isFocused).frame(minWidth: 220)
+                TerminalSurface(session: session, isFocused: isFocused)
+                    .frame(minWidth: 220)
+                    // Nested split hosts reintroduce the native titlebar safe area.
+                    // Our custom strip already reserves that space.
+                    .ignoresSafeArea(.container, edges: .top)
                 if session.showSFTP, !isSplit, let sftp = session.sftp {
                     SFTPInlinePanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
                 }
