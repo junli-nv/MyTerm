@@ -4,7 +4,7 @@ import AppKit
 struct SFTPInlinePanel: View {
     @ObservedObject var model: SFTPModel
     var body: some View {
-        if !model.detached { SFTPPanel(model: model).frame(minWidth: 310, idealWidth: 360, maxWidth: 520) }
+        if !model.detached { SFTPPanel(model: model).frame(minWidth: 310, idealWidth: 360, maxWidth: .infinity, maxHeight: .infinity) }
     }
 }
 
@@ -47,6 +47,9 @@ struct SFTPPanel: View {
                 Text("\(L10n.text(model.transferDirection)) \(L10n.text(model.rateIsAverage ? "平均速度" : "速度")): \(ByteCountFormatter.string(fromByteCount: Int64(min(Double(Int64.max / 2), max(0, model.bytesPerSecond))), countStyle: .file))/s")
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
-        }.controlSize(.small).padding(12).frame(minWidth: 310)
+        }.controlSize(.small).padding(12)
+            // Background belongs to the entire allocated pane, not capped content.
+            .frame(minWidth: 310, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(nsColor: .windowBackgroundColor))
     }
 }

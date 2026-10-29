@@ -193,6 +193,8 @@ Codex tabs, unauthenticated SSH connections, disconnected sessions and terminals
 
 ## SFTP file management
 
+Drag the divider to resize the SFTP panel. Its background fills the entire pane when expanding or shrinking, independently of terminal theme opacity. The divider stays a thin 1pt line, with the normal terminal gutter beside it.
+
 New SSH tabs immediately expose the SFTP button, while the panel starts hidden. Finish SSH login, open the panel and click Connect. SFTP reuses the authenticated SSH connection; Disconnect ends SFTP without closing the SSH terminal.
 
 - Click to select files/folders; use Command/Shift for multiple selection. Double-click a directory or enter a path to navigate.

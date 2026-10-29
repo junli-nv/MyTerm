@@ -342,7 +342,12 @@ final class TerminalContainer: NSView {
         theme.background.native.withAlphaComponent(theme.backgroundOpacity).setFill()
         let path = NSBezierPath(rect: bounds)
         if session.terminal.window != nil {
-            let terminalRect = session.terminal.convert(session.terminal.bounds, to: self).intersection(bounds)
+            // The document can retain its old width during the PTY resize debounce.
+            // Subtract only pixels actually visible through the clip view; otherwise
+            // a shrinking viewport punches a transparent hole in the right gutter.
+            let viewport = scroll.contentView.convert(scroll.contentView.bounds, to: self)
+            let terminalRect = session.terminal.convert(session.terminal.bounds, to: self)
+                .intersection(viewport).intersection(bounds)
             if !terminalRect.isEmpty { path.appendRect(terminalRect) }
         }
         path.windingRule = .evenOdd
@@ -368,6 +373,7 @@ final class TerminalContainer: NSView {
             let size = scroll.contentSize
             if session.terminal.frame.size != size { session.terminal.setFrameSize(size) }
             scroll.contentView.scroll(to: .zero)
+            needsDisplay = true
         }
         session.start()
         if focusOnAttach && isFocused { window?.makeFirstResponder(session.terminal); focusOnAttach = false }

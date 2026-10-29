@@ -524,7 +524,7 @@ struct TerminalPane: View {
                     // Our custom strip already reserves that space.
                     .ignoresSafeArea(.container, edges: .top)
                 if session.showSFTP, !isSplit, let sftp = session.sftp {
-                    SFTPInlinePanel(model: sftp).background(Color(nsColor: .windowBackgroundColor))
+                    SFTPInlinePanel(model: sftp).ignoresSafeArea(.container, edges: .top)
                 }
             }
             if let bridge = session.codexExecutionBridge, let target = session.codexTargetSessionID {

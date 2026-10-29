@@ -62,6 +62,8 @@ Existing files need overwrite/skip and batch choices, not disconnected SFTP or s
 
 MyTerm bundles a trzsz client; the remote needs `trz`/`tsz`. ZMODEM requires local and remote `rz`/`sz`. Use trzsz for tmux and account for jump relays. Transfer detection must neither delay ordinary echo such as a lone `*` nor break protocol detection while reducing buffering.
 
+Do not cap inline SFTP content width while painting only the content background: widening the split can expose transparent margins. Fill the allocated pane and ignore the duplicated top safe area. Test expansion beyond the former 520pt cap, contraction and intermediate layouts. Panel-only samples are insufficient: while terminal sizing is debounced, its document retains the old width. Intersect the background exclusion with the scroll clip viewport and repaint after sizing, or the right gutter becomes transparent and appears to change divider thickness. Retain the native 1pt divider and inspect the entire boundary before and after sizing.
+
 ### History, logs and resource lifecycle
 
 Memory scrollback and disk logs are separate. Disk logging defaults off. Sessions can override global policy; support line/capacity limits, cleanup, export and compression. History search cannot recover evicted data.

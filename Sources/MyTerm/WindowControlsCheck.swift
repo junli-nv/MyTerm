@@ -152,6 +152,8 @@ final class WindowControlsCheck {
         case 3:
             require(fixture.showSFTP && terminalFrame().width < baseline.width - 150, "SFTP panel did not open")
             checkTitleSeparator()
+            do { try SFTPResizeCheck.run(window: window, terminal: fixture.terminal) }
+            catch { fail(error.localizedDescription) }
             clickButton("tabbar.sftp")
         case 4:
             require(!fixture.showSFTP && abs(terminalFrame().width - baseline.width) < 2, "SFTP panel did not close")
