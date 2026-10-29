@@ -563,13 +563,6 @@ struct ServerEditor: View {
                 }
                 if draft.detailedJumps {
                     Text("按顺序经过下列跳板机，再连接目标服务器。").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Menu("选择已有跳板配置") {
-                        ForEach(SSHJumpPreset.available(in: workspace.servers)) { preset in
-                            Button(preset.name) { draft.useJumpPreset(preset) }
-                        }
-                    }.disabled(SSHJumpPreset.available(in: workspace.servers).isEmpty)
-                    Text("选择后引用公共跳板机并替换当前路径和代理。修改公共配置会影响引用它的会话；可先解除关联再单独修改。")
-                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     ForEach($draft.jumpServers) { $hop in
                         if let profileID = hop.profileID {
                             Text(L10n.text("公共跳板机 · 引用会话：") + workspace.jumpReferences(profileID).joined(separator: "、"))
@@ -592,7 +585,7 @@ struct ServerEditor: View {
                     Menu("选择已有跳板机") {
                         ForEach(workspace.sharedJumpProfiles) { profile in
                             Button(workspace.sharedJumpTitle(profile)) {
-                                var row = profile; row.id = UUID(); draft.jumpServers.append(row)
+                                draft.appendJump(profile)
                             }
                         }
                     }.disabled(workspace.sharedJumpProfiles.isEmpty || draft.jumpServers.count >= 10)
@@ -707,11 +700,11 @@ final class ServerDraft: ObservableObject {
     @Published var validationError: String?
     @Published var password = "" // Editor-only; never serialize secrets into Server.
     @Published var jumpPasswords: [UUID: String] = [:]
-    func useJumpPreset(_ preset: SSHJumpPreset) {
-        jumpPasswords.removeAll()
-        server.jumpHost = nil
-        server.jumpServers = preset.copiedHops()
-        server.proxy = preset.proxy
+    func appendJump(_ profile: SSHJumpServer) {
+        guard jumpServers.count < 10 else { return }
+        var row = profile
+        row.id = UUID()
+        jumpServers.append(row)
     }
     init(server: Server) { self.server = server }
     var jumpHost: String { get { server.jumpHost ?? "" } set { server.jumpHost = newValue.isEmpty ? nil : newValue } }

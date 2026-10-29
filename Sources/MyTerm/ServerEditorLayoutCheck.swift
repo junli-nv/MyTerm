@@ -46,8 +46,16 @@ enum ServerEditorLayoutCheck {
         try require(workspace.save(passwordServer, jumpPasswords: [hopID: ""]), "Blank save failed")
         try require(try credentials.read(jumpAccount) == "fixture-jump", "Blank secret erased password")
         let copyDraft = ServerDraft(server: Server(host: "other.test"))
-        copyDraft.useJumpPreset(SSHJumpPreset.available(in: [passwordServer])[0])
-        try require(copyDraft.jumpServers.first?.id != hopID && copyDraft.jumpPasswords.isEmpty, "Preset copied a row ID or plaintext secret")
+        copyDraft.appendJump(workspace.servers.first(where: { $0.id == passwordServer.id })!.jumpServers![0])
+        try require(copyDraft.jumpServers.first?.id != hopID && copyDraft.jumpPasswords.isEmpty, "Shared jump selection copied a row ID or plaintext secret")
+        let selectionDraft = ServerDraft(server: keyed)
+        let originalHops = selectionDraft.jumpServers
+        let originalProxy = selectionDraft.server.proxy
+        selectionDraft.appendJump(copyDraft.jumpServers[0])
+        try require(Array(selectionDraft.jumpServers.dropLast()) == originalHops && selectionDraft.server.proxy == originalProxy,
+                    "Selecting a jump replaced existing hops or proxy")
+        try require(selectionDraft.jumpServers.last?.profileID == copyDraft.jumpServers[0].profileID,
+                    "Selecting a jump lost its shared reference")
         try require(workspace.save(copyDraft.server), "Copied route save failed")
         let associations = CredentialSettingsState.matching(try credentials.list(), references: [
             CredentialSessionReference(server: passwordServer, label: "A"),

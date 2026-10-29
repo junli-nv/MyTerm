@@ -902,7 +902,6 @@
 
 "请选择有效的本地工作目录。" = "Select a valid local working directory.";
 
-"选择已有跳板配置" = "Choose saved jump configuration";
 
 "选择后替换当前跳转路径和网络代理；保存前可继续修改，不会改动来源会话。" = "Replaces this jump route and network proxy. Edit before saving; the source session is unchanged.";
 
@@ -1104,7 +1103,6 @@
 
 "启动后在 Codex 历史列表中选择对话。恢复对话历史，但重新绑定本次选择的 SSH；旧 UUID、授权和命令任务不会复用。恢复后请确认目标，再继续任务。" = "Select a conversation in the Codex history picker after launch. Its history is restored, but it is bound to the SSH selected now. Old UUIDs, authorizations and command jobs are not reused. Confirm the target before continuing.";
 
-"选择后引用公共跳板机并替换当前路径和代理。修改公共配置会影响引用它的会话；可先解除关联再单独修改。" = "Select shared jump profiles and replace this route and proxy. Editing a shared profile affects its referencing sessions; save an independent profile first for separate changes.";
 
 "公共跳板机 · 引用会话：" = "Shared jump · Referenced by: ";
 

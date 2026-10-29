@@ -49,20 +49,3 @@ public enum SSHJumpCredentials {
         return index
     }
 }
-
-/// Public connection information only. New editor rows retain shared profile references.
-public struct SSHJumpPreset: Identifiable {
-    public let id: UUID
-    public let name: String
-    public let hops: [SSHJumpServer]
-    public let proxy: NetworkProxy?
-    public static func available(in servers: [Server]) -> [Self] {
-        servers.compactMap { server in
-            guard let hops = server.jumpServers, !hops.isEmpty else { return nil }
-            return Self(id: server.id, name: server.displayName, hops: hops, proxy: server.proxy)
-        }
-    }
-    public func copiedHops() -> [SSHJumpServer] {
-        hops.map { hop in var copy = hop; copy.id = UUID(); return copy }
-    }
-}

@@ -38,6 +38,8 @@ The app manages credentials rather than using the system Keychain as its default
 
 Jump hosts evolved into independently managed shared definitions with names, CRUD, references and route testing. Migrate existing configurations and reuse matching route/user credentials. Equal IP addresses alone do not justify merging distinct credentials, proxies or routes. Referenced jumps must be detached before deletion. Tests must accommodate Windows and forwarding-only hosts instead of treating unsupported Unix commands as SSH failures. OpenSSH export must distinguish repeated addresses, aliases and actual references.
 
+The SSH editor no longer offers whole-route saved jump presets. Use Choose Existing Jump Host to append individual hops or Change Jump Host to replace one, with independent jump management retained. Selecting a hop does not replace other hops or the proxy; existing references and credentials remain intact.
+
 ### Tabs, layout, input and themes
 
 - Start at the welcome page without automatically opening a shell. Double-click saved SSH servers to connect; a single tab selection must allow its context menu without another focus click.

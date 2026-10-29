@@ -72,8 +72,8 @@ final class CredentialTests {
         var first = Server(name: "A", host: "target-a", user: "target")
         first.jumpServers = [SSHJumpServer(host: "jump.test", user: "jump", authentication: .password)]
         var second = Server(name: "B", host: "target-b", user: "target")
-        let preset = SSHJumpPreset.available(in: [first])[0]
-        second.jumpServers = preset.copiedHops()
+        var sharedHop = first.jumpServers![0]; sharedHop.id = UUID()
+        second.jumpServers = [sharedHop]
         checkFalse(second.jumpServers![0].id == first.jumpServers![0].id)
         let account = try SSHJumpCredentials.account(server: first, index: 0)
         checkEqual(try SSHJumpCredentials.account(server: second, index: 0), account)
