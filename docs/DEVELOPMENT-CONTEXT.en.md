@@ -94,7 +94,11 @@ Codex and SSH proxies are independent. Reuse login across tabs. Paths, proxies, 
 
 Commands use an independent noninteractive channel over an authenticated SSH ControlMaster, not the interactive terminal's directory, temporary environment or tmux state. Read all output pages and validate completeness. Explain `incomplete` rather than silently ignoring it to reduce noise. `execute_command`/`command_status` default to compact results, with waiting to reduce empty polling; Codex controls its tool-call UI.
 
-Organize conversations by user-selected clusters/projects, with a default project. Support names and resuming history against a new SSH UUID. Allow removing index entries and configuring storage for future projects, without confusing MyTerm's index with Codex history. Closing one Codex tab ends only its grant, preserving other tabs on the same SSH session.
+Organize conversations by user-selected MyTerm cluster groups, with a default group. Support names and resuming history against a new SSH UUID. Allow removing index entries and configuring storage for future projects, without confusing MyTerm's index with Codex history. Closing one Codex tab ends only its grant, preserving other tabs on the same SSH session.
+
+MyTerm manages these groups separately from native Codex projects. Refresh conversations checks only metadata for existing entries in the selected group and updates names. It does not request conversation turns or SSH output, run SSH commands or start model analysis. Status distinguishes unchecked, available to resume, not found and unable to verify. Unknown errors, permission failures and timeouts are not deletion evidence. The batch is limited to about 30 seconds; an ambiguous failure stops further queries and preserves all entries for retry. Results describe this check only and reset when reopening the chooser; resuming still validates the directory again. Refresh does not change the last-opened date.
+
+Rename group changes only the display name, preserving its ID, directory, conversation IDs and SSH associations. A renamed default group remains the default entry. Existing tab titles stay unchanged; newly opened tabs use the new name. Deleting the default group recreates it on the next opening.
 
 ## Diagnostics and unresolved issues
 

@@ -6,12 +6,25 @@ struct CodexClusterManagement: View {
     @ObservedObject var clusters: CodexClusterModel
     @ObservedObject var workspace: Workspace
     @ObservedObject var selection: CodexChooserState
+    @ObservedObject var bridge: CodexBridge
     private var openThreads: Set<String> { Set(workspace.sessions.compactMap(\.codexThreadID)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("MyTerm 独立维护此列表；在 Codex 中删除对话不会自动移除这里的记录。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("刷新对话") {
+                    if let id = selection.clusterID { clusters.refresh(clusterID: id, bridge: bridge) }
+                }.disabled(clusters.conversations(in: selection.clusterID).isEmpty)
+                Button("分组改名") { rename() }.disabled(selection.clusterID == nil)
+            }
+            if let date = clusters.checkedAt {
+                HStack {
+                    Text("最近检查：")
+                    Text(date, style: .time)
+                }.font(.caption).foregroundStyle(.secondary)
+            }
             HStack {
                 Button("移除对话记录") {
                     guard let id = selection.conversationID else { return }
@@ -46,6 +59,22 @@ struct CodexClusterManagement: View {
                 Text(directory.path).textSelection(.enabled).font(.caption).fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+    private func rename() {
+        guard let id = selection.clusterID, let cluster = clusters.catalog.clusters.first(where: { $0.id == id }) else { return }
+        let alert = NSAlert()
+        alert.messageText = L10n.text("分组改名")
+        alert.informativeText = L10n.text("仅更改分组显示名称，保留原目录、对话和 SSH 关联。")
+        let field = NSTextField(string: cluster.name)
+        field.frame = NSRect(x: 0, y: 0, width: 300, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.text("保存"))
+        alert.addButton(withTitle: L10n.text("取消"))
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn { clusters.renameCluster(id, name: field.stringValue) }
+            }
+        } else if alert.runModal() == .alertFirstButtonReturn { clusters.renameCluster(id, name: field.stringValue) }
     }
     private func confirm(_ title: String, action: @escaping () -> Void) {
         let alert = NSAlert()

@@ -43,7 +43,8 @@ with tempfile.TemporaryDirectory(prefix="myterm-cluster-check-") as temporary:
     env.update(CODEX_HOME=str(home), OPENAI_API_KEY="synthetic-not-a-key", TERM="xterm-256color", NO_PROXY="127.0.0.1,localhost")
     try:
         result = subprocess.run([str(checks), "--codex-cluster-fixture", codex, str(directory)],
-                                env=env, capture_output=True, text=True, timeout=60, check=True)
+                                env=env, capture_output=True, text=True, timeout=60)
+        assert result.returncode == 0, result.stdout + result.stderr
         thread = result.stdout.strip(); uuid.UUID(thread)
         master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))

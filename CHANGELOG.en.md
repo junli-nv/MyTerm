@@ -5,6 +5,12 @@
 
 These English summaries cover the archived release notes; they are not full translations. Each entry links to the original detailed record, which may be Chinese or bilingual. Historical defaults, limitations and validation results apply only to that release. See the [current user guide](README.en.md) for present behavior. Source tags and these records remain available after old release binaries are removed.
 
+<a id="version-3.4.4"></a>
+
+# MyTerm 3.4.4
+
+Add cluster metadata refresh, status feedback and renaming; clarify the boundary with native Codex projects. [Release notes](packaging/RELEASE-NOTES-3.4.4.md)
+
 <a id="version-3.4.3"></a>
 
 # MyTerm 3.4.3

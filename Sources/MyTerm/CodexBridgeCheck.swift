@@ -593,6 +593,7 @@ enum CodexBridgeCheck {
         try require(FileManager.default.fileExists(atPath: sentinel.path), "Cluster removal deleted project files")
         try require(!CodexClusterModel(root: managedRoot).catalog.clusters.contains { $0.id == managedID }, "Removed cluster reappeared")
         print("PASS: local cluster removal preserves files; custom directory and original paths persist")
+        try CodexClusterRefreshCheck.run(root: root, bridge: bridge)
         let cancelledModel = CodexClusterModel(root: root.appendingPathComponent("cancelled-cluster"))
         let cancelledCluster = cancelledModel.add("Cancelled fixture")!
         cancelledModel.cancelLaunch()

@@ -45,6 +45,23 @@ func checkCodexClusters() throws {
     // Changing the default pins existing cwd values, including legacy catalogs without path fields.
     let defaultDirectory = root.appendingPathComponent("CodexProjects")
     let oldPath = catalog.directoryURL(for: dallas, defaultDirectory: defaultDirectory)
+    try catalog.renameCluster(dallas.id, name: "Dallas renamed")
+    checkEqual(catalog.clusters.first { $0.id == dallas.id }?.folder, dallas.folder)
+    checkEqual(catalog.directoryURL(for: catalog.clusters.first { $0.id == dallas.id }!, defaultDirectory: defaultDirectory), oldPath)
+    checkEqual(catalog.serverClusters[server], dallas.id)
+    checkEqual(catalog.conversations[0].id, thread)
+    checkThrows(try catalog.renameCluster(dallas.id, name: "GMI London"))
+    checkThrows(try catalog.renameCluster(dallas.id, name: "\n"))
+    let defaultCluster = try catalog.ensureDefaultCluster()
+    try catalog.renameCluster(defaultCluster.id, name: "My default")
+    checkEqual(try catalog.ensureDefaultCluster().id, defaultCluster.id)
+    try catalog.removeCluster(defaultCluster.id, openThreads: [])
+    checkFalse(try catalog.ensureDefaultCluster().id == defaultCluster.id)
+    checkEqual(CodexThreadRequestError(method: "thread/read", code: -32600,
+        message: "no rollout found for thread id \(thread)").isMissingThread(thread), true)
+    for message in ["Permission denied", "No such file or directory", "thread not found", "thread not loaded: \(thread)", "connection timed out"] {
+        checkFalse(CodexThreadRequestError(method: "thread/read", code: -32600, message: message).isMissingThread(thread))
+    }
     try catalog.setProjectsDirectory(root.appendingPathComponent("custom 项目").path, defaultDirectory: defaultDirectory)
     checkEqual(catalog.directoryURL(for: catalog.clusters.first { $0.id == dallas.id }!, defaultDirectory: defaultDirectory), oldPath)
     let newCluster = try catalog.addCluster("New cluster")

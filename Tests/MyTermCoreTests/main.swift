@@ -18,6 +18,16 @@ if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--codex-cluste
     checkThrows(try reopened.read(id, directory: "/different-cluster"))
     _ = try reopened.call("thread/name/set", params: ["threadId": id, "name": "GPU 与网络排查"])
     checkEqual(try reopened.read(id, directory: CommandLine.arguments[3]), "GPU 与网络排查")
+    checkEqual(CodexConversationCheck.read(id: id, directory: CommandLine.arguments[3], client: reopened), .available(name: "GPU 与网络排查"))
+    if case .unverified = CodexConversationCheck.read(id: id, directory: "/different-cluster", client: reopened) {} else {
+        fatalError("A directory mismatch must remain unverified")
+    }
+    let missing = CodexConversationCheck.read(id: UUID().uuidString.lowercased(), directory: CommandLine.arguments[3], client: reopened)
+    // CLI versions differ: "thread not loaded" is ambiguous and must not be called deleted.
+    switch missing {
+    case .missing, .unverified: break
+    case .available: fatalError("An unknown UUID cannot be available")
+    }
     reopened.close()
     print(id)
     exit(0)

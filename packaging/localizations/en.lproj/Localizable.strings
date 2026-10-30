@@ -1465,3 +1465,23 @@
 "名称仅修改当前标签；颜色与环境标识同步到已保存的 SSH 配置及引用它的标签。其他标签随保存的会话一起保留。" = "The name changes only this tab. Color and environment are saved to its SSH configuration and shared tabs. Other tabs retain these values in saved sessions.";
 
 "技术详情" = "Technical details";
+
+// MyTerm cluster metadata refresh
+"请选择集群分组。" = "Select a cluster group.";
+"已有同名集群分组。" = "A cluster group with this name already exists.";
+"正在刷新对话元数据…" = "Refreshing conversation metadata…";
+"刷新完成；状态仅代表本次检查，不会自动删除记录。" = "Refresh complete. Status reflects this check only; entries are never automatically deleted.";
+"刷新对话" = "Refresh conversations";
+"分组改名" = "Rename group";
+"仅更改分组显示名称，保留原目录、对话和 SSH 关联。" = "Only the group display name changes. The directory, conversations and SSH associations are preserved.";
+"MyTerm 集群分组与对话" = "MyTerm cluster groups and conversations";
+"MyTerm 集群分组" = "MyTerm cluster group";
+"默认分组" = "Default group";
+"分组由 MyTerm 管理，不与 Codex 原生项目同步。SSH 是本次连接目标；继续对话保留历史，启动前请核对目标。" = "MyTerm manages these groups separately from native Codex projects. SSH is the target for this connection. Continuing keeps history; verify the target before starting.";
+"继续对话：" = "Continue conversation: ";
+"关联 SSH：" = "Associated SSH: ";
+"尚未检查；可刷新对话" = "Not checked; refresh conversations to check";
+"可恢复（元数据检查通过）" = "Available to resume (metadata verified)";
+"未找到对话；可重试或移除记录" = "Conversation not found; retry or remove the entry";
+"暂时无法验证；请检查 CLI、代理和权限后重试" = "Unable to verify; check the CLI, proxy and permissions, then retry";
+"前一项检查失败，本项未检查；请重试。" = "A previous check failed; this conversation was not checked. Retry to continue.";

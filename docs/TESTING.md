@@ -106,6 +106,8 @@ SSH 配置检查回归覆盖仍被跳板引用的已删除节点、当前与快�
 
 - `scripts/codex-cluster-check.py .build/release/MyTermChecks`：隔离 CODEX_HOME、本地假模型，真实 Codex 创建/命名/改名/持久化、目录隔离和原生 UUID 恢复；不调用模型。
 
+集群刷新回归还覆盖默认分组改名后保留 ID 和目录、失败后记录保留、重试更新标题但不改变最后打开日期、初始/加载状态和取消。真实 CLI 的 `thread not loaded` 保持“无法验证”，不推断已删除；缺失状态只接受已识别的明确协议错误。
+
 MCP 诊断管道回归：`python scripts/mcp-diagnostics-check.py /path/to/MyTerm.app`，使用隔离临时文件，覆盖握手、工具发现、EOF、错误输入、大小上限、关闭输出管道及隐私边界，不调用 SSH 工具。打包、DMG 和安装检查都会运行。
 
 诊断摘要回归覆盖中英文说明、未检查及无事件状态、未知原因不回显原文、正常 EOF、事件丢失、多个辅助进程与成功主动检查并存时的故障解释，以及实际 ZIP 中两种摘要与原始元数据的一致性。

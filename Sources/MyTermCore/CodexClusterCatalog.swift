@@ -2,7 +2,7 @@ import Foundation
 
 public struct CodexCluster: Codable, Identifiable, Equatable {
     public let id: UUID
-    public let name: String
+    public var name: String
     public let folder: String
     public var directory: String? = nil
 }
@@ -19,10 +19,17 @@ public struct CodexClusterConversation: Codable, Identifiable, Equatable {
 public struct CodexClusterCatalog: Codable {
     public var version = 1
     public var projectsDirectory: String? = nil
+    public var defaultClusterID: UUID? = nil
     public var clusters: [CodexCluster] = []
     public var conversations: [CodexClusterConversation] = []
     public var serverClusters: [String: UUID] = [:]
     public init() {}
+    public mutating func ensureDefaultCluster() throws -> CodexCluster {
+        if let id = defaultClusterID, let cluster = clusters.first(where: { $0.id == id }) { return cluster }
+        let cluster = try addCluster("Default")
+        defaultClusterID = cluster.id
+        return cluster
+    }
     public static func validatedName(_ input: String) throws -> String {
         let name = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 100,
@@ -53,6 +60,17 @@ public struct CodexClusterCatalog: Codable {
         if let path = cluster.directory { return URL(fileURLWithPath: path) }
         return (projectsDirectory.map { URL(fileURLWithPath: $0) } ?? defaultDirectory).appendingPathComponent(cluster.folder)
     }
+    /// Names are presentation only; folders, thread IDs and SSH associations stay stable.
+    public mutating func renameCluster(_ id: UUID, name: String) throws {
+        let name = try Self.validatedName(name)
+        guard let index = clusters.firstIndex(where: { $0.id == id }) else {
+            throw ConfigurationError.invalid("请选择集群分组。")
+        }
+        guard !clusters.contains(where: { $0.id != id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+            throw ConfigurationError.invalid("已有同名集群分组。")
+        }
+        clusters[index].name = name
+    }
     private static func validateDirectory(_ path: String) throws {
         guard path.hasPrefix("/"), !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
             throw ConfigurationError.invalid("集群工作目录必须是有效的绝对路径。")
@@ -69,6 +87,7 @@ public struct CodexClusterCatalog: Codable {
         conversations.removeAll { $0.clusterID == id }
         serverClusters = serverClusters.filter { $0.value != id }
         clusters.removeAll { $0.id == id }
+        if defaultClusterID == id { defaultClusterID = nil }
     }
     public func uniqueTitle(_ input: String, cluster: UUID, now: Date = Date()) throws -> String {
         let base = try Self.validatedName(input)

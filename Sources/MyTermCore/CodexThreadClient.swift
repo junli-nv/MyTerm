@@ -8,7 +8,9 @@ public final class CodexThreadClient {
     private let input = Pipe(), output = Pipe()
     private var buffer = Data()
     private var nextID = 0
-    public init(executable: String, environment: [String: String]) throws {
+    private let operationDeadline: TimeInterval?
+    public init(executable: String, environment: [String: String], operationDeadline: TimeInterval? = nil) throws {
+        self.operationDeadline = operationDeadline
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = CodexConnection.authenticationArguments + ["-c", #"mcp_servers.myterm={enabled=false,required=false,command="/usr/bin/false",args=[]}"#, "app-server", "--stdio"]
         process.environment = environment
@@ -38,16 +40,20 @@ public final class CodexThreadClient {
         try input.fileHandleForWriting.write(contentsOf: data)
     }
     public func call(_ method: String, params: [String: Any]) throws -> [String: Any] {
+        if let deadline = operationDeadline, ProcessInfo.processInfo.systemUptime >= deadline {
+            throw ConfigurationError.invalid("Codex 会话管理超时，请检查 CLI 和代理配置。")
+        }
         nextID += 1; let id = nextID
         try send(["id": id, "method": method, "params": params])
-        let deadline = ProcessInfo.processInfo.systemUptime + 30
+        let deadline = min(ProcessInfo.processInfo.systemUptime + 30, operationDeadline ?? .infinity)
         while ProcessInfo.processInfo.systemUptime < deadline {
             while let end = buffer.firstIndex(of: 10) {
                 let line = buffer.prefix(upTo: end); buffer.removeSubrange(...end)
                 guard let response = try JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
                 guard response["id"] as? Int == id else { continue }
                 if let error = response["error"] as? [String: Any] {
-                    throw ConfigurationError.invalid("Codex " + method + ": " + (error["message"] as? String ?? "Request failed"))
+                    throw CodexThreadRequestError(method: method, code: error["code"] as? Int,
+                        message: error["message"] as? String ?? "Request failed")
                 }
                 guard let result = response["result"] as? [String: Any] else { throw ConfigurationError.invalid("Codex 返回了无效的会话信息。") }
                 return result
@@ -77,10 +83,15 @@ public final class CodexThreadClient {
     }
     public func read(_ id: String, directory: String) throws -> String? {
         let result = try call("thread/read", params: ["threadId": id, "includeTurns": false])
-        guard let thread = result["thread"] as? [String: Any], let cwd = thread["cwd"] as? String,
+        guard let thread = result["thread"] as? [String: Any], thread["id"] as? String == id,
+              let cwd = thread["cwd"] as? String,
               URL(fileURLWithPath: cwd).resolvingSymlinksInPath() == URL(fileURLWithPath: directory).resolvingSymlinksInPath() else {
             throw ConfigurationError.invalid("该 Codex 对话不属于所选集群目录。")
         }
-        return thread["name"] as? String
+        let name = thread["name"] as? String
+        guard name == nil || (name!.count <= 1024 && !name!.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })) else {
+            throw ConfigurationError.invalid("Codex 返回了无效的会话信息。")
+        }
+        return name
     }
 }

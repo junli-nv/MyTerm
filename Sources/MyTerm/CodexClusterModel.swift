@@ -7,11 +7,14 @@ final class CodexClusterModel: ObservableObject {
     @Published private(set) var catalog = CodexClusterCatalog()
     @Published private(set) var busy = false
     @Published var message = ""
+    @Published private(set) var checks: [String: CodexConversationCheck] = [:]
+    @Published private(set) var checkedAt: Date?
+    private var refreshCancellation: Progress?
     private let root: URL
     private let index: URL
     private var loadFailed = false
     private(set) var cancelled = false
-    func cancelLaunch() { cancelled = true }
+    func cancelLaunch() { cancelled = true; refreshCancellation?.cancel() }
     init(root: URL) {
         self.root = root; index = root.appendingPathComponent("codex-clusters.json")
         do { catalog = try CodexClusterCatalog.load(from: index) }
@@ -25,6 +28,11 @@ final class CodexClusterModel: ObservableObject {
             try next.save(to: index); catalog = next; message = ""
             return cluster.id
         } catch { message = error.localizedDescription; return nil }
+    }
+    func defaultCluster() -> UUID? {
+        var id: UUID?
+        let saved = update { id = try $0.ensureDefaultCluster().id }
+        return saved ? id : nil
     }
     var defaultDirectory: URL { root.appendingPathComponent("CodexProjects") }
     var projectsDirectory: URL { catalog.projectsDirectory.map { URL(fileURLWithPath: $0) } ?? defaultDirectory }
@@ -54,6 +62,68 @@ final class CodexClusterModel: ObservableObject {
     }
     func removeCluster(_ id: UUID, openThreads: Set<String>) -> Bool {
         update { try $0.removeCluster(id, openThreads: openThreads) }
+    }
+    func renameCluster(_ id: UUID, name: String) {
+        update { try $0.renameCluster(id, name: name) }
+    }
+    /// Explicit, metadata-only refresh. A shared deadline bounds even a very large catalog.
+    func refresh(clusterID: UUID, bridge: CodexBridge) {
+        guard !busy, !loadFailed, !cancelled, let directory = directory(for: clusterID) else { return }
+        let records = conversations(in: clusterID)
+        guard !records.isEmpty else { return }
+        do {
+            let executable = try bridge.executable()
+            var environment = try bridge.saveConnection()
+            let relay = try bridge.socksRelay()
+            if let relay { environment = try relay.environment(base: environment) }
+            let cancellation = Progress(totalUnitCount: Int64(records.count))
+            refreshCancellation = cancellation
+            busy = true; message = "正在刷新对话元数据…"
+            for record in records { checks.removeValue(forKey: record.id) }
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                var results: [String: CodexConversationCheck] = [:]
+                let deadline = ProcessInfo.processInfo.systemUptime + 30
+                do {
+                    let client = try CodexThreadClient(executable: executable, environment: environment, operationDeadline: deadline)
+                    defer { client.close(); withExtendedLifetime(relay) {} }
+                    var failure: String?
+                    for record in records {
+                        if cancellation.isCancelled { break }
+                        if failure != nil {
+                            results[record.id] = .unverified(reason: "前一项检查失败，本项未检查；请重试。")
+                            continue
+                        }
+                        let result = CodexConversationCheck.read(id: record.id, directory: directory.path, client: client)
+                        results[record.id] = result
+                        // Stop on an ambiguous error rather than repeatedly hammering a broken host.
+                        if case .unverified(let reason) = result { failure = reason }
+                    }
+                } catch {
+                    for record in records { results[record.id] = .unverified(reason: error.localizedDescription) }
+                }
+                let completed = results
+                RunLoop.main.perform { [self] in
+                    busy = false; refreshCancellation = nil
+                    guard !cancelled else { return }
+                    checks.merge(completed) { _, new in new }; checkedAt = Date()
+                    do {
+                        var next = try CodexClusterCatalog.load(from: index)
+                        for i in next.conversations.indices {
+                            let record = next.conversations[i]
+                            guard record.clusterID == clusterID else { continue }
+                            if case .available(let name) = completed[record.id], let name, !name.isEmpty {
+                                next.conversations[i].title = name
+                            }
+                        }
+                        try next.save(to: index); catalog = next
+                        message = "刷新完成；状态仅代表本次检查，不会自动删除记录。"
+                    } catch { message = error.localizedDescription }
+                }
+            }
+        } catch {
+            for record in records { checks[record.id] = .unverified(reason: error.localizedDescription) }
+            message = error.localizedDescription
+        }
     }
     func conversations(in cluster: UUID?) -> [CodexClusterConversation] {
         catalog.conversations.filter { $0.clusterID == cluster }.sorted { $0.lastOpened > $1.lastOpened }

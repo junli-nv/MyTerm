@@ -28,7 +28,7 @@ struct CodexSessionChooser: View {
                 selection.selected = nil; selection.includeHistory = false; selection.execute = true
                 selection.conversationTitle = L10n.text("日常运维")
                 if selection.clusterID == nil {
-                    selection.clusterID = clusters.add("Default")
+                    selection.clusterID = clusters.defaultCluster()
                     selection.conversationID = nil; selection.resume = false
                 }
             }
@@ -81,17 +81,20 @@ struct CodexSessionChooser: View {
     }
     private var clusterForm: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("集群与对话").font(.headline)
+            Text("MyTerm 集群分组与对话").font(.headline)
             Toggle("从全部 Codex 历史中恢复（旧版入口）", isOn: $selection.legacyPicker)
             if selection.legacyPicker {
                 Text("在 Codex 原生列表中选择旧对话；重新关联本次 SSH，不自动归入集群。")
                     .font(.caption).fixedSize(horizontal: false, vertical: true)
             } else {
-                Picker("集群", selection: Binding(get: { selection.clusterID }, set: { selectCluster($0) })) {
-                    if !clusters.catalog.clusters.contains(where: { $0.name == "Default" }) {
-                        Text("默认项目").tag(Optional<UUID>.none)
+                Picker("MyTerm 集群分组", selection: Binding(get: { selection.clusterID }, set: { selectCluster($0) })) {
+                    if selection.clusterID == nil {
+                        Text("请选择集群分组。").tag(Optional<UUID>.none)
                     }
-                    ForEach(clusters.catalog.clusters) { cluster in Text(cluster.name == "Default" ? L10n.text("默认项目") : cluster.name).tag(Optional(cluster.id)) }
+                    ForEach(clusters.catalog.clusters) { cluster in
+                        Text(cluster.id == clusters.catalog.defaultClusterID && cluster.name == "Default" ? L10n.text("默认分组") : cluster.name)
+                            .tag(Optional(cluster.id))
+                    }
                 }
                 HStack {
                     TextField("新集群名称", text: $selection.clusterName)
@@ -106,7 +109,10 @@ struct CodexSessionChooser: View {
                                 Button { selection.conversationID = conversation.id } label: {
                                     HStack(alignment: .top) {
                                         Image(systemName: selection.conversationID == conversation.id ? "largecircle.fill.circle" : "circle")
-                                        Text(conversation.title).fixedSize(horizontal: false, vertical: true)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(conversation.title).fixedSize(horizontal: false, vertical: true)
+                                            CodexConversationStatus(check: clusters.checks[conversation.id])
+                                        }
                                         Spacer()
                                         Text(conversation.lastOpened, style: .date).font(.caption).foregroundStyle(.secondary)
                                     }.contentShape(Rectangle())
@@ -118,9 +124,15 @@ struct CodexSessionChooser: View {
                 } else {
                     TextField("对话名称（默认日常运维）", text: $selection.conversationTitle)
                 }
-                CodexClusterManagement(clusters: clusters, workspace: workspace, selection: selection)
-                Text("集群是稳定的项目分类，SSH 只是连接入口。继续对话保留名称与历史；新建同名对话才追加日期和时分秒。恢复后请先确认当前目标。")
+                CodexClusterManagement(clusters: clusters, workspace: workspace, selection: selection, bridge: bridge)
+                Text("分组由 MyTerm 管理，不与 Codex 原生项目同步。SSH 是本次连接目标；继续对话保留历史，启动前请核对目标。")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                if selection.resume, let conversation = clusters.conversations(in: selection.clusterID).first(where: { $0.id == selection.conversationID }) {
+                    Text(L10n.text("继续对话：") + conversation.title).font(.caption)
+                }
+                if let target = workspace.sessions.first(where: { $0.id == selection.selected }) {
+                    Text(L10n.text("关联 SSH：") + target.label).font(.caption)
+                }
             }
             if !clusters.message.isEmpty { Text(L10n.text(clusters.message)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
             if !bridge.message.isEmpty { Text(L10n.text(bridge.message)).font(.caption).fixedSize(horizontal: false, vertical: true) }
@@ -138,7 +150,7 @@ struct CodexSessionChooser: View {
                 if selection.legacyPicker {
                     bridge.launch(sessionID: selection.selected, includeHistory: selection.includeHistory,
                         execute: selection.execute, limits: bridge.launchExecutionSettings, resume: true)
-                } else if let clusterID = selection.clusterID ?? clusters.add("Default") {
+                } else if let clusterID = selection.clusterID ?? clusters.defaultCluster() {
                     let target = selection.selected
                     let includeHistory = selection.includeHistory, execute = selection.execute
                     let limits = bridge.launchExecutionSettings

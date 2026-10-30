@@ -106,6 +106,8 @@ Jump-host regressions cover independent persistence, reference protection, propa
 
 - `scripts/codex-cluster-check.py .build/release/MyTermChecks`: real Codex create/name/rename/persistence, directory isolation and native UUID resume with isolated CODEX_HOME and a loopback mock provider; no model requests.
 
+Cluster refresh regressions also cover stable default-group identity and directory after renaming, preserved records on failure, retry updating titles without changing last-opened dates, initial/loading states and cancellation. A real CLI response of `thread not loaded` stays unverified rather than implying deletion; missing status requires a recognized explicit protocol error.
+
 MCP diagnostic pipe regression: `python scripts/mcp-diagnostics-check.py /path/to/MyTerm.app` uses isolated temporary files to cover handshake, discovery, EOF, malformed input, size limits, closed output pipes and privacy boundaries without calling SSH tools. Packaging, DMG and installation checks all run it.
 
 Diagnostic-summary regressions cover Chinese/English explanations, unchecked/no-event states, unknown reasons without raw-text echo, normal EOF, dropped events, failing helpers alongside a successful probe, and both readable files matching the original metadata in the actual ZIP.
