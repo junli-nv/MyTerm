@@ -925,7 +925,7 @@
 
 "按页翻动" = "Page Up / Page Down";
 
-"默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。" = "Fast scrolling (4×) is the default. Page mode sends Page Up / Page Down, useful after entering tmux copy mode. This also affects other full-screen programs; normal shell history, mouse wheels and Ctrl font zoom are unchanged.";
+"默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序，但内置 Codex 标签始终使用标准滚动；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。" = "Fast scrolling (4×) is the default. Page mode sends Page Up / Page Down, useful after entering tmux copy mode. This also affects other full-screen programs, but built-in Codex tabs always use standard scrolling. Normal shell history, mouse wheels and Ctrl font zoom are unchanged.";
 
 "queued" = "Queued";
 
@@ -1485,3 +1485,20 @@
 "未找到对话；可重试或移除记录" = "Conversation not found; retry or remove the entry";
 "暂时无法验证；请检查 CLI、代理和权限后重试" = "Unable to verify; check the CLI, proxy and permissions, then retry";
 "前一项检查失败，本项未检查；请重试。" = "A previous check failed; this conversation was not checked. Retry to continue.";
+"端口转发状态与开关" = "Port forwarding status and controls";
+"开关仅作用于当前 SSH 连接；重连重新开启配置中的规则。已开启不代表目标服务可达。" = "Controls affect only this SSH connection. Reconnecting enables the configured rules again. Enabled does not guarantee destination reachability.";
+"等待 SSH" = "Waiting for SSH";
+"正在开启" = "Enabling";
+"已开启" = "Enabled";
+"正在关闭" = "Disabling";
+"已关闭" = "Disabled";
+"开启失败" = "Failed to enable";
+"状态待确认" = "State uncertain";
+"SSH 已断开" = "SSH disconnected";
+"本地转发" = "Local forwarding";
+"远程转发" = "Remote forwarding";
+"动态 SOCKS 转发" = "Dynamic SOCKS forwarding";
+"开启" = "Enable";
+"关闭转发" = "Disable";
+"请求超时，转发状态待确认。可重试开启或关闭。" = "Request timed out; forwarding status is uncertain. Retry enabling or disabling.";
+"SSH 未能完成转发请求，请检查连接和规则。" = "SSH could not complete the forwarding request. Check the connection and rule.";

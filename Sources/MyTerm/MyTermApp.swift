@@ -484,9 +484,10 @@ struct TerminalStatusBarButton: View {
     @ObservedObject var session: TerminalSession
     var body: some View {
         HStack(spacing: 4) {
-        TabBarButton(symbol: "rectangle.bottomthird.inset.filled", tooltip: "展开 / 收起底部状态栏", identifier: "tabbar.status", selected: session.statusBarVisible) {
-            session.statusBarVisible.toggle()
-        }.frame(width: 28, height: 28).contentShape(Rectangle())
+            SSHForwardButton(model: session.forwarding)
+            TabBarButton(symbol: "rectangle.bottomthird.inset.filled", tooltip: "展开 / 收起底部状态栏", identifier: "tabbar.status", selected: session.statusBarVisible) {
+                session.statusBarVisible.toggle()
+            }.frame(width: 28, height: 28).contentShape(Rectangle())
         }.padding(.trailing, 4)
     }
 }

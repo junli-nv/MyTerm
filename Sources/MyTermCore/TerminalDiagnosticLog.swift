@@ -9,12 +9,15 @@ public final class TerminalDiagnosticLog {
         public var columns: Int, rows: Int, viewportRow: Int
         public var scrollPosition: Double
         public var alternate: Bool, selection: Bool, composing: Bool, focused: Bool
+        public var mouseReporting: Bool?
+        public var applicationScrolling: Bool?
         public var keyboardFlags: UInt32
         public init(columns: Int = 0, rows: Int = 0, viewportRow: Int = 0, scrollPosition: Double = 1,
                     alternate: Bool = false, selection: Bool = false, composing: Bool = false,
-                    focused: Bool = false, keyboardFlags: UInt32 = 0) {
+                    focused: Bool = false, keyboardFlags: UInt32 = 0, mouseReporting: Bool? = nil, applicationScrolling: Bool? = nil) {
             self.columns = columns; self.rows = rows; self.viewportRow = viewportRow; self.scrollPosition = scrollPosition
             self.alternate = alternate; self.selection = selection; self.composing = composing
+            self.mouseReporting = mouseReporting; self.applicationScrolling = applicationScrolling
             self.focused = focused; self.keyboardFlags = keyboardFlags
         }
     }

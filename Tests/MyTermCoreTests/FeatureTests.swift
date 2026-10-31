@@ -28,6 +28,13 @@ final class FeatureTests {
         checkEqual(args.contains("KbdInteractiveAuthentication=yes"), true)
         checkEqual(args.contains("-L"), true); checkEqual(args.contains("-R"), true); checkEqual(args.contains("-D"), true)
         checkEqual(args.contains("ExitOnForwardFailure=yes"), true)
+        let managed = try server.sshArguments(controlPath: "/tmp/check", includeForwards: false)
+        checkFalse(managed.contains("-L")); checkFalse(managed.contains("ExitOnForwardFailure=yes"))
+        let control = try SSHForwardControl.arguments(controlPath: "/tmp/check", operation: .cancel, rule: server.forwards![0])
+        checkEqual(control.suffix(2), ["--", "myterm-control"][...])
+        checkEqual(control.contains("cancel"), true)
+        checkThrows(try SSHForwardControl.arguments(controlPath: "invalid", operation: .check))
+        checkThrows(try SSHForwardControl.arguments(controlPath: "/tmp/check", operation: .forward))
         let config = try server.proxyJumpConfig(userConfig: "/tmp/config original")!
         checkEqual(config.contains("Host bastion\n"), true)
         checkEqual(config.contains(" http "), true)

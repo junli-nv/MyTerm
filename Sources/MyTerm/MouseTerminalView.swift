@@ -42,13 +42,15 @@ class MouseTerminalView: LocalProcessTerminalView {
     let diagnosticTrace = TerminalDiagnosticTrace()
     var onPaneFocus: (() -> Void)?
     var paneIsActive = true
+    /// Built-in Codex owns its full-screen navigation; tmux speed/page preferences must not alter it.
+    var usesApplicationScrolling = false
     private var tmuxPrefixInput = TmuxPrefixInput()
     private var fullscreenScrollGesture = FullscreenScrollGesture()
     private var lastFullscreenScrollMode: FullscreenScrollMode?
 
     override func scrollWheel(with event: NSEvent) {
         defer { diagnosticTrace.record(.scroll, view: self) }
-        let mode = preferences.fullscreenScroll
+        let mode: FullscreenScrollMode = usesApplicationScrolling ? .standard : preferences.fullscreenScroll
         if lastFullscreenScrollMode != mode {
             fullscreenScrollGesture.reset(); lastFullscreenScrollMode = mode
         }

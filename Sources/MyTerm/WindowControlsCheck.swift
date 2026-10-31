@@ -32,6 +32,7 @@ final class WindowControlsCheck {
             try TerminalDiagnosticsCheck.run(workspace: workspace)
             try TerminalCopyCheck.run()
             try SSHDisconnectCheck.run()
+            try SSHForwardCheck.run()
             try OutputHighlightCheck.run()
             try ThemeColorCheck.run()
             ThemeLayoutCheck.run()

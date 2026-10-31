@@ -146,3 +146,9 @@ This is the local state at this handoff, not automatically updated GitHub status
 ## Ongoing maintenance
 
 Update both languages when scope, core behavior, authorization, release workflow or known-issue status changes. Record evidence when resolving an issue rather than just deleting it. Keep transient investigation data in diagnostic reports, not here, and exclude logs and secrets. Date snapshot updates and recheck Git/version state; never silently present old snapshots as live status. README/topic guides cover usage, CHANGELOG covers version history, AGENTS covers operating rules, and this document preserves rationale and constraints easily lost across conversations.
+
+## 2026-10-31: forwarding and Codex scrolling
+
+MyTerm forwarding rules now start after authentication via bounded ControlMaster requests. Session-only switches never edit saved rules. Duplicate specifications share one switch. Failure preserves SSH; enabled is listener acceptance, not target reachability. External SSH-config rules remain unmanaged. Reconnect resets switches. Late replies must not revive a stopped generation.
+
+Built-in Codex tabs use standard application wheel routing, isolated from tmux/full-screen Fast and Page settings. Fractional motion resets across buffer/routing changes and new gestures. No forced `--no-alt-screen` or global configuration changes. Real user scroll jumps remain unconfirmed; protocol regressions alone do not prove resolution. Diagnostics now include optional mouse-reporting and built-in application-routing flags, without text.

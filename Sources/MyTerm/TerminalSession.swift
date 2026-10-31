@@ -7,9 +7,12 @@ import Combine
 final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProcessTerminalViewDelegate {
     weak var codexExecutionBridge: CodexBridge?
     var codexTargetSessionID: UUID?
-    var isCodexSession = false
+    var isCodexSession = false {
+        didSet { terminal.usesApplicationScrolling = isCodexSession }
+    }
     var codexThreadID: String?
     private(set) var inputGeneration = UUID()
+    let forwarding = SSHForwardModel()
     let id = UUID()
     let startedAt = Date()
     @Published var historyLogging: HistoryLoggingMode = .inherit
@@ -93,7 +96,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
                 do {
                     let resolved = try SSHConfigurationResolver.resolvingJump(server)
                     let context = try SSHLaunchContext(server: resolved)
-                    let args = try resolved.sshArguments(controlPath: context.controlPath, configPath: context.configPath)
+                    let args = try resolved.sshArguments(controlPath: context.controlPath, configPath: context.configPath, includeForwards: false)
                     DispatchQueue.main.async {
                         guard let self, !self.stopped else { return }
                         self.server = resolved; self.connectionContext = context; self.arguments = args
@@ -168,12 +171,16 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
             environment: environment.map { "\($0.key)=\($0.value)" },
             currentDirectory: directory)
         isRunning = terminal.process.running
+        if isRunning, executable == "/usr/bin/ssh", let server, let context = connectionContext {
+            forwarding.start(rules: server.forwards ?? [], context: context)
+        }
         status = isRunning ? (executable == "/usr/bin/ssh" ? "SSH 进程运行中" : "Bash") : "启动失败"
         if !isRunning, executable == "/usr/bin/ssh" { connectionFailed("SSH 启动失败") }
     }
 
     private func connectionFailed(_ message: String) {
         guard !stopped else { return }
+        forwarding.stop()
         canReconnect = true
         status = "\(message) · 按 R 重新连接"
         terminal.reconnectHandler = { [weak self] in self?.reconnect() }
@@ -206,6 +213,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
 
     func stop() {
         if retainOnExit { let completion = onProcessExit; onProcessExit = nil; completion?(nil) }
+        forwarding.stop()
         launchProxy = nil
         stopped = true
         canReconnect = false; terminal.reconnectHandler = nil
@@ -249,6 +257,7 @@ final class TerminalSession: NSObject, ObservableObject, Identifiable, LocalProc
     func handleProcessTermination(exitCode: Int32?) {
         guard !stopped else { return }
         isRunning = false
+        forwarding.stop()
         authentication?.stop(); authentication = nil
         sftp?.stop(); sftp = nil
         if retainOnExit {

@@ -1139,6 +1139,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
     
     open func bufferActivated(source: Terminal) {
+        scrollAccumulator = 0
+        scrollRoute = nil
         // Coordinates from another screen buffer must not select unrelated text.
         selection.selectNone()
         updateScroller ()
@@ -3211,6 +3213,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// Leftover fractional trackpad scroll (in points) carried between events so
     /// sub-cell precise deltas accumulate instead of being dropped.
     private var scrollAccumulator: CGFloat = 0
+    private var scrollRoute: Int?
+    private var scrollEventTime: TimeInterval = 0
 
     /// Multiplier applied to wheel/trackpad scroll deltas. `1.0` scrolls at the
     /// system's native rate; values below `1.0` slow scrolling down, above speed
@@ -3232,6 +3236,15 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
 
         let reportsMouse = allowMouseReporting && !shiftBypassesMouseReporting(for: event) && terminal.mouseMode != .off
+
+        // Fractional pixels belong to one gesture and one destination. Never
+        // carry application mouse motion into normal history (or vice versa).
+        let route = (terminal.isDisplayBufferAlternate ? 2 : 0) + (reportsMouse ? 1 : 0)
+        if route != scrollRoute || event.phase.contains(.began) || event.timestamp - scrollEventTime > 0.3 {
+            scrollAccumulator = 0
+        }
+        scrollRoute = route
+        scrollEventTime = event.timestamp
 
         // Alternate Scroll Mode (DECSET 1007): while the alternate screen is
         // active and the application is not tracking the mouse, the wheel is

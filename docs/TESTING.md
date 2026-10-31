@@ -111,3 +111,5 @@ SSH 配置检查回归覆盖仍被跳板引用的已删除节点、当前与快�
 MCP 诊断管道回归：`python scripts/mcp-diagnostics-check.py /path/to/MyTerm.app`，使用隔离临时文件，覆盖握手、工具发现、EOF、错误输入、大小上限、关闭输出管道及隐私边界，不调用 SSH 工具。打包、DMG 和安装检查都会运行。
 
 诊断摘要回归覆盖中英文说明、未检查及无事件状态、未知原因不回显原文、正常 EOF、事件丢失、多个辅助进程与成功主动检查并存时的故障解释，以及实际 ZIP 中两种摘要与原始元数据的一致性。
+
+端口转发回归：`scripts/codex-execution-check.py` 使用隔离本机 sshd 和回显服务验证真实 ControlMaster 操作，包括本地/远程/SOCKS 数据、关闭/重开、端口占用及 SSH 保持。`SSHForwardCheck` 覆盖等待、失败、重试、关闭、过期回调和双语面板边界。`FullscreenScrollCheck`/`TerminalScrollCheck` 验证 Codex 滚轮隔离与屏幕切换的小数滚动量。用户实际 Codex 长时间滚动仍需现场验证。

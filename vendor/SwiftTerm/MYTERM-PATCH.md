@@ -22,3 +22,6 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 
 - Sending input resumes normal-buffer output following even when selection paused scrolling with the caret still visible. Completed or empty IME preedit clears Kitty composition state before later keyboard-protocol negotiation. Expose macOS `keyUp` and `becomeFirstResponder` for opt-in metadata diagnostics; no key contents are recorded.
 - 输入时即使光标仍在视口内，也解除选中文本造成的滚动暂停；组合输入提交或清空时重置 Kitty 组合状态。开放 macOS `keyUp` 和 `becomeFirstResponder` 供可选的元数据诊断使用，不记录按键正文。
+
+- macOS fractional wheel accumulation resets on buffer activation, routing changes, a new gesture or a gap over 300 ms. Motion belonging to an application must not leak into terminal history. MyTerm's built-in Codex tabs bypass its fast/page override; native mouse reporting and alternate-scroll protocol remain intact.
+- macOS 在缓冲区激活、滚动路由改变、新手势或间隔超过 300 ms 时清除小数滚动量，防止程序滚动残留影响终端历史。MyTerm 内置 Codex 标签跳过快速/按页覆盖，保留鼠标报告及备用屏幕协议。

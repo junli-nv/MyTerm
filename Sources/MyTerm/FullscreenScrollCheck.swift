@@ -53,6 +53,23 @@ enum FullscreenScrollCheck {
         terminal.feed(text: "\u{1b}[?1049l"); terminal.bytes = []
         terminal.scrollWheel(with: wheel(120))
         try require(terminal.bytes.isEmpty, "Normal shell received page keys")
+        terminal.usesApplicationScrolling = true
+        terminal.feed(text: "\u{1b}[?1049h\u{1b}[?1000h\u{1b}[?1006h")
+        var counts: [Int] = []
+        for mode in FullscreenScrollMode.allCases {
+            preferences.fullscreenScroll = mode
+            terminal.bytes = []
+            terminal.scrollWheel(with: wheel(120))
+            let report = String(decoding: terminal.bytes, as: UTF8.self)
+            try require(report.contains("[<64;") && !report.contains("[5~"), "Codex wheel replaced by page keys")
+            counts.append(terminal.bytes.count)
+        }
+        try require(Set(counts).count <= 2 && (counts.max()! - counts.min()!) < 20, "Codex inherited 4x acceleration")
+        let session = TerminalSession(label: "Codex routing", executable: "/bin/bash", arguments: [])
+        session.isCodexSession = true
+        try require(session.terminal.usesApplicationScrolling, "Launch did not enable Codex scroll isolation")
+        session.stop()
+        print("PASS: Codex wheel protocol unaffected by full-screen page/fast preferences")
         print("PASS: actual trackpad events: page key encoding, accelerated full-screen navigation, standard shell and mouse-wheel isolation")
     }
 }

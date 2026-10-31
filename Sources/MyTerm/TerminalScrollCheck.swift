@@ -45,6 +45,24 @@ enum TerminalScrollCheck {
         view.feed(text: "\u{1b}[?1049h\u{1b}[?1000h\u{1b}[?1006h")
         view.scrollWheel(with: NSEvent(cgEvent: wheel)!)
         try require(!view.bytes.isEmpty, "Alternate-screen mouse reporting was disabled")
+        // Real fractional trackpad input must not survive a buffer round trip.
+        let fractional = RecordingTerminal(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        fractional.usesApplicationScrolling = true
+        fractional.feed(text: "\u{1b}[?1049h\u{1b}[?1000h\u{1b}[?1006h")
+        let pixel = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 1, wheel2: 0, wheel3: 0)!
+        var threshold = 0
+        while fractional.bytes.isEmpty && threshold < 100 {
+            fractional.scrollWheel(with: NSEvent(cgEvent: pixel)!); threshold += 1
+        }
+        try require(threshold > 1 && threshold < 100, "Cannot calibrate fractional wheel")
+        fractional.feed(text: "\u{1b}[?1049l\u{1b}[?1049h")
+        fractional.bytes = []
+        for _ in 0..<(threshold - 1) { fractional.scrollWheel(with: NSEvent(cgEvent: pixel)!) }
+        try require(fractional.bytes.isEmpty, "Fractional pixels emitted a premature wheel report")
+        fractional.feed(text: "\u{1b}[?1049l\u{1b}[?1049h")
+        fractional.scrollWheel(with: NSEvent(cgEvent: pixel)!)
+        try require(fractional.bytes.isEmpty, "Buffer switch retained a previous gesture")
+        print("PASS: fractional trackpad motion reset on alternate-screen transitions")
         print("PASS: terminal history anchor during synchronized output and buffer recycling; resume at bottom")
     }
 }

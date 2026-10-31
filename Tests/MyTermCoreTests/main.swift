@@ -32,6 +32,14 @@ if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--codex-cluste
     print(id)
     exit(0)
 }
+if CommandLine.arguments.count == 7, CommandLine.arguments[1] == "--forward-fixture" {
+    let rule = PortForward(kind: ForwardKind(rawValue: CommandLine.arguments[4])!,
+                           listenPort: CommandLine.arguments[5], destinationPort: CommandLine.arguments[6])
+    let result = SSHForwardControl.run(controlPath: CommandLine.arguments[2],
+                                      operation: SSHForwardControl.Operation(rawValue: CommandLine.arguments[3])!, rule: rule)
+    print(result.detail)
+    exit(result.succeeded ? 0 : 1)
+}
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--codex-execution-fixture" {
     let arguments = try CodexExecutionPolicy.arguments(controlPath: CommandLine.arguments[2], host: "127.0.0.1", command: """
     printf 'mux-execution-fixture\\n'

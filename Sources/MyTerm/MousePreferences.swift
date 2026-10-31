@@ -106,7 +106,7 @@ private struct MouseSettingsView: View {
             Picker("全屏终端触摸板", selection: $preferences.fullscreenScroll) {
                 ForEach(FullscreenScrollMode.allCases, id: \.self) { mode in Text(L10n.text(mode.title)).tag(mode) }
             }
-            Text("默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。")
+            Text("默认快速滚动（4 倍）。按页模式发送 Page Up / Page Down，适合进入 tmux 复制模式后翻阅。此设置也影响其他全屏程序，但内置 Codex 标签始终使用标准滚动；普通 Shell 历史、鼠标滚轮和 Ctrl 字体缩放不变。")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Divider()
             Toggle("禁用终端响铃", isOn: $preferences.disableBell)

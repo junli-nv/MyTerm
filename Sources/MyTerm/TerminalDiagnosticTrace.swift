@@ -12,7 +12,9 @@ final class TerminalDiagnosticTrace {
         return .init(columns: terminal.cols, rows: terminal.rows, viewportRow: terminal.buffer.yDisp,
                      scrollPosition: view.scrollPosition, alternate: terminal.isDisplayBufferAlternate,
                      selection: view.selection.active, composing: view.hasMarkedText(),
-                     focused: view.window?.firstResponder === view, keyboardFlags: UInt32(clamping: terminal.keyboardEnhancementFlags.rawValue))
+                     focused: view.window?.firstResponder === view, keyboardFlags: UInt32(clamping: terminal.keyboardEnhancementFlags.rawValue),
+                     mouseReporting: view.allowMouseReporting && terminal.mouseMode != .off,
+                     applicationScrolling: view.usesApplicationScrolling)
     }
     func record(_ event: TerminalDiagnosticLog.Event, view: MouseTerminalView) {
         let log = TerminalDiagnostics.shared.log

@@ -130,7 +130,7 @@ public struct Server: Identifiable, Codable, Equatable {
         return args
     }
 
-    public func sshArguments(controlPath: String? = nil, configPath: String? = nil) throws -> [String] {
+    public func sshArguments(controlPath: String? = nil, configPath: String? = nil, includeForwards: Bool = true) throws -> [String] {
         // Remote consoles (e.g. ipmitool) own ~. and other escape sequences.
         // Disable only this outer interactive SSH client's escape processing.
         var args = ["-tt", "-e", "none"]
@@ -138,7 +138,7 @@ public struct Server: Identifiable, Codable, Equatable {
         if let controlPath {
             args += ["-o", "ControlMaster=auto", "-o", "ControlPersist=no", "-o", "ControlPath=\(controlPath)"]
         }
-        if !(forwards ?? []).isEmpty {
+        if includeForwards && !(forwards ?? []).isEmpty {
             args += ["-o", "ExitOnForwardFailure=yes"]
             for forward in forwards ?? [] { args += try forward.arguments() }
         }
