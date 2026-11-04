@@ -368,6 +368,10 @@ Codex SSH 执行支持多行脚本，保留整段审批和输出读取限制。 
 
 Build 145 · Apple Silicon (arm64) · macOS 14 or later
 
+## 3.4.6
+
+SSH 密码支持直接复制和原生文本选择；保留失焦隐藏。 [Release notes](packaging/RELEASE-NOTES-3.4.6.md)
+
 ## 中文
 
 - “关于 MyTerm”和中英文 README 增加作者 Junli Zhang 与 GitHub 主页。

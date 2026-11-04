@@ -16,6 +16,8 @@ enum CredentialSettingsCheck {
         let store = SQLitePasswordStore(directory: directory)
         for index in 0..<8 { try store.save("synthetic secret", account: index == 0 ? account : "legacy-\(index)", label: "Fixture \(index) · user@credential-fixture.invalid's password:") }
         try store.rename(account, name: String(repeating: "长名称", count: 40))
+        let clipboard = NSPasteboard(name: .init("MyTerm.CredentialCheck." + UUID().uuidString))
+        defer { clipboard.releaseGlobally() }
         let state = CredentialSettingsState(store: store)
         state.entries = try store.list()
         state.associations = CredentialSettingsState.matching(state.entries, references: [
@@ -35,6 +37,17 @@ enum CredentialSettingsCheck {
         state.toggleReveal(entry)
         try require(state.revealed[account] == "updated synthetic secret", "Reveal returned stale password")
         state.hideAll()
+        let secret = "  合成密码 'quotes' \\ $ ! 🔐  "
+        try store.save(secret, account: account)
+        state.copyPassword(entry, to: clipboard)
+        try require(clipboard.string(forType: .string) == secret && state.revealed.isEmpty,
+                    "Hidden copy changed visibility or password bytes")
+        try require(state.message == "密码已复制。", "Copy lacks success feedback")
+        state.toggleReveal(entry)
+        try store.save("newest synthetic secret", account: account)
+        state.copyPassword(entry, to: clipboard)
+        try require(clipboard.string(forType: .string) == "newest synthetic secret", "Copy used stale revealed value")
+        state.hideAll()
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
         for locale in [InterfaceLanguage.english, .chinese] {
             language.selection = locale
@@ -52,12 +65,27 @@ enum CredentialSettingsCheck {
                 }
             }
             state.toggleReveal(entry)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1)); root.layoutSubtreeIfNeeded()
+            guard let field = descendants(root).compactMap({ $0 as? NSTextField }).first(where: { $0.identifier?.rawValue == "credentials.revealed" }) else {
+                throw ConfigurationError.invalid("Revealed password field missing")
+            }
+            try require(field.isSelectable && !field.isEditable, "Password field must be selectable and read-only")
+            field.selectText(nil)
+            guard let editor = field.currentEditor() as? NSTextView else {
+                throw ConfigurationError.invalid("Password selection has no native editor")
+            }
+            editor.setSelectedRange(NSRange(location: 0, length: (field.stringValue as NSString).length))
+            try require(editor.writeSelection(to: clipboard, types: editor.writablePasteboardTypes), "Native selection cannot copy")
+            try require(clipboard.string(forType: .string) == "newest synthetic secret", "Native copy changed password")
             NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
             try require(state.revealed.isEmpty, "Losing focus did not hide password")
             state.toggleReveal(entry)
             NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: NSApp)
             try require(state.revealed.isEmpty, "Switching applications did not hide password")
         }
-        print("PASS: password names, session associations, reveal/hide, focus privacy, Chinese/English scrollable layout")
+        try store.delete(account)
+        state.copyPassword(entry, to: clipboard)
+        try require(state.message == "密码记录已不存在，请刷新。" && clipboard.string(forType: .string) == "newest synthetic secret", "Missing password overwrote clipboard or reported success")
+        print("PASS: hidden password copy, latest stored value, Unicode/whitespace, missing record, native selection; password names, session associations, reveal/hide, focus privacy, Chinese/English scrollable layout")
     }
 }

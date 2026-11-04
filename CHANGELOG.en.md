@@ -333,6 +333,10 @@ Add local Bash integration with shared Codex proxy settings and independent SSH 
 
 <a id="version-3.1.1"></a>
 
+## 3.4.6
+
+Direct password copying and native text selection; focus-loss hiding retained. [Release notes](packaging/RELEASE-NOTES-3.4.6.md)
+
 ## MyTerm 3.1.1
 
 Support multiline Codex SSH scripts while retaining whole-script approval and output limits. [Release notes](packaging/RELEASE-NOTES-3.1.1.md).

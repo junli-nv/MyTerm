@@ -152,3 +152,7 @@ Update both languages when scope, core behavior, authorization, release workflow
 MyTerm forwarding rules now start after authentication via bounded ControlMaster requests. Session-only switches never edit saved rules. Duplicate specifications share one switch. Failure preserves SSH; enabled is listener acceptance, not target reachability. External SSH-config rules remain unmanaged. Reconnect resets switches. Late replies must not revive a stopped generation.
 
 Built-in Codex tabs use standard application wheel routing, isolated from tmux/full-screen Fast and Page settings. Fractional motion resets across buffer/routing changes and new gestures. No forced `--no-alt-screen` or global configuration changes. Real user scroll jumps remain unconfirmed; protocol regressions alone do not prove resolution. Diagnostics now include optional mouse-reporting and built-in application-routing flags, without text.
+
+## 2026-11-04: password copying
+
+Password management supports copying without revealing, always reading current storage rather than the reveal cache. Feedback excludes secrets. Revealed passwords use a native selectable read-only field; list buttons act independently. Focus-loss hiding remains. Tests use synthetic credentials and an isolated pasteboard.

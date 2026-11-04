@@ -76,6 +76,17 @@ final class CredentialSettingsState: ObservableObject {
             revealed[entry.id] = password
         } catch { message = error.localizedDescription }
     }
+    func copyPassword(_ entry: StoredPasswordInfo, to pasteboard: NSPasteboard = .general) {
+        do {
+            // Read the latest stored value, independently of visibility and selection.
+            guard let password = try store.read(entry.id) else { message = "密码记录已不存在，请刷新。"; return }
+            let item = NSPasteboardItem()
+            item.setString(password, forType: .string)
+            item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+            pasteboard.clearContents()
+            message = pasteboard.writeObjects([item]) ? "密码已复制。" : "复制密码失败，请重试。"
+        } catch { message = error.localizedDescription }
+    }
     func rename(_ entry: StoredPasswordInfo, name: String) throws {
         try store.rename(entry.id, name: name)
         entries = try store.list()
@@ -144,13 +155,13 @@ struct CredentialSettingsView: View {
                     HStack(spacing: 12) {
                         Button("设置名称…") { state.promptRename(entry) }
                         Button(L10n.text(state.revealed[entry.id] == nil ? "查看密码" : "隐藏密码")) { state.toggleReveal(entry) }
+                        Button("复制密码") { state.copyPassword(entry) }
+                            .accessibilityIdentifier("credentials.copy." + entry.id)
                         Button("更新密码…") { state.update(entry) }
                         Button("删除", role: .destructive) { state.delete(entry) }
-                    }
+                    }.buttonStyle(.borderless)
                     if let password = state.revealed[entry.id] {
-                        ScrollView(.horizontal) {
-                            Text(verbatim: password).font(.system(.body, design: .monospaced)).textSelection(.enabled).fixedSize()
-                        }.frame(height: 32).privacySensitive()
+                        CredentialPasswordField(password: password).frame(height: 28).privacySensitive()
                     } else { Text("••••••••").font(.system(.body, design: .monospaced)).foregroundStyle(.secondary) }
                 }.padding(.vertical, 8)
             }

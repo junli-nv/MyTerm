@@ -1502,3 +1502,6 @@
 "关闭转发" = "Disable";
 "请求超时，转发状态待确认。可重试开启或关闭。" = "Request timed out; forwarding status is uncertain. Retry enabling or disabling.";
 "SSH 未能完成转发请求，请检查连接和规则。" = "SSH could not complete the forwarding request. Check the connection and rule.";
+"复制密码" = "Copy Password";
+"密码已复制。" = "Password copied.";
+"复制密码失败，请重试。" = "Could not copy the password. Try again.";
