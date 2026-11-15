@@ -308,6 +308,14 @@ class MouseTerminalView: LocalProcessTerminalView {
         copy(self)
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        // A paste click arriving from another app must also perform the action,
+        // rather than being consumed solely to activate this window.
+        if preferences.rightClickPastes, event?.type == .rightMouseDown,
+           event?.modifierFlags.contains(.shift) == false { return true }
+        return super.acceptsFirstMouse(for: event)
+    }
+
     override func rightMouseDown(with event: NSEvent) {
         onPaneFocus?()
         window?.makeFirstResponder(self)

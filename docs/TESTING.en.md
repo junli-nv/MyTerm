@@ -56,6 +56,8 @@ Update regression covers version comparison, architecture selection, download UR
 
 ## Focused regressions
 
+Paste regression checks the first-click acceptance policy with an inactive terminal window, then sends a single right-button press/release through NSWindow and checks the exact UTF-8 bytes, multiline text, bracketed-paste boundaries, normal/alternate screens and remote mouse modes. It also checks restored focus and native activation for left-click, Shift+right-click and disabled paste. Physical switching from VS Code and user tmux configurations still require manual confirmation.
+
 Jump-credential regression checks cover saving from the editor, blank retention, shared-route reuse, rejection and replacement, legacy record/name migration, ambiguous-prompt isolation, copied multi-hop routes and password references.
 
 Trackpad regression checks cover page-key encoding from actual scroll events, fast mode, accumulated gestures, throttling, reversal, ignored momentum, and normal-shell/mouse-wheel isolation.

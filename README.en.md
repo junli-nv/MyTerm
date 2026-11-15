@@ -321,7 +321,7 @@ Edit foreground/background, cursor/cursor text, selection colors and ANSI 16 col
 
 **Output Highlighting** supports keywords, colors, priority, whole-word matching and case sensitivity. Defaults color SSH error/success/warning words red/green/yellow on the normal screen while preserving remote ANSI colors. Local terminals and full-screen programs can be enabled separately. Highlighting affects display only, not copied, exported or transferred data. Horizontal padding is included in terminal-width calculations.
 
-**Terminal Behavior** controls selection-copy, right-click paste and bell. Selection-copy/right-click paste are enabled and the bell disabled by default. Shift+right-click always opens the menu; `⌘C`/`⌘V` remain available.
+**Terminal Behavior** controls selection-copy, right-click paste and bell. Selection-copy/right-click paste are enabled and the bell disabled by default. When right-click paste is enabled, the first right-click from another app also pastes. Shift+right-click always opens the menu; `⌘C`/`⌘V` remain available.
 
 **Settings → Terminal Behavior → Full-screen trackpad scrolling** offers Standard, Fast (4×, default) and Page Up / Page Down. Enter tmux copy mode (`Ctrl+B`, then `[`) to browse with two fingers. Page mode sends page keys in the scroll direction, ignores momentum and rate-limits paging. The terminal cannot reliably identify tmux copy mode, so this setting also affects other full-screen programs, but built-in Codex tabs always use standard scrolling. Normal shell history, mouse wheels, Shift scrolling and Ctrl font zoom retain their existing behavior.
 

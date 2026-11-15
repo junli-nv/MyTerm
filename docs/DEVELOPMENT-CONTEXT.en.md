@@ -156,3 +156,7 @@ Built-in Codex tabs use standard application wheel routing, isolated from tmux/f
 ## 2026-11-04: password copying
 
 Password management supports copying without revealing, always reading current storage rather than the reveal cache. Feedback excludes secrets. Revealed passwords use a native selectable read-only field; list buttons act independently. Focus-loss hiding remains. Tests use synthetic credentials and an isolated pasteboard.
+
+## 2026-11-15: first-click paste
+
+Version 3.4.7 (build 206) opts terminal views into first-mouse delivery only for right-clicks without Shift when direct paste is enabled. A paste gesture from another app must perform the action on that first click; ordinary left-click and menu activation retain native policy. Window regressions inspect exact paste bytes, bracketed framing and focus in normal/alternate mouse modes. These checks do not establish physical VS Code switching or user-specific tmux behavior. Git at task entry was `ff809e2` (3.4.6); the dated October snapshot above remains historical.
