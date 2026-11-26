@@ -41,7 +41,7 @@ for line in sys.stdin:
     if method == "initialize":
         result = {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "fixture", "version": "1"}}
     elif method == "tools/list":
-        result = {"tools": [{"name": name, "description": "Synthetic fixture", "inputSchema": {"type": "object", "properties": {}}} for name in ["list_sessions", "read_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command"]]}
+        result = {"tools": [{"name": name, "description": "Synthetic fixture", "inputSchema": {"type": "object", "properties": {}}} for name in ["list_sessions", "read_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "upload_items", "download_items", "transfer_status", "cancel_transfer"]]}
     else: result = {}
     print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": result}), flush=True)
 ''')

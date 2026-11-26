@@ -96,7 +96,7 @@ codex --version
 
 打开 **MyTerm → Codex 接入… → Codex 配置**，填写 `command -v codex` 返回的完整路径。默认值为 `/opt/homebrew/bin/codex`；Intel Homebrew 通常为 `/usr/local/bin/codex`，其他安装方式以实际路径为准。已有自定义路径不会被默认值覆盖。
 
-需要代理时，先在这里设置独立的 HTTP/SOCKS5 代理并测试，再点击登录、检查登录状态；该代理不会改变 SSH 自己的代理。MyTerm 中的代理仅供其启动的 Codex 使用，不能解决此前 Homebrew/CLI 下载阶段的网络问题，安装阶段需先确保终端能访问下载站点。登录成功后可选择“本地工作”，或先打开 SSH，再从“SSH 会话接入”启动分析。详细步骤见 [Codex 接入指南](docs/CODEX-INTEGRATION.md)。
+需要代理时，先在这里设置独立的 HTTP/SOCKS5 代理并测试，再点击登录、检查登录状态；该代理不会改变 SSH 自己的代理。MyTerm 中的代理仅供其启动的 Codex 使用，不能解决此前 Homebrew/CLI 下载阶段的网络问题，安装阶段需先确保终端能访问下载站点。登录成功后可选择“本地工作”，或先打开 SSH，再从“SSH 会话接入”启动分析。详细步骤见 [Codex 接入指南](docs/CODEX-INTEGRATION.md)。 关联 SSH 后也可让 Codex 上传或下载多个文件、完整目录，并查询进度、取消及在校验匹配后续传；每次传输在 MyTerm 单独确认。
 
 安装或升级 Codex 后，建议先完成一次[辅助程序权限与 SSH 接入验证](docs/PERMISSIONS.md#codex-helper-permissions)。Codex 自身的辅助程序（例如 `codex-code-mode-host`）可能单独触发 macOS 提示；登录成功或 MyTerm MCP 检查通过，不代表这些程序已获准运行。指南说明如何提前触发、针对具体提示放行并复测；MyTerm 不会自动授予系统权限。
 

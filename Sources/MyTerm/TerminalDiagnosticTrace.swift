@@ -7,14 +7,27 @@ final class TerminalDiagnosticTrace {
     private var sequence = 0
     private var pending: Int?
     private var lastOutput = 0.0, outputBytes = 0
+    private var lastOutputState: TerminalDiagnosticLog.State?
     static func state(_ view: MouseTerminalView) -> TerminalDiagnosticLog.State {
         let terminal = view.getTerminal()
-        return .init(columns: terminal.cols, rows: terminal.rows, viewportRow: terminal.buffer.yDisp,
+        var state = TerminalDiagnosticLog.State(columns: terminal.cols, rows: terminal.rows, viewportRow: terminal.buffer.yDisp,
                      scrollPosition: view.scrollPosition, alternate: terminal.isDisplayBufferAlternate,
                      selection: view.selection.active, composing: view.hasMarkedText(),
                      focused: view.window?.firstResponder === view, keyboardFlags: UInt32(clamping: terminal.keyboardEnhancementFlags.rawValue),
                      mouseReporting: view.allowMouseReporting && terminal.mouseMode != .off,
                      applicationScrolling: view.usesApplicationScrolling)
+        state.historyRows = terminal.scrollbackRowCount
+        state.trimmedRows = terminal.buffer.totalLinesTrimmed
+        state.historyClears = terminal.scrollbackClearCount
+        state.synchronizedOutput = terminal.synchronizedOutputActive
+        return state
+    }
+    func scroll(_ event: NSEvent, previousRow: Int, view: MouseTerminalView) {
+        guard TerminalDiagnostics.shared.log.isRecording() else { return }
+        var state = Self.state(view)
+        state.wheel = .init(deltaY: event.scrollingDeltaY, phase: event.phase.rawValue,
+            momentumPhase: event.momentumPhase.rawValue, precise: event.hasPreciseScrollingDeltas, previousViewportRow: previousRow)
+        TerminalDiagnostics.shared.log.record(.scroll, terminal: id, state: state)
     }
     func record(_ event: TerminalDiagnosticLog.Event, view: MouseTerminalView) {
         let log = TerminalDiagnostics.shared.log
@@ -41,12 +54,16 @@ final class TerminalDiagnosticTrace {
                                               input: kind, state: Self.state(view))
     }
     func output(count: Int, view: MouseTerminalView) {
-        guard TerminalDiagnostics.shared.log.isRecording() else { outputBytes = 0; return }
+        guard TerminalDiagnostics.shared.log.isRecording() else { outputBytes = 0; lastOutputState = nil; return }
         outputBytes += count
         let now = ProcessInfo.processInfo.systemUptime
-        guard now - lastOutput >= 0.25 else { return }
+        let state = Self.state(view)
+        let changed = lastOutputState.map { $0.historyClears != state.historyClears || $0.alternate != state.alternate
+            || (state.historyRows ?? 0) < ($0.historyRows ?? 0) || state.viewportRow < $0.viewportRow } ?? true
+        guard changed || now - lastOutput >= 0.25 else { return }
         lastOutput = now
-        TerminalDiagnostics.shared.log.record(.output, terminal: id, byteCount: outputBytes, state: Self.state(view))
+        lastOutputState = state
+        TerminalDiagnostics.shared.log.record(.output, terminal: id, byteCount: outputBytes, state: state)
         outputBytes = 0
     }
 }

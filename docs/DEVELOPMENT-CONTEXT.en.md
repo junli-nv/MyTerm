@@ -160,3 +160,11 @@ Password management supports copying without revealing, always reading current s
 ## 2026-11-15: first-click paste
 
 Version 3.4.7 (build 206) opts terminal views into first-mouse delivery only for right-clicks without Shift when direct paste is enabled. A paste gesture from another app must perform the action on that first click; ordinary left-click and menu activation retain native policy. Window regressions inspect exact paste bytes, bracketed framing and focus in normal/alternate mouse modes. These checks do not establish physical VS Code switching or user-specific tmux behavior. Git at task entry was `ff809e2` (3.4.6); the dated October snapshot above remains historical.
+
+## 2026-11-26: Codex transfers and interaction investigation
+
+Entry Git was `acf8baa`, 3.4.7 (206); this local change uses 3.4.8 (207), without publishing authorization. Codex adds bidirectional file/directory SFTP tools, explicit per-transfer confirmation, progress/cancellation and validated resume. Reuse only the current ControlMaster, without fallback login. Authorization/budgets remain association-scoped; server-configuration identity permits download resume independently of transient socket paths. See the integration guide.
+
+A stronger paste regression reproduced the old path leaving the keyboard window inactive; the handler now explicitly activates the app, window and terminal. Actual first-event delivery and device differences still require field validation. The user again reports Codex jumping to the top during streaming trackpad scrolling, unlike iTerm. Append/protocol regressions have not reproduced this; it remains unresolved. Diagnostics now capture gesture deltas/phases/momentum, before/after viewport, history rows/trimming and clear counts, without terminal text.
+
+The user subsequently explicitly requested pushing the code and creating the 3.4.8 Release, using the validated local ZIP/DMG and SHA256SUMS while preserving historical releases. Release notes record the proxy end-to-end failure and unresolved streaming jumps; do not describe the full regression as entirely passing.

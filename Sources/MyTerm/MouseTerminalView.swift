@@ -49,7 +49,8 @@ class MouseTerminalView: LocalProcessTerminalView {
     private var lastFullscreenScrollMode: FullscreenScrollMode?
 
     override func scrollWheel(with event: NSEvent) {
-        defer { diagnosticTrace.record(.scroll, view: self) }
+        let previousRow = getTerminal().buffer.yDisp
+        defer { diagnosticTrace.scroll(event, previousRow: previousRow, view: self) }
         let mode: FullscreenScrollMode = usesApplicationScrolling ? .standard : preferences.fullscreenScroll
         if lastFullscreenScrollMode != mode {
             fullscreenScrollGesture.reset(); lastFullscreenScrollMode = mode
@@ -318,6 +319,12 @@ class MouseTerminalView: LocalProcessTerminalView {
 
     override func rightMouseDown(with event: NSEvent) {
         onPaneFocus?()
+        // A right click does not reliably make an inactive NSWindow key. Setting
+        // firstResponder alone leaves subsequent typing in the previous app/window.
+        if preferences.rightClickPastes, !event.modifierFlags.contains(.shift) {
+            NSApp.activate(ignoringOtherApps: true)
+            window?.makeKeyAndOrderFront(nil)
+        }
         window?.makeFirstResponder(self)
         if let menu = menu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)

@@ -396,6 +396,10 @@ open class Terminal {
     public var isDisplayBufferAlternate: Bool {
         isCurrentBufferAlternate
     }
+
+    /// Metadata for host scroll diagnostics; never extracts terminal text.
+    public var scrollbackRowCount: Int { max(0, buffer.lines.count - rows) }
+    public private(set) var scrollbackClearCount = 0
     
     public var isCurrentBufferAlternate: Bool {
         buffer === altBuffer
@@ -3335,6 +3339,7 @@ open class Terminal {
             updateRange (0)
         case 3:
             // Clear scrollback (everything not in viewport)
+            scrollbackClearCount += 1
             let scrollBackSize = buffer.lines.count - rows
             if scrollBackSize > 0 {
                 buffer.lines.trimStart (count: scrollBackSize)

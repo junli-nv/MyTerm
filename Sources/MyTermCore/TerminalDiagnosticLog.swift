@@ -5,12 +5,23 @@ import Foundation
 public final class TerminalDiagnosticLog {
     public enum Event: String, Codable { case started, stopped, marker, output, returnDown, returnUp, returnFinished, inputSent, compositionCommit, focus, scroll }
     public enum InputKind: String, Codable { case none, carriageReturn, lineFeed, escapeSequence, text }
+    public struct Wheel: Codable {
+        public let deltaY: Double, phase: UInt, momentumPhase: UInt
+        public let precise: Bool, previousViewportRow: Int
+        public init(deltaY: Double, phase: UInt, momentumPhase: UInt, precise: Bool, previousViewportRow: Int) {
+            self.deltaY = deltaY; self.phase = phase; self.momentumPhase = momentumPhase
+            self.precise = precise; self.previousViewportRow = previousViewportRow
+        }
+    }
     public struct State: Codable {
         public var columns: Int, rows: Int, viewportRow: Int
         public var scrollPosition: Double
         public var alternate: Bool, selection: Bool, composing: Bool, focused: Bool
         public var mouseReporting: Bool?
         public var applicationScrolling: Bool?
+        public var historyRows: Int?, trimmedRows: Int?, historyClears: Int?
+        public var synchronizedOutput: Bool?
+        public var wheel: Wheel?
         public var keyboardFlags: UInt32
         public init(columns: Int = 0, rows: Int = 0, viewportRow: Int = 0, scrollPosition: Double = 1,
                     alternate: Bool = false, selection: Bool = false, composing: Bool = false,

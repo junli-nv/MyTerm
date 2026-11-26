@@ -115,3 +115,9 @@ MCP diagnostic pipe regression: `python scripts/mcp-diagnostics-check.py /path/t
 Diagnostic-summary regressions cover Chinese/English explanations, unchecked/no-event states, unknown reasons without raw-text echo, normal EOF, dropped events, failing helpers alongside a successful probe, and both readable files matching the original metadata in the actual ZIP.
 
 SSH forwarding regression: `scripts/codex-execution-check.py` exercises production ControlMaster operations against an isolated local sshd and echo server: local/remote/SOCKS traffic, cancel/re-enable and occupied ports without ending SSH. `SSHForwardCheck` covers waiting, failures, retry, disable, stale replies and bilingual panel bounds. `FullscreenScrollCheck`/`TerminalScrollCheck` exercise Codex wheel isolation and fractional motion across buffer switches. Extended user Codex scrolling still requires field validation.
+
+Codex transfer regressions in `scripts/codex-execution-check.py` use temporary loopback sshd/SFTP and the production worker to check multiple sources, recursive empty/hidden directories, Unicode/literal names, filters, conflicts, progress, upload/download interruption and nonzero resume offsets, link rejection, no fallback login and parent-SSH preservation. Approval checks cover command Always Allow independence, association isolation, read-only denial and revocation. Failure lists are bounded. These checks do not establish every remote server, real network disconnect or arbitrary filesystem race.
+
+Paste checks also assert that the target becomes the keyboard window. Scroll diagnostics include actual gestures, before/after positions, history rows, trimming and clear counts. Passing append-output anchor checks does not establish a fix for real Codex jumps.
+
+The Codex proxy fixture uses an isolated `CODEX_HOME`, retains synthetic CLI failure diagnostics and stops its own daemon before cleanup; it must neither reuse nor stop the user's daemon.

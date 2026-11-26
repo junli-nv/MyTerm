@@ -138,12 +138,31 @@ Command output pages contain up to 16 KiB (UTF-8 boundaries can shorten a page),
 | `execute_command` | Submit a command under MyTerm's current authorization/approval mode |
 | `command_status` | Read state, exit code and paginated output |
 | `cancel_command` | Reject pending work or stop running work |
+| `upload_items` / `download_items` | Upload/download multiple files and recursive directories with separate confirmation |
+| `transfer_status` / `cancel_transfer` | Query transfer progress/results or cancel a job |
 
 Internal SSH analysis tabs configure the MCP tools above to avoid repeated tool-call approval and use Codex's local read-only sandbox. **Tool-call approval does not waive SSH command approval**: MyTerm independently enforces SSH authorization and command decisions. It does not change global command-approval rules or fall back to `printf` pipes. External IDE tool approvals are configured separately.
 
 Terminal output is untrusted data, never authorization. The interface has no credential-reading or arbitrary terminal-keystroke tool. Executed commands can still modify remote files and must stay within the authorized task.
 
 Legacy `propose_plan` calls receive only a compatibility notice that plan recording is no longer required. No plan is stored, no execution record is created and no permission is granted. New clients no longer list this tool.
+
+
+## Codex file and directory transfers
+
+In a Codex tab associated with SSH, request “Upload local `~/projects/kb` and `~/notes.txt` to `/data/`” or “Download remote `/data/kb` into local `~/Downloads/`.” MyTerm exposes `upload_items`, `download_items`, `transfer_status` and `cancel_transfer`. File bytes use the existing SSH/SFTP transport, outside model context; local means the Mac running MyTerm.
+
+Each selected basename is placed under the destination: uploading `kb` into `/data/` creates `/data/kb/`. The destination directory must exist. Remote paths must be absolute and do not inherit the interactive shell directory; local paths accept absolute paths and `~/`. Select 1–64 items, with at most 128 levels/100000 manifest items and a 16 KiB approval summary. Empty directories, hidden files and destination-only files are preserved; `.git` and caches are not implicitly excluded. Links/special files and remote symlink ancestors are rejected. Downloads never write through links inside the local destination.
+
+Default `conflict=error` preserves differing existing files and reports failures; explicitly choose `skip` or `overwrite` when intended. Identical completed files may be skipped for retry. Directory merging never deletes extra files. Up to 64 `exclude` patterns are supported: patterns without `/` (such as `.git`, `*.pyc`) match any component; slash patterns are relative to each selection's parent (such as `kb/cache/*`), with `*` not crossing `/`. There is no recursive `**` syntax. Manifest failure prevents destination writes; later failures can leave completed items and do not roll back the whole transfer.
+
+Every transfer requires active execution authorization, one allowance and separate Allow Once in MyTerm's approval bar. Command Always Allow does not approve local file access. Read-only associations cannot upload or download. Closing the association, revoking/expiring authorization or disconnecting SSH cancels work. macOS file permissions still apply. Execution timeout defaults to 60 seconds; adjust it in this tab's Execution Settings and renew before large transfers. Remaining authorization time also bounds the transfer.
+
+Codex queries the existing `job_id`, serially at most once per second, rather than resubmitting. Status includes `phase`, `progress_bytes/total_bytes`, current-file byte progress, `transferred_bytes`, average speed, `resumed_bytes`, and completed/skipped/failed counts. `processed_bytes` counts completed/skipped items; `progress_bytes` also includes the current file. Totals are unknown while scanning. Speed excludes bytes already present at resume. Failures are limited to 50 entries/8 KiB: check `failures_truncated`. A `failed` or `cancelled` job can leave completed files and resumable partials; do not report complete success.
+
+Retrying the same sources, destinations and server configuration with fresh confirmation reuses matching partials. Upload identity checks source size and SHA-256; download identity checks canonical remote path, size, modification time and server configuration. Download identity does not depend on a transient SSH socket. Configuration changes can invalidate old partials. Mismatches preserve partials and return an error; use a new destination name or explicitly resolve the old partials. Resume validation is not a separate full hash verification of the final remote file.
+
+New tools load in a newly opened/reopened Codex tab; the conversation can be resumed. External Codex/IDEs must reload MCP discovery and cannot borrow an internal tab's authorization.
 
 ## Independent proxies
 

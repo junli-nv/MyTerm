@@ -9,6 +9,9 @@ enum TerminalScrollCheck {
         override func send(source: TerminalView, data: ArraySlice<UInt8>) { bytes.append(contentsOf: data) }
     }
     static func run() throws {
+        let diagnostics = TerminalDiagnostics.shared.log
+        diagnostics.start()
+        defer { diagnostics.clear() }
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("Terminal scroll: " + message) }
         }
@@ -28,6 +31,10 @@ enum TerminalScrollCheck {
         view.scrollWheel(with: NSEvent(cgEvent: wheel)!)
         try require(view.bytes.isEmpty && view.getTerminal().buffer.yDisp < previousRow,
                     "Mouse reporting disabled but wheel did not scroll local history")
+        let capturedWheel = diagnostics.snapshot().entries.last(where: { $0.event == .scroll })?.state
+        try require(capturedWheel?.wheel?.previousViewportRow == previousRow && capturedWheel?.wheel?.precise == true,
+                    "Scroll diagnostics omitted the actual gesture or previous viewport")
+        try require((capturedWheel?.historyRows ?? 0) > 0, "Scroll diagnostics omitted history capacity")
         try require(view.allowMouseReporting, "Local wheel handling changed click routing")
         view.scrollUp(lines: 30)
         let buffer = view.getTerminal().buffer
@@ -62,6 +69,9 @@ enum TerminalScrollCheck {
         fractional.feed(text: "\u{1b}[?1049l\u{1b}[?1049h")
         fractional.scrollWheel(with: NSEvent(cgEvent: pixel)!)
         try require(fractional.bytes.isEmpty, "Buffer switch retained a previous gesture")
+        let beforeClear = view.getTerminal().scrollbackClearCount
+        view.feed(text: "\u{1b}[?1049l\u{1b}[3J")
+        try require(view.getTerminal().scrollbackClearCount == beforeClear + 1, "Scrollback purge not counted")
         print("PASS: fractional trackpad motion reset on alternate-screen transitions")
         print("PASS: terminal history anchor during synchronized output and buffer recycling; resume at bottom")
     }

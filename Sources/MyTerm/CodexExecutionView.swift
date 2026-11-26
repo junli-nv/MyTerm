@@ -11,6 +11,10 @@ final class CodexExecutionRecord: Identifiable {
     var authorization = UUID()
     var state = "awaiting_approval"
     var process: CodexCommandProcess?
+    var transferRequest: CodexTransferRequest?
+    var transfer: CodexTransferJob?
+    var currentState: String { transfer?.snapshot()["state"] as? String ?? process?.progress.state ?? state }
+    var isRunning: Bool { transfer?.isRunning == true || process?.progress.state == "running" }
     var error = ""
     init(sessionID: UUID, label: String, command: String, associationID: UUID? = nil) {
         self.associationID = associationID ?? sessionID
@@ -18,9 +22,14 @@ final class CodexExecutionRecord: Identifiable {
     }
     func snapshot(offset: Int = 0) throws -> [String: Any] {
         var value = try process?.snapshot(offset: offset) ?? ["state": state, "output": error, "next_offset": 0, "total_bytes": 0]
+        if transferRequest != nil {
+            value = transfer?.snapshot() ?? ["state": state, "operation": transferRequest!.direction.rawValue, "error": error]
+        }
         value["job_id"] = id.uuidString; value["session_id"] = sessionID.uuidString
-        value["command"] = command
-        value["reason"] = reason
+        if transferRequest == nil {
+            value["command"] = command
+            value["reason"] = reason
+        }
         return value
     }
 }
@@ -76,10 +85,12 @@ struct CodexInlineExecutionView: View {
             }
             if let pending = records.last(where: { $0.state == "awaiting_approval" }) {
                 HStack(spacing: 8) {
-                    Label(L10n.text("命令待确认"), systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
+                    Label(L10n.text(pending.transferRequest == nil ? "命令待确认" : "文件传输待确认"), systemImage: "exclamationmark.circle.fill").foregroundStyle(.orange).fixedSize()
                     Spacer(minLength: 0)
-                    Button(L10n.text("单次允许")) { bridge.approveExecution(pending) }.help(L10n.text("允许执行此命令")).fixedSize()
-                    Button(L10n.text("始终允许")) { bridge.setAlwaysAllowExecution(executionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
+                    Button(L10n.text("单次允许")) { bridge.approveExecution(pending) }.help(L10n.text(pending.transferRequest == nil ? "允许执行此命令" : "允许本次文件传输")).fixedSize()
+                    if pending.transferRequest == nil {
+                        Button(L10n.text("始终允许")) { bridge.setAlwaysAllowExecution(executionID, enabled: true) }.help(L10n.text("本会话始终允许")).fixedSize()
+                    }
                     Button(L10n.text("拒绝")) { bridge.cancelExecution(pending) }.fixedSize()
                 }
                 ScrollView {
@@ -90,13 +101,19 @@ struct CodexInlineExecutionView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.scrollIndicators(.visible).frame(height: 80)
             } else if records.contains(where: { $0.state == "queued" }) {
-                Text(L10n.text("命令已获准，等待同一 SSH 会话中的其他命令结束。")).foregroundStyle(.secondary)
+                Text(L10n.text("操作已获准，等待同一 SSH 会话中的其他操作结束。")).foregroundStyle(.secondary)
             }
-            if let active = records.first(where: { ["running", "queued"].contains($0.process?.progress.state ?? $0.state) }) {
+            if let active = records.first(where: { ["running", "queued"].contains($0.currentState) }) {
                 HStack {
-                    Text(L10n.text("命令执行中"))
+                    if let upload = active.transfer {
+                        let progress = upload.snapshot()
+                        Text(L10n.text("正在传输") + " \(progress["progress_bytes"] ?? 0)/\(progress["total_bytes"] ?? 0) B")
+                            .help(progress["current_file"] as? String ?? "")
+                        Text(progress["current_file"] as? String ?? "")
+                            .lineLimit(1).truncationMode(.middle).frame(maxWidth: 240)
+                    } else { Text(L10n.text("命令执行中")) }
                     Spacer()
-                    Button(L10n.text("取消当前命令")) { bridge.cancelExecution(active) }
+                    Button(L10n.text(active.transferRequest == nil ? "取消当前命令" : "取消当前传输")) { bridge.cancelExecution(active) }
                 }
             }
         }.font(.caption).controlSize(.small).padding(6).background(Color(nsColor: .controlBackgroundColor))

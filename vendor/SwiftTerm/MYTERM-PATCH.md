@@ -25,3 +25,6 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 
 - macOS fractional wheel accumulation resets on buffer activation, routing changes, a new gesture or a gap over 300 ms. Motion belonging to an application must not leak into terminal history. MyTerm's built-in Codex tabs bypass its fast/page override; native mouse reporting and alternate-scroll protocol remain intact.
 - macOS 在缓冲区激活、滚动路由改变、新手势或间隔超过 300 ms 时清除小数滚动量，防止程序滚动残留影响终端历史。MyTerm 内置 Codex 标签跳过快速/按页覆盖，保留鼠标报告及备用屏幕协议。
+
+- Expose read-only active scrollback row count and a monotonic CSI 3J clear counter for host diagnostics; no terminal text is extracted and scrolling/protocol behavior is unchanged.
+- 向主程序诊断公开只读的活动历史行数与单调递增的 CSI 3J 清空计数，不提取终端正文，不改变滚动或协议行为。

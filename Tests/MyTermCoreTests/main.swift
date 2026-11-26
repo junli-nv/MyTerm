@@ -2,6 +2,11 @@ import Foundation
 import Darwin
 import MyTermCore
 
+if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--codex-upload-fixture" {
+    try runCodexUploadFixture(control: CommandLine.arguments[2], root: URL(fileURLWithPath: CommandLine.arguments[3]))
+    exit(0)
+}
+
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--mcp-health-check" {
     let result = CodexMCPHealthCheck.run(executable: URL(fileURLWithPath: CommandLine.arguments[2]))
     print("success=\(result.success) stage=\(result.stage.rawValue) reason=\(result.reason) code=\(String(describing: result.code))")
@@ -179,6 +184,7 @@ let checks: [(String, () throws -> Void)] = [
     ("SSH Include discovery and saved sessions", features.importAndSessions),
     ("Codex cluster catalog, stable identity and collision titles", checkCodexClusters),
     ("Codex read-only MCP, proxy isolation and snapshot cursors", checkCodexIntegration),
+    ("Codex upload policy and tool registration", checkCodexUploads),
     ("Zmodem handshake detection across chunks", features.zmodemDetection),
     ("Recursive SFTP directories, resume, conflicts and symlinks", features.sftpDirectories),
     ("Real SFTP upload/download interruption and resume", features.sftpResume)

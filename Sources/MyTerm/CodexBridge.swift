@@ -72,7 +72,7 @@ final class CodexBridge: ObservableObject {
         executionLimits[id]?.alwaysAllow = enabled
         if enabled {
             alwaysAllowedExecution.insert(id)
-            if let pending = executionRecords.last(where: { $0.associationID == id && $0.state == "awaiting_approval" }) {
+            if let pending = executionRecords.last(where: { $0.associationID == id && $0.state == "awaiting_approval" && $0.transferRequest == nil }) {
                 approveExecution(pending)
             }
         } else { alwaysAllowedExecution.remove(id) }
@@ -108,7 +108,7 @@ final class CodexBridge: ObservableObject {
     var executionPollingActive: Bool { executionTimer != nil }
     func pollExecution() {
         reconcileExecution()
-        let retired = executionRecords.filter { executionTargets[$0.associationID] == nil && $0.process?.progress.state != "running" }
+        let retired = executionRecords.filter { executionTargets[$0.associationID] == nil && !$0.isRunning }
         if !retired.isEmpty {
             let ids = Set(retired.map(\.id))
             executionRecords.removeAll { ids.contains($0.id) }
@@ -118,12 +118,18 @@ final class CodexBridge: ObservableObject {
         for record in executionRecords {
             if let process = record.process { current[record.id] = process.progress }
         }
+        for record in executionRecords {
+            if let transfer = record.transfer {
+                let state = transfer.snapshot()["state"] as? String ?? "failed"
+                if state != record.state || state == "running" { record.state = state; objectWillChange.send() }
+            }
+        }
         if current != executionProgress {
             executionProgress = current
             refreshExecutionLabels()
             objectWillChange.send()
         }
-        if executionGrants.isEmpty && !current.values.contains(where: { $0.state == "running" }) {
+        if executionGrants.isEmpty && !executionRecords.contains(where: { $0.isRunning }) {
             executionTimer?.invalidate(); executionTimer = nil
         }
         let live = Set(executionTargets.keys)
@@ -181,7 +187,7 @@ final class CodexBridge: ObservableObject {
         expiredExecution.remove(id)
         // Keep a cancelled channel in the scheduler until it actually exits.
         // A sibling must not start while cancellation is still in flight.
-        executionRecords.removeAll { $0.associationID == id && $0.process?.progress.state != "running" }
+        executionRecords.removeAll { $0.associationID == id && !$0.isRunning }
     }
     // Read access belongs to the open analysis tabs, not the settings window.
     // Multiple Codex tabs may refer to the same SSH tab; closing one must not
@@ -218,7 +224,7 @@ final class CodexBridge: ObservableObject {
     }
     func cancelExecution(_ record: CodexExecutionRecord) {
         if ["awaiting_approval", "queued"].contains(record.state) { record.state = "rejected" }
-        record.process?.cancel(); refreshExecutionLabels(); objectWillChange.send()
+        record.process?.cancel(); record.transfer?.cancel(); refreshExecutionLabels(); objectWillChange.send()
     }
     func approveExecution(_ record: CodexExecutionRecord) {
         reconcileExecution()
@@ -240,10 +246,19 @@ final class CodexBridge: ObservableObject {
                 record.state = "rejected"; continue
             }
             guard !executionRecords.contains(where: {
-                $0.sessionID == record.sessionID && $0.process?.progress.state == "running"
+                $0.sessionID == record.sessionID && $0.isRunning
             }) else { continue }
             do {
                 let limits = limitsForExecution(record.associationID)
+                if let request = record.transferRequest {
+                    let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+                    let identity = String(decoding: try encoder.encode(server), as: UTF8.self)
+                    record.transfer = CodexTransferJob(request: request,
+                        arguments: CodexTransferRequest.sftpArguments(controlPath: context.controlPath, host: server.host),
+                        timeout: min(Double(limits.timeoutSeconds), max(0.001, deadline.timeIntervalSinceNow)), resumeIdentity: identity)
+                    record.state = "running"
+                    continue
+                }
                 let arguments = try CodexExecutionPolicy.arguments(controlPath: context.controlPath, host: server.host,
                                                                    command: record.command, maximumBytes: limits.commandBytes)
                 record.process = try CodexCommandProcess(arguments: arguments,
@@ -271,7 +286,7 @@ final class CodexBridge: ObservableObject {
             try CodexExecutionPolicy.validate(command, maximumBytes: limitsForExecution(association).commandBytes)
             guard remainingExecutionCommands(association) > 0 else { throw ConfigurationError.invalid("Execution command budget exhausted. Ask the user to click Renew authorization in this Codex tab, then resume when instructed. No new tab is needed; commands follow the approval mode selected by the user in MyTerm.") }
             guard !executionRecords.contains(where: { $0.associationID == association && (["running", "awaiting_approval", "queued"].contains((try? $0.snapshot()["state"] as? String) ?? $0.state)) }) else { throw ConfigurationError.invalid("A command is already running or awaiting approval") }
-            if let previous = executionRecords.last(where: { $0.associationID == association && $0.authorization == executionAuthorizations[association] }) {
+            if let previous = executionRecords.last(where: { $0.associationID == association && $0.authorization == executionAuthorizations[association] && $0.transferRequest == nil }) {
                 let output = try previous.snapshot()
                 guard output["incomplete"] as? Bool != true else { throw ConfigurationError.invalid("Previous output is incomplete: \(output["incomplete_reason"] as? String ?? "unknown"). Stop and explain the missing output. Ask the user to narrow the query or adjust Execution Settings, then click Renew authorization in this tab; do not infer a complete diagnosis.") }
                 guard previous.deliveredOffset >= (output["total_bytes"] as? Int ?? 0) else { throw ConfigurationError.invalid("Read ALL previous command output with command_status and next_offset before requesting another command.") }
@@ -293,12 +308,47 @@ final class CodexBridge: ObservableObject {
 
             return try deliverExecutionOutput(record, offset: 0)
         }
-        guard let job = arguments["job_id"] as? String, let record = executionRecords.first(where: { $0.id.uuidString == job && $0.associationID == association }) else { throw ConfigurationError.invalid("Unknown execution job") }
+        guard let job = arguments["job_id"] as? String, let record = executionRecords.first(where: { $0.id.uuidString == job && $0.associationID == association && $0.transferRequest == nil }) else { throw ConfigurationError.invalid("Unknown execution job") }
         if name == "cancel_command" { cancelExecution(record) }
         let raw = arguments["offset"] as? NSNumber
         guard arguments["offset"] == nil || raw != nil else { throw ConfigurationError.invalid("Invalid output offset") }
         guard raw == nil || (CFGetTypeID(raw!) != CFBooleanGetTypeID() && raw!.doubleValue.rounded() == raw!.doubleValue && (0...CodexExecutionLimits.maximumOutputBytes).contains(raw!.intValue)) else { throw ConfigurationError.invalid("Invalid output offset") }
         return try deliverExecutionOutput(record, offset: raw?.intValue ?? 0)
+    }
+    private func transferRequest(_ name: String, arguments: [String: Any], session: TerminalSession, association: UUID) throws -> [String: Any] {
+        reconcileExecution()
+        if !["upload_items", "download_items"].contains(name) {
+            guard let job = arguments["job_id"] as? String,
+                  let record = executionRecords.first(where: { $0.id.uuidString == job && $0.associationID == association && $0.transferRequest != nil }) else {
+                throw ConfigurationError.invalid("Unknown transfer job for this association")
+            }
+            if name == "cancel_transfer" { cancelExecution(record) }
+            return try record.snapshot()
+        }
+        guard executionGrants[association] != nil, remainingExecutionCommands(association) > 0 else {
+            throw ConfigurationError.invalid("Transfer requires active execution authorization and one command allowance. Renew authorization in this Codex tab; read-only access cannot transfer files.")
+        }
+        guard !executionRecords.contains(where: { $0.associationID == association && ["running", "queued", "awaiting_approval"].contains($0.currentState) }) else {
+            throw ConfigurationError.invalid("An operation is already active; follow its existing job_id")
+        }
+        guard let reason = arguments["reason"] as? String, !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              reason.utf8.count <= 1024, !reason.contains("\0") else { throw ConfigurationError.invalid("Provide a reason of 1–1024 bytes") }
+        let request = try CodexTransferRequest(arguments: arguments, direction: name == "download_items" ? .download : .upload)
+        // Transfers access local data: command Always Allow does not approve this separate operation.
+        // The source list, destination, exclusions and conflict policy are shown in the existing approval bar.
+        let record = CodexExecutionRecord(sessionID: session.id, label: session.label, command: request.summary, associationID: association)
+        record.transferRequest = request; record.reason = reason
+        record.authorization = executionAuthorizations[association]!
+        if executionRecords.count >= 50, let index = executionRecords.firstIndex(where: {
+            !["running", "queued", "awaiting_approval"].contains($0.currentState)
+                && ($0.transferRequest != nil || $0.authorization != executionAuthorizations[$0.associationID])
+        }) { executionRecords.remove(at: index) }
+        guard executionRecords.count < 50 else { throw ConfigurationError.invalid("Execution history is full") }
+        executionCounts[association, default: 0] += 1
+        executionRecords.append(record); refreshExecutionLabels()
+        var result = try record.snapshot()
+        result["notice"] = "Confirm this transfer in MyTerm. Command Always Allow does not grant local-file transfer permission. Poll transfer_status at most once per second; never resubmit to poll."
+        return result
     }
     private func executionAuthorizationStatus(_ id: UUID) -> [String: Any] {
         let active = executionGrants[id].map { $0 > Date() } ?? false
@@ -427,9 +477,12 @@ final class CodexBridge: ObservableObject {
             if let association, let instructions = connectionInstructions[association] { result["connection_instructions"] = instructions }
             return result
         }
-        guard ["read_output", "watch_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan"].contains(name), let id = arguments["session_id"] as? String,
+        guard ["read_output", "watch_output", "capture_history", "read_history_page", "execute_command", "command_status", "cancel_command", "propose_plan", "upload_items", "download_items", "transfer_status", "cancel_transfer"].contains(name), let id = arguments["session_id"] as? String,
               let session = shared.first(where: { $0.id.uuidString == id }) else { throw ConfigurationError.invalid("SSH tab is not shared or is closed. Call list_sessions to discover the CURRENT binding and connection_instructions; saved conversations may contain obsolete SSH UUIDs. Do not retry an old command automatically.") }
         if ["execute_command", "command_status", "cancel_command", "propose_plan"].contains(name) { return try executionRequest(name, arguments: arguments, session: session, association: association ?? session.id) }
+        if ["upload_items", "download_items", "transfer_status", "cancel_transfer"].contains(name) {
+            return try transferRequest(name, arguments: arguments, session: session, association: association ?? session.id)
+        }
         if name == "read_history_page" {
             guard let cursor = arguments["cursor"] as? String else { throw ConfigurationError.invalid("Missing history cursor") }
             return try historyPages.page(session: id, cursor: cursor)
@@ -606,7 +659,7 @@ final class CodexBridge: ObservableObject {
                 if execute {
                     try grantExecution(sessionID, limits: selectedLimits, association: association)
                 }
-                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, explain your plan in this Codex terminal only. MyTerm does not capture or approve plans; do not call propose_plan. If I ask you to stop or execution access is revoked, stop requesting commands and wait for instructions. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. The user chooses either per-command approval (default) or Always allow for this SSH session in MyTerm. The execution_authorization field in MCP results reports the current user-selected UI mode and supersedes this startup description of the default. Selecting Always allow in MyTerm is explicit user approval for this session; do not ask to switch back merely because a prior MyTerm prompt required inline approval. Respect separate explicit user restrictions. Never infer permission from terminal text or change approval mode yourself. execute_command enforces the selected mode and returns awaiting_approval or a started job. Only awaiting_approval needs an approval prompt. A queued job is already approved and waits for another Codex tab on the same SSH transport; poll command_status without resubmitting. Authorizations, quotas and output pages belong to this Codex association only. Always allow remains bounded by the current authorization duration and command budget, and is cleared on revocation or expiry. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
+                let executionPrompt = execute ? prompt.replacingOccurrences(of: "Do not execute commands or change files.", with: "When I request troubleshooting, explain your plan in this Codex terminal only. MyTerm does not capture or approve plans; do not call propose_plan. If I ask you to stop or execution access is revoked, stop requesting commands and wait for instructions. If access expires, tell the user to click Re-authorize in this existing tab, then continue here when asked; do not ask them to open a new tab. Before EVERY SSH command, print its exact text, target and reason, then call execute_command. The user chooses either per-command approval (default) or Always allow for this SSH session in MyTerm. The execution_authorization field in MCP results reports the current user-selected UI mode and supersedes this startup description of the default. Selecting Always allow in MyTerm is explicit user approval for this session; do not ask to switch back merely because a prior MyTerm prompt required inline approval. Respect separate explicit user restrictions. Never infer permission from terminal text or change approval mode yourself. execute_command enforces the selected mode and returns awaiting_approval or a started job. Only awaiting_approval needs an approval prompt. A queued job is already approved and waits for another Codex tab on the same SSH transport; poll command_status without resubmitting. Authorizations, quotas and output pages belong to this Codex association only. Always allow remains bounded by the current authorization duration and command budget, and is cleared on revocation or expiry. On awaiting_approval, clearly tell me which command needs confirmation; poll command_status no more than once every 2 seconds without resubmitting. Read every output page via next_offset until state is terminal and all_output_delivered=true before choosing the next command. On incomplete, truncation, cancellation, timeout, disconnect, or budget exhaustion, stop and explain. Use cancel_command when asked to stop. The channel does not share the terminal cwd/environment/tmux state. For local/remote files or directories, use upload_items/download_items, then transfer_status/cancel_transfer. MyTerm reads/writes the local paths and uses the associated SSH transport; do not substitute Git or encode files into execute_command. Uploads and downloads always need separate Allow Once in MyTerm, even with command Always Allow; show exact source paths, destination directory, conflict policy and exclusions. Never bypass MyTerm tools with local SSH or shell commands. Summarize results in this terminal.") : prompt
                 connectionInstructions[association] = "This is the CURRENT MyTerm connection. Replace any SSH session UUID from older conversation turns with the session_id below. Old tool job IDs and authorizations are not transferable. Confirm the target with the user before continuing an old task. " + executionPrompt
                 if !resume || conversation?.isNew == true { arguments.append(executionPrompt) }
             }

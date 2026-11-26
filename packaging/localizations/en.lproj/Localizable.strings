@@ -1505,3 +1505,13 @@
 "复制密码" = "Copy Password";
 "密码已复制。" = "Password copied.";
 "复制密码失败，请重试。" = "Could not copy the password. Try again.";
+
+"文件传输待确认" = "File transfer awaiting approval";
+
+"正在传输" = "Transferring files";
+
+"允许本次文件传输" = "Allow this file transfer";
+
+"操作已获准，等待同一 SSH 会话中的其他操作结束。" = "Operation approved; waiting for other operations on the same SSH session.";
+
+"取消当前传输" = "Cancel current transfer";

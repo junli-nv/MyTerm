@@ -517,6 +517,7 @@ enum CodexBridgeCheck {
         try require(bridge.alwaysAllowedExecution.contains(execSession.id), "Renewal lost the selected approval mode")
         bridge.revokeExecution(execSession.id)
         try CodexExecutionConfigurationCheck.run(bridge: bridge, sessionID: execSession.id)
+        try CodexUploadBridgeCheck.run(bridge: bridge, session: execSession)
         try CodexAssociationCheck.run(bridge: bridge, session: execSession, descriptorURL: root.appendingPathComponent("bridge.json"))
         print("PASS: allow once, session Always allow, live switching, session isolation and revocation reset")
 

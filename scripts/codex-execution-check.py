@@ -11,12 +11,12 @@ import threading
 
 checks = pathlib.Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='myterm-exec-', dir='/tmp') as directory:
-    root = pathlib.Path(directory)
+    root = pathlib.Path(directory).resolve()
     subprocess.run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(root / 'key')], check=True)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    (root / 'config').write_text(f'Port {port}\nListenAddress 127.0.0.1\nHostKey {root}/key\nPidFile {root}/pid\nAuthorizedKeysFile {root}/key.pub\nStrictModes no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nUsePAM no\n')
+    (root / 'config').write_text(f'Port {port}\nListenAddress 127.0.0.1\nHostKey {root}/key\nPidFile {root}/pid\nAuthorizedKeysFile {root}/key.pub\nStrictModes no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nUsePAM no\nSubsystem sftp /usr/libexec/sftp-server\n')
     server = subprocess.Popen(['/usr/sbin/sshd', '-D', '-e', '-f', str(root / 'config')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     master = None
     try:
@@ -32,6 +32,8 @@ with tempfile.TemporaryDirectory(prefix='myterm-exec-', dir='/tmp') as directory
         assert 'mux-execution-fixture\n' in result['output'] and 'stderr-fixture\n' in result['output'], result
         assert "one\ntwo\n$HOME 'quotes' 中文\n" in result['output'], result
         assert master.poll() is None, 'Execution terminated the parent SSH connection'
+        subprocess.run([str(checks), '--codex-upload-fixture', str(root / 'control'), str(root)], check=True, timeout=40)
+        assert master.poll() is None, 'Upload terminated the parent SSH connection'
         def free_port():
             with socket.socket() as sock:
                 sock.bind(('127.0.0.1', 0))

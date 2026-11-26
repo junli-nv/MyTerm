@@ -19,7 +19,7 @@ for scheme in ('http', 'socks5h'):
     with socket.socket() as listener, tempfile.TemporaryDirectory(prefix='myterm-codex-proxy-') as work:
         listener.bind(('127.0.0.1', 0)); listener.listen(); listener.settimeout(.2)
         port = listener.getsockname()[1]
-        seen = []; stop = threading.Event()
+        seen = []; contacts = []; stop = threading.Event()
         def exact(client, length):
             data = b''
             while len(data) < length:
@@ -37,6 +37,8 @@ for scheme in ('http', 'socks5h'):
                     client.settimeout(2)
                     try:
                         first = client.recv(4096) if scheme == 'http' else exact(client, 3)
+                        if len(contacts) < 10:
+                            contacts.append(first.split(b'\r\n', 1)[0][:200].decode(errors='replace'))
                         if scheme == 'http':
                             if first.startswith(b'CONNECT myterm-proxy-fixture.invalid:443 '):
                                 assert b'proxy-authorization: basic ' + base64.b64encode(b'fixture:synthetic-proxy-password').lower() in first.lower()
@@ -68,6 +70,10 @@ for scheme in ('http', 'socks5h'):
             environment[key] = environment[key.upper()] = f'{scheme}://fixture:synthetic-proxy-password@127.0.0.1:{port}'
         environment['NO_PROXY'] = environment['no_proxy'] = 'localhost,127.0.0.1,::1'
         environment['MYTERM_PROXY_FIXTURE_KEY'] = 'synthetic-not-a-real-api-key'
+        # Modern CLI versions may reuse a CODEX_HOME-scoped app-server daemon.
+        # A fresh cwd alone does not isolate its proxy environment or user state.
+        environment['CODEX_HOME'] = str(Path(work) / 'codex-home')
+        Path(environment['CODEX_HOME']).mkdir()
         relay = None
         if scheme == 'socks5h':
             checks = next((Path(__file__).resolve().parents[1] / '.build').glob('*/' + os.environ.get('MYTERM_TEST_CONFIGURATION', 'debug') + '/MyTermChecks'))
@@ -121,14 +127,20 @@ for scheme in ('http', 'socks5h'):
         import json
         for key, value in settings.items(): args += ['-c', key + '=' + json.dumps(value)]
         args += ['-c', 'model_providers.myterm_fixture.request_max_retries=0', '-c', 'model_providers.myterm_fixture.stream_max_retries=0', 'Reply ok.']
-        proc = subprocess.Popen(args, cwd=work, env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        diagnostics = Path(work) / 'cli.log'
+        diagnostic_stream = diagnostics.open('wb')
+        proc = subprocess.Popen(args, cwd=work, env=environment, stdin=subprocess.DEVNULL, stdout=diagnostic_stream, stderr=subprocess.STDOUT)
         deadline = time.monotonic() + 20
         while proc.poll() is None and not seen and time.monotonic() < deadline: time.sleep(.1)
         if proc.poll() is None: proc.terminate()
         try: proc.wait(timeout=4)
         except subprocess.TimeoutExpired: proc.kill(); proc.wait()
+        diagnostic_stream.close()
+        # Stop only this fixture's home-scoped daemon before its files disappear.
+        subprocess.run([codex, 'app-server', 'daemon', 'stop'], cwd=work, env=environment,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
         if relay:
             relay.stdin.close(); relay.wait(timeout=5)
         stop.set(); worker.join(3)
-        assert seen, f'Codex did not contact the {scheme} fixture proxy'
+        assert seen, f'Codex did not contact the {scheme} fixture proxy; observed requests={contacts}: ' + diagnostics.read_text(errors='replace')[-4000:]
         print(f'PASS: installed Codex CLI uses {scheme} proxy for synthetic HTTPS endpoint')

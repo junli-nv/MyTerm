@@ -60,6 +60,7 @@ enum TerminalPasteCheck {
                     try require(String(decoding: input.bytes, as: UTF8.self) == expected,
                                 "Single inactive-window click lost, duplicated or changed paste framing")
                     try require(window.firstResponder === input, "Paste did not restore terminal input focus")
+                    try require(window.isKeyWindow, "Paste left the terminal window inactive; later typing goes to the previous window")
                 }
             }
         }

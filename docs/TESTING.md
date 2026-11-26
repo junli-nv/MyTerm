@@ -115,3 +115,9 @@ MCP 诊断管道回归：`python scripts/mcp-diagnostics-check.py /path/to/MyTer
 诊断摘要回归覆盖中英文说明、未检查及无事件状态、未知原因不回显原文、正常 EOF、事件丢失、多个辅助进程与成功主动检查并存时的故障解释，以及实际 ZIP 中两种摘要与原始元数据的一致性。
 
 端口转发回归：`scripts/codex-execution-check.py` 使用隔离本机 sshd 和回显服务验证真实 ControlMaster 操作，包括本地/远程/SOCKS 数据、关闭/重开、端口占用及 SSH 保持。`SSHForwardCheck` 覆盖等待、失败、重试、关闭、过期回调和双语面板边界。`FullscreenScrollCheck`/`TerminalScrollCheck` 验证 Codex 滚轮隔离与屏幕切换的小数滚动量。用户实际 Codex 长时间滚动仍需现场验证。
+
+Codex 文件传输回归由 `scripts/codex-execution-check.py` 使用临时本机 sshd/SFTP 和生产传输类验证：多来源、递归空目录/隐藏文件、中文与特殊文件名、过滤、冲突策略、进度、上传/下载中断及非零偏移续传、链接拒绝、禁止新连接回退及原 SSH 保持。审批回归验证命令始终允许不会隐式批准传输、关联隔离、只读与撤销。失败返回列表有界；不声称已验证所有远端服务、网络断线或任意文件系统竞态。
+
+右键粘贴检查还断言目标窗口成为键盘输入窗口。滚动诊断包含实际手势与前后位置，以及历史行数、裁剪、清空计数；追加输出锚点测试通过不等于真实 Codex 跳顶已修复。
+
+Codex 代理夹具使用独立 `CODEX_HOME`，保留合成 CLI 失败诊断并在退出前停止该夹具的守护进程；不得复用或停止用户的 Codex 守护进程。
