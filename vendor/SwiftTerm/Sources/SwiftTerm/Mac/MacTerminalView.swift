@@ -1145,6 +1145,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         selection.selectNone()
         updateScroller ()
     }
+
+    open func willClearScrollback(source: Terminal) {}
     
     open func send(source: Terminal, data: ArraySlice<UInt8>) {
         terminalDelegate?.send (source: self, data: data)
@@ -1250,7 +1252,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         NSGraphicsContext.current?.cgContext
     }
     
-    override public func draw (_ dirtyRect: NSRect) {
+    override open func draw (_ dirtyRect: NSRect) {
 #if canImport(MetalKit)
         if metalView != nil {
             return
@@ -3303,12 +3305,15 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
                 }
             }
         } else {
-            if scrollingUp {
-                scrollUp(lines: magnitude)
-            } else {
-                scrollDown(lines: magnitude)
-            }
+            scrollHistory(lines: lines)
         }
+    }
+
+    /// Positive lines read older history. App hosts can hold this intent while
+    /// a transcript is rebuilt, after native fractional wheel conversion.
+    open func scrollHistory(lines: Int) {
+        if lines > 0 { scrollUp(lines: lines) }
+        else if lines < 0 { scrollDown(lines: -lines) }
     }
     
     public override func resetCursorRects() {

@@ -58,6 +58,29 @@ func checkCodexIntegration() throws {
     checkEqual(once.contains("First call capture_history"), false)
     checkEqual(once.contains("wait for my task"), true)
     checkEqual(once.contains("all_output_delivered=true"), true)
+    // Check the messages actually exposed through launch and MCP discovery,
+    // including read-only/resumed startup, not just a policy constant.
+    for includeHistory in [false, true] {
+        let prompt = CodexConnection.sessionPrompt(id: id, includeHistory: includeHistory)
+        checkEqual(prompt.contains(CodexTransferPolicy.instructions), true)
+        checkEqual(prompt.contains("Do not execute commands or change files."), true)
+        checkEqual(prompt.contains("local/remote files or directories, use upload_items"), false)
+    }
+    let initialization = CodexMCP.response(["jsonrpc": "2.0", "id": 100, "method": "initialize"]) { _, _ in
+        fail("MCP initialization should not access the SSH session")
+    }
+    let instructions = (initialization?["result"] as? [String: Any])?["instructions"] as? String ?? ""
+    checkEqual(instructions.contains(CodexTransferPolicy.instructions), true)
+    checkEqual(instructions.contains("here-documents"), true)
+    checkEqual(instructions.contains("not a required checkout"), true)
+    let discovery = CodexMCP.response(["jsonrpc": "2.0", "id": 101, "method": "tools/list"]) { _, _ in
+        fail("Tool discovery should not transfer files")
+    }
+    let discovered = (discovery?["result"] as? [String: Any])?["tools"] as? [[String: Any]] ?? []
+    for tool in ["upload_items", "download_items"] {
+        let description = discovered.first { $0["name"] as? String == tool }?["description"] as? String ?? ""
+        checkEqual(description.hasPrefix(CodexTransferPolicy.scope), true)
+    }
     checkEqual(CodexConnection.sessionPrompt(id: id, includeHistory: true).contains("First call capture_history"), true)
     checkEqual(CodexMCP.tools.contains { $0["name"] as? String == "watch_output" }, false)
     let retired = CodexMCP.response(["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": "watch_output"]]) { _, _ in

@@ -28,3 +28,9 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 
 - Expose read-only active scrollback row count and a monotonic CSI 3J clear counter for host diagnostics; no terminal text is extracted and scrolling/protocol behavior is unchanged.
 - 向主程序诊断公开只读的活动历史行数与单调递增的 CSI 3J 清空计数，不提取终端正文，不改变滚动或协议行为。
+
+- Expose a default no-op pre-CSI-3J-clear delegate hook and a macOS native-history wheel-row hook. They do not suppress clears or change ordinary scrolling; MyTerm uses them only for its Codex replay reading protection.
+- 增加默认无动作的 CSI 3J 清空前委托，以及 macOS 原生历史滚动行数入口；不忽略清空、不改变普通滚动，主程序仅用于 Codex 重绘阅读保护。
+
+- Allow the macOS host to override drawing for a temporary reading image on the existing surface, preserving alpha instead of compositing translucent overlays over live text.
+- 允许 macOS 主程序覆盖绘制，在原表面呈现临时阅读图像并保持透明度，避免透明叠层与实时文字透叠。

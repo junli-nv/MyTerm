@@ -21,6 +21,7 @@ public final class TerminalDiagnosticLog {
         public var applicationScrolling: Bool?
         public var historyRows: Int?, trimmedRows: Int?, historyClears: Int?
         public var synchronizedOutput: Bool?
+        public var replayHolding: Bool?
         public var wheel: Wheel?
         public var keyboardFlags: UInt32
         public init(columns: Int = 0, rows: Int = 0, viewportRow: Int = 0, scrollPosition: Double = 1,

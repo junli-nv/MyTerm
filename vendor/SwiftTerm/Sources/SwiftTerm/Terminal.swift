@@ -88,6 +88,10 @@ public protocol TerminalDelegate: AnyObject {
     /// The default implementation does nothing.
     func bufferActivated (source: Terminal)
 
+    /// Called before CSI 3J removes history. Hosts may preserve a reading view,
+    /// but the terminal still performs the requested clear normally.
+    func willClearScrollback(source: Terminal)
+
     /// Invoked when synchronized output mode is toggled on or off.
     /// The default implementation does nothing.
     func synchronizedOutputChanged (source: Terminal, active: Bool)
@@ -3342,6 +3346,7 @@ open class Terminal {
             scrollbackClearCount += 1
             let scrollBackSize = buffer.lines.count - rows
             if scrollBackSize > 0 {
+                tdel?.willClearScrollback(source: self)
                 buffer.lines.trimStart (count: scrollBackSize)
                 buffer.linesTop = 0
                 buffer.yBase = max (buffer.yBase - scrollBackSize, 0)
@@ -8033,6 +8038,8 @@ public extension TerminalDelegate {
     func bufferActivated(source: Terminal) {
         // nothing
     }
+
+    func willClearScrollback(source: Terminal) {}
 
     func synchronizedOutputChanged(source: Terminal, active: Bool) {
         // nothing

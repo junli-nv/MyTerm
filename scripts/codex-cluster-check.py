@@ -73,5 +73,9 @@ with tempfile.TemporaryDirectory(prefix="myterm-cluster-check-") as temporary:
             if slave >= 0: os.close(slave)
             os.close(master)
     finally:
+        # The current CLI may leave a home-scoped daemon cloning plugins after
+        # stdio closes. Stop only this fixture's daemon before deleting its home.
+        subprocess.run([codex, "app-server", "daemon", "stop"], env=env,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
         provider.shutdown(); provider.server_close()
 print("PASS: official Codex create/name/read, persisted metadata, rename, cluster isolation and native UUID resume; no model requests")

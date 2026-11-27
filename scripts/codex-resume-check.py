@@ -120,4 +120,6 @@ for line in sys.stdin:
                 os.killpg(process.pid, signal.SIGKILL); process.wait()
         os.close(master)
         if slave >= 0: os.close(slave)
+        subprocess.run([codex, "app-server", "daemon", "stop"], env=env,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
         server.shutdown(); server.server_close()

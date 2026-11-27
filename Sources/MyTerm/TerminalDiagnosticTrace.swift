@@ -20,6 +20,7 @@ final class TerminalDiagnosticTrace {
         state.trimmedRows = terminal.buffer.totalLinesTrimmed
         state.historyClears = terminal.scrollbackClearCount
         state.synchronizedOutput = terminal.synchronizedOutputActive
+        state.replayHolding = view.scrollbackReplay.isHolding
         return state
     }
     func scroll(_ event: NSEvent, previousRow: Int, view: MouseTerminalView) {

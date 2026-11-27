@@ -20,6 +20,11 @@ final class WindowControlsCheck {
     static func run(window: NSWindow, workspace: Workspace) {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
+            if ProcessInfo.processInfo.arguments.contains("--smoke-test"), ProcessInfo.processInfo.arguments.contains("--codex-replay-only") {
+                try CodexReplayCheck.run()
+                workspace.stopAll(); NSApp.terminate(nil)
+                return
+            }
             try SystemMenuLocalizationCheck.run()
             try FontZoomKeyboardCheck.run()
             try FullscreenScrollCheck.run()
@@ -28,6 +33,7 @@ final class WindowControlsCheck {
             try TerminalInputStateCheck.run()
             try TerminalPasteCheck.run()
             try TerminalScrollCheck.run()
+            try CodexReplayCheck.run()
             try TerminalSearchCheck.run()
             try TabAppearanceCheck.run()
             try TerminalDiagnosticsCheck.run(workspace: workspace)

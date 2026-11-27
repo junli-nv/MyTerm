@@ -5,6 +5,18 @@ import Combine
 
 class MouseTerminalView: LocalProcessTerminalView {
     private(set) var historySearch: TerminalHistorySearch?
+    lazy var scrollbackReplay = CodexScrollbackReplay(view: self)
+    override func draw(_ dirtyRect: NSRect) {
+        if !scrollbackReplay.draw(in: bounds) { super.draw(dirtyRect) }
+    }
+    override func willClearScrollback(source: SwiftTerm.Terminal) { scrollbackReplay.begin() }
+    override func bufferActivated(source: SwiftTerm.Terminal) {
+        scrollbackReplay.cancel()
+        super.bufferActivated(source: source)
+    }
+    override func scrollHistory(lines: Int) {
+        if !scrollbackReplay.scroll(lines: lines) { super.scrollHistory(lines: lines) }
+    }
     func showHistorySearch() {
         if historySearch == nil {
             let bar = TerminalHistorySearch(terminal: self)
@@ -110,6 +122,7 @@ class MouseTerminalView: LocalProcessTerminalView {
         if size != preferences.theme.fontSize { preferences.theme.fontSize = size }
     }
     override func keyDown(with event: NSEvent) {
+        scrollbackReplay.cancel()
         diagnosticTrace.beginReturn(event, view: self)
         defer { diagnosticTrace.endReturn(view: self) }
         onPaneFocus?()
@@ -284,7 +297,11 @@ class MouseTerminalView: LocalProcessTerminalView {
     override func dataReceived(slice: ArraySlice<UInt8>) {
         let visible = zmodem?.consume(Data(slice)) ?? Data(slice)
         let bytes = incomingText?.convert(Array(visible)) ?? Array(visible)
-        if !bytes.isEmpty { super.dataReceived(slice: bytes[...]); diagnosticTrace.output(count: bytes.count, view: self) }
+        if !bytes.isEmpty {
+            super.dataReceived(slice: bytes[...])
+            scrollbackReplay.receivedOutput()
+            diagnosticTrace.output(count: bytes.count, view: self)
+        }
     }
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
         guard reconnectHandler == nil else { return }
@@ -294,6 +311,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        scrollbackReplay.cancel()
         onPaneFocus?()
         progressiveDoubleClickSelection = true
         super.mouseDown(with: event)
@@ -318,6 +336,7 @@ class MouseTerminalView: LocalProcessTerminalView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        scrollbackReplay.cancel()
         onPaneFocus?()
         // A right click does not reliably make an inactive NSWindow key. Setting
         // firstResponder alone leaves subsequent typing in the previous app/window.
