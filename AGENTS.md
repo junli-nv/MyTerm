@@ -13,10 +13,12 @@ This file contains matching English and Chinese instructions. Both describe the 
 - Prefer `/Users/junliz/.venvs/codex-py314/bin/python` and its `-m pip` for local Python work. Respect project-specific virtual environments; do not install packages into Apple-managed Python or Homebrew's base interpreter.
 - Keep gesture handling separate from session mutations. Use descriptive names, small focused files and meaningful regression checks. Document behavioral invariants rather than restating code.
 - Preserve user settings, credentials, saved sessions and unrelated work during changes and upgrades.
+- For new or changed preferences, map defaults, persistence, enabled/disabled behavior and affected interactions to checks in `docs/TESTING.en.md` or its linked matrices. Mark manual/device/environment gaps explicitly; navigation or serialization alone does not verify the option’s effect.
+- For regressions, retain the complete reported interaction as a test: reproduce failure on the prior implementation and verify the fix. Assert outcomes such as selection bounds and clipboard contents, not only rendered text. Keep these checks in the shared Debug/Release/DMG window suite; do not weaken, skip or delete failing assertions to obtain a pass. Record untested environments and interaction combinations explicitly.
 
 ### Build, package and install
 
-- For broad regression reviews and major releases, use `scripts/check-all.py` with explicit app and build configuration; retain suite logs and report unverified environments. See `docs/TESTING.md` and `docs/TESTING.en.md`.
+- For broad regression reviews and major releases, use `scripts/check-all.py` with explicit app and build configuration; rebuild `MyTermChecks` for that configuration after core/vendor/test source changes. An older binary passing is not validation of current code. Retain suite logs and report unverified environments. See `docs/TESTING.md` and `docs/TESTING.en.md`.
 - Installed and development apps must behave consistently. A successful development build alone is not release validation.
 - After functional app changes, update the local installer. Run `scripts/package-release.sh` and `scripts/create-dmg.sh`; they validate Debug, Release and an app copied from the actual DMG, including bundle-content comparison.
 - Once DMG checks pass, automatically install, validate and reopen without asking again; quitting sessions for this upgrade is authorized.
@@ -51,10 +53,12 @@ This file contains matching English and Chinese instructions. Both describe the 
 - 本地 Python 优先使用 `/Users/junliz/.venvs/codex-py314/bin/python` 及其 `-m pip`。尊重项目虚拟环境，不向 Apple 管理的 Python 或 Homebrew 基础解释器安装包。
 - 手势处理与会话数据修改分离，使用清楚的命名、小而专注的文件和有意义的回归检查；注释说明行为约束，不重复代码。
 - 修改与升级保留用户设置、凭据、保存会话及无关工作。
+- 新增或修改设置时，在 `docs/TESTING.md` 或所链接矩阵中对应默认值、持久化、启用／关闭行为及受影响交互的检查。明确标记人工／设备／环境缺口；只有导航或序列化检查，不能证明选项实际生效。
+- 回归问题须保留完整复现操作作为测试：确认旧实现失败、修复后通过。断言选中范围、剪贴板等实际结果，不能只检查屏幕文字。接入 Debug、Release、DMG 共用窗口检查；不得为通过检查而弱化、跳过或删除失败断言。明确记录未验证环境及交互组合。
 
 ### 构建、打包与安装
 
-- 全面回归审查与大版本发布使用 `scripts/check-all.py`，显式指定应用及构建配置；保留测试日志并说明未验证环境，详见 `docs/TESTING.md` 与 `docs/TESTING.en.md`。
+- 全面回归审查与大版本发布使用 `scripts/check-all.py`，显式指定应用及构建配置；核心／第三方／测试源码变化后，重新构建对应配置的 `MyTermChecks`，旧二进制通过不能算作当前代码验证。保留测试日志并说明未验证环境，详见 `docs/TESTING.md` 与 `docs/TESTING.en.md`。
 - 安装版和开发版必须行为一致，开发构建成功不能替代发布验证。
 - 完成功能修改后更新本地安装包。运行 `scripts/package-release.sh` 和 `scripts/create-dmg.sh`，验证 Debug、Release 和从实际 DMG 复制的应用，并比较包内容。
 - DMG 检查通过后自动安装、验证并重新打开，不再确认；用户已授权升级时关闭会话。

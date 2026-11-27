@@ -1724,6 +1724,7 @@ open class Terminal {
     {
         let buffer = self.buffer
         let by = buffer.y
+        let previousLine = buffer.lines[buffer.yBase + by]
         var movedToNextLine = false
         
         let canScroll = !marginMode || (buffer.x >= buffer.marginLeft && buffer.x <= buffer.marginRight)
@@ -1748,6 +1749,9 @@ open class Terminal {
             buffer.x -= 1
         }
 
+        if movedToNextLine {
+            buffer.lines[buffer.yBase + buffer.y].recordNativeBoundary(after: previousLine)
+        }
         finishSemanticLineAdvance(movedToNextLine: movedToNextLine)
         
         // This event is emitted whenever the terminal outputs a LF or NL.
@@ -7235,9 +7239,9 @@ open class Terminal {
         return linkMatch(at: location, mode: mode)?.text
     }
 
-    func getDisplayText (start: Position, end: Position, preserveLineBreaks: Bool = false) -> String
+    func getDisplayText (start: Position, end: Position, preserveLineBreaks: Bool = false, selectionWraps: Set<Int>? = nil) -> String
     {
-        getText(start: start, end: end, buffer: displayBuffer, preserveLineBreaks: preserveLineBreaks)
+        getText(start: start, end: end, buffer: displayBuffer, preserveLineBreaks: preserveLineBreaks, selectionWraps: selectionWraps)
     }
 
     func linkMatch(at location: LinkLookupLocation, mode: LinkLookupMode) -> LinkMatch?
@@ -7869,9 +7873,9 @@ open class Terminal {
         return text[text.index(before: range.lowerBound)] == "$"
     }
 
-    func getText (start: Position, end: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> String
+    func getText (start: Position, end: Position, buffer: Buffer, preserveLineBreaks: Bool = false, selectionWraps: Set<Int>? = nil) -> String
     {
-        let lines = getSelectedLines(p1: start, p2: end, buffer: buffer, preserveLineBreaks: preserveLineBreaks)
+        let lines = getSelectedLines(p1: start, p2: end, buffer: buffer, preserveLineBreaks: preserveLineBreaks, selectionWraps: selectionWraps)
         if lines.count == 0 {
             return ""
         }
@@ -7883,7 +7887,7 @@ open class Terminal {
     }
 
     // This version validates the input parameters
-    func getSelectedLines(p1: Position, p2: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> [Line]
+    func getSelectedLines(p1: Position, p2: Position, buffer: Buffer, preserveLineBreaks: Bool = false, selectionWraps: Set<Int>? = nil) -> [Line]
     {
         var start = p1
         var end = p2
@@ -7906,10 +7910,10 @@ open class Terminal {
         if end.row >= b.lines.count {
             end.row = b.lines.count-1
         }
-        return _getSelectedLines(start, end, buffer: buffer, preserveLineBreaks: preserveLineBreaks)
+        return _getSelectedLines(start, end, buffer: buffer, preserveLineBreaks: preserveLineBreaks, selectionWraps: selectionWraps)
     }
     
-    func _getSelectedLines(_ start: Position, _ end: Position, buffer: Buffer, preserveLineBreaks: Bool = false) -> [Line]
+    func _getSelectedLines(_ start: Position, _ end: Position, buffer: Buffer, preserveLineBreaks: Bool = false, selectionWraps: Set<Int>? = nil) -> [Line]
     {
         var lines: [Line] = []
         let buf = buffer
@@ -7950,7 +7954,7 @@ open class Terminal {
         var isWrapped = false
         while line < end.row {
             bufferLine = buffer.lines [line]
-            isWrapped = bufferLine.isWrapped && !preserveLineBreaks
+            isWrapped = (selectionWraps?.contains(line) ?? bufferLine.isWrapped) && !preserveLineBreaks
             
             str = translateBufferLineToString (buffer: buf, line: line, start: 0, end: -1)
             
@@ -7992,7 +7996,7 @@ open class Terminal {
             if bufferLine.hasAnyContent () {
                 addBlanks ()
                 
-                isWrapped = bufferLine.isWrapped && !preserveLineBreaks
+                isWrapped = (selectionWraps?.contains(line) ?? bufferLine.isWrapped) && !preserveLineBreaks
                 str = translateBufferLineToString (buffer: buf, line: end.row, start: 0, end: end.col)
                 if !isWrapped {
                     currentLine.add(fragment: LineFragment.newLine (line: line - 1))

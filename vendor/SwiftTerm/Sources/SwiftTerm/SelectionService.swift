@@ -232,6 +232,9 @@ public class SelectionService: CustomDebugStringConvertible {
      * Sets the selection, this is validated against the
      */
     public func setSelection (start: Position, end: Position) {
+        selectingLogicalRows = false
+        whitespaceWordSelection = false
+        selectionMode = .character
         let buffer = terminal.displayBuffer
         let sclamped = clamp (buffer, start)
         let eclamped = clamp (buffer, end)
@@ -451,6 +454,9 @@ public class SelectionService: CustomDebugStringConvertible {
      */
     public func selectAll ()
     {
+        selectingLogicalRows = false
+        whitespaceWordSelection = false
+        selectionMode = .character
         start = Position(col: 0, row: 0)
         end = Position(col: terminal.cols-1, row: terminal.displayBuffer.lines.maxLength - 1)
         setActiveAndNotify()
@@ -458,6 +464,40 @@ public class SelectionService: CustomDebugStringConvertible {
     
     public var selectingRows: Bool = false
     private var selectingLogicalRows = false
+    /// Host opt-in for coordinate-painted full-screen rows with no wrap metadata.
+    /// Applied only to explicit token/logical-row selection, never ordinary drag-copy.
+    public var allowCoordinateSelection = false
+
+    private static let blankGlyphs: Set<Character> = ["\u{115f}", "\u{2800}", "\u{3164}", "\u{ffa0}"]
+    private func isSelectionBlank(_ ch: Character) -> Bool {
+        ch.isWhitespace || Self.blankGlyphs.contains(ch)
+    }
+
+    private func isLogicalContinuation(_ row: Int, in buffer: Buffer) -> Bool {
+        guard row > 0, row < buffer.lines.count else { return false }
+        guard allowCoordinateSelection, terminal.isDisplayBufferAlternate, terminal.cols > 1 else {
+            return buffer.lines[row].isWrapped
+        }
+        // Coordinate redraws may retain stale wrap flags from the old screen.
+        // In the opted-in mode validate the visible boundary in both cases.
+        let previous = buffer.lines[row - 1], current = buffer.lines[row]
+        if current.hasCurrentNativeBoundary(after: previous) { return current.isWrapped }
+        guard previous.renderMode == .single, current.renderMode == .single, current.hasAnyContent() else { return false }
+        var edge = terminal.cols - 1
+        if previous[edge].code == 0,
+           previous[edge - 1].width == 2 || current[0].width == 2 { edge -= 1 }
+        let ch = terminal.getCharacter(for: previous[edge])
+        guard previous[edge].code != 0, !isSelectionBlank(ch),
+              previous[edge].attribute == current[0].attribute else { return false }
+        // Pane/table separators and a differently styled status line are not
+        // continuation evidence. Never mutate the buffer's real wrap flags.
+        let borders: Set<Character> = ["│", "┃", "║", "|", "┆", "┊"]
+        for col in 0..<terminal.cols {
+            let a = terminal.getCharacter(for: previous[col])
+            if borders.contains(a), a == terminal.getCharacter(for: current[col]) { return false }
+        }
+        return true
+    }
     
     /// Tracks the current selection mode to maintain consistency during extension
     public enum SelectionMode {
@@ -492,8 +532,8 @@ public class SelectionService: CustomDebugStringConvertible {
         var firstRow = max(0, min(last, min(anchorRow, targetRow)))
         var lastRow = max(0, min(last, max(anchorRow, targetRow)))
         if selectingLogicalRows {
-            while firstRow > 0 && buffer.lines[firstRow].isWrapped { firstRow -= 1 }
-            while lastRow < last && buffer.lines[lastRow + 1].isWrapped { lastRow += 1 }
+            while firstRow > 0 && isLogicalContinuation(firstRow, in: buffer) { firstRow -= 1 }
+            while lastRow < last && isLogicalContinuation(lastRow + 1, in: buffer) { lastRow += 1 }
         }
         start = Position(col: 0, row: firstRow)
         // Selection endpoints are exclusive: include the final cell as well.
@@ -681,12 +721,12 @@ public class SelectionService: CustomDebugStringConvertible {
         let point = Position(col: max(0, min(position.col, cols - 1)), row: row)
         func previous(_ p: Position) -> Position? {
             if p.col > 0 { return Position(col: p.col - 1, row: p.row) }
-            if p.row > 0 && buffer.lines[p.row].isWrapped { return Position(col: cols - 1, row: p.row - 1) }
+            if p.row > 0 && isLogicalContinuation(p.row, in: buffer) { return Position(col: cols - 1, row: p.row - 1) }
             return nil
         }
         func next(_ p: Position) -> Position? {
             if p.col + 1 < cols { return Position(col: p.col + 1, row: p.row) }
-            if p.row + 1 < buffer.lines.count && buffer.lines[p.row + 1].isWrapped { return Position(col: 0, row: p.row + 1) }
+            if p.row + 1 < buffer.lines.count && isLogicalContinuation(p.row + 1, in: buffer) { return Position(col: 0, row: p.row + 1) }
             return nil
         }
         func isSpace(_ p: Position) -> Bool {
@@ -695,14 +735,14 @@ public class SelectionService: CustomDebugStringConvertible {
                 // Wide-character continuation cells and the gap before a wrapped
                 // wide character belong to the same token, not to whitespace.
                 if p.col > 0 && buffer.lines[p.row][p.col - 1].width == 2 {
-                    return character(at: Position(col: p.col - 1, row: p.row), in: buffer).isWhitespace
+                    return isSelectionBlank(character(at: Position(col: p.col - 1, row: p.row), in: buffer))
                 }
                 if p.col == cols - 1, let n = next(p), buffer.lines[n.row][n.col].width == 2 {
-                    return character(at: n, in: buffer).isWhitespace
+                    return isSelectionBlank(character(at: n, in: buffer))
                 }
                 return true
             }
-            return ch.isWhitespace
+            return isSelectionBlank(ch)
         }
         let space = isSpace(point)
         var first = point
@@ -785,8 +825,27 @@ public class SelectionService: CustomDebugStringConvertible {
         } else {
             (end, start)
         }
-        let r = terminal.getDisplayText(start: min, end: max, preserveLineBreaks: preserveLineBreaks)
-        return r
+        var selectionWraps: Set<Int>?
+        if (selectionMode == .row && selectingLogicalRows || selectionMode == .word && whitespaceWordSelection),
+           allowCoordinateSelection, terminal.isDisplayBufferAlternate, min.row < max.row {
+            // Override stale native flags as well as restoring missing joins.
+            // Row-drag selection may span several independent logical records.
+            selectionWraps = Set(((min.row + 1)...max.row).filter {
+                isLogicalContinuation($0, in: terminal.displayBuffer)
+            })
+        }
+        let r = terminal.getDisplayText(start: min, end: max, preserveLineBreaks: preserveLineBreaks, selectionWraps: selectionWraps)
+        let inferredWrap = selectionWraps?.contains { row in
+            !terminal.displayBuffer.lines[row].hasCurrentNativeWrap(after: terminal.displayBuffer.lines[row - 1])
+        } ?? false
+        guard selectionMode == .row, selectingLogicalRows, !preserveLineBreaks, inferredWrap else { return r }
+        // Coordinate redraw erases old text with literal spaces. Normalize only
+        // reconstructed logical rows; native trailing spaces and screen-copy stay intact.
+        return r.components(separatedBy: "\n").map { fragment in
+            var text = fragment
+            while text.last == " " { text.removeLast() }
+            return text
+        }.joined(separator: "\n")
     }
     
     public var debugDescription: String {

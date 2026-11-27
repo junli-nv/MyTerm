@@ -20,11 +20,26 @@ final class WindowControlsCheck {
     static func run(window: NSWindow, workspace: Workspace) {
         let check = WindowControlsCheck(window: window, workspace: workspace)
         do {
+            if ProcessInfo.processInfo.arguments.contains("--smoke-test"), ProcessInfo.processInfo.arguments.contains("--tab-context-only") {
+                workspace.newLocal()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+                try SessionTabContextMenuCheck.run(window: window, workspace: workspace)
+                workspace.stopAll(); NSApp.terminate(nil)
+                return
+            }
+            if ProcessInfo.processInfo.arguments.contains("--smoke-test"), ProcessInfo.processInfo.arguments.contains("--terminal-copy-only") {
+                try TerminalCopyCheck.run()
+                workspace.stopAll(); NSApp.terminate(nil)
+                return
+            }
             if ProcessInfo.processInfo.arguments.contains("--smoke-test"), ProcessInfo.processInfo.arguments.contains("--codex-replay-only") {
                 try CodexReplayCheck.run()
                 workspace.stopAll(); NSApp.terminate(nil)
                 return
             }
+            try MouseInteractionCheck.run(window: window)
+            try AppearanceHistoryCheck.run()
+            try GroupNameDialogCheck.run()
             try SystemMenuLocalizationCheck.run()
             try FontZoomKeyboardCheck.run()
             try FullscreenScrollCheck.run()

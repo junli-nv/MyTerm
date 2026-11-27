@@ -44,7 +44,11 @@ final class TmuxWindowCheck {
     private func tick() {
         guard let session, let window else { return }
         let terminal = session.terminal.getTerminal()
-        if Date() > deadline { finish("SSH/tmux timeout phase \(phase): \(session.historySnapshot().text.suffix(1000))"); return }
+        if Date() > deadline {
+            let process = session.terminal.process
+            finish("SSH/tmux timeout phase \(phase), running=\(process?.running ?? false), sessionRunning=\(session.isRunning), pid=\(process?.shellPid ?? 0), fd=\(process?.childfd ?? -1), reconnect=\(session.canReconnect), logout=\(didLogout), status=\(session.status): \(session.historySnapshot().text.suffix(1000))")
+            return
+        }
         let text = session.historySnapshot().text
         switch phase {
         case 0:

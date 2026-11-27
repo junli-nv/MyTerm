@@ -1592,6 +1592,7 @@ public final class Buffer {
         while idx < bytes.endIndex {
             if _x > right {
                 guard wraparound else { break }
+                let previousWrappedRow = _lines[_y + _yBase]
                 _x = marginMode ? _marginLeft : 0
                 if _y >= _scrollBottom {
                     scroll(true)
@@ -1601,6 +1602,7 @@ public final class Buffer {
                     _lines[_y + _yBase].isWrapped = true
                     _lines[_y + _yBase].bidiState = paragraphBidiState
                 }
+                _lines[_y + _yBase].recordNativeBoundary(after: previousWrappedRow)
             }
             let available = right - _x + 1
             let runLen = min(available, bytes.endIndex - idx)
@@ -1642,6 +1644,7 @@ public final class Buffer {
             // autowrap - DECAWM
             // automatically wraps to the beginning of the next line
             if wraparound {
+                let previousWrappedRow = _lines[_y + _yBase]
                 _x = marginMode ? _marginLeft : 0
                 
                 if _y >= _scrollBottom {
@@ -1654,6 +1657,7 @@ public final class Buffer {
                     _lines [_y + _yBase].isWrapped = true
                     _lines [_y + _yBase].bidiState = paragraphBidiState
                 }
+                _lines[_y + _yBase].recordNativeBoundary(after: previousWrappedRow)
                 // row changed, get it again
             } else {
                 if (chWidth == 2) {

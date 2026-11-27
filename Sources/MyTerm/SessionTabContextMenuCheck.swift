@@ -32,6 +32,8 @@ enum SessionTabContextMenuCheck {
         let targets = Array(workspace.sessions.prefix(2))
         try require(targets.count == 2, "Two tabs required")
         for target in targets + targets {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
             settle()
             let view = try tabView(target.id)
             let point = view.convert(NSPoint(x: min(50, view.bounds.width * 0.5), y: view.bounds.midY), to: nil)
@@ -53,18 +55,28 @@ enum SessionTabContextMenuCheck {
             for (index, location) in locations.enumerated() {
                 let controlClick = index == 3
                 let translatedClick = index == 5
-                let contextPoint = active.convert(location, to: nil)
                 // Right-click an inactive tab without a preceding left-click.
                 workspace.selectedID = targets.first(where: { $0.id != target.id })!.id
                 settle()
+                // Resolve the live view after SwiftUI has switched selection.
+                let liveTarget = try tabView(target.id)
+                liveTarget.scrollToVisible(liveTarget.bounds)
+                settle()
+                try require(liveTarget.visibleRect.contains(location), "Fixture context point is clipped after tab switch")
+                let contextPoint = liveTarget.convert(location, to: nil)
                 let pressTime = ProcessInfo.processInfo.systemUptime
                 var opened = false, ended = false, survivedRelease = false
                 var openings = 0
+                var trackedMenu: NSMenu?
                 var releaseTimer: Timer?, closeTimer: Timer?
-                let endObserver = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: nil) { _ in ended = true }
+                let endObserver = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: nil) { notification in
+                    guard let menu = notification.object as? NSMenu, menu === trackedMenu else { return }
+                    ended = true
+                }
                 let observer = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { notification in
                     guard let menu = notification.object as? NSMenu,
                           menu.items.first?.title == L10n.text("复制会话（新连接）") else { return }
+                    trackedMenu = menu
                     opened = true
                     openings += 1
                     ended = false
@@ -99,7 +111,7 @@ enum SessionTabContextMenuCheck {
                 releaseTimer?.invalidate(); closeTimer?.invalidate()
                 NotificationCenter.default.removeObserver(observer)
                 NotificationCenter.default.removeObserver(endObserver)
-                try require(opened && survivedRelease, "Context menu missing or dismissed on release at \(location)")
+                try require(opened && survivedRelease && ended, "Context menu at \(location): opened=\(opened), survivedRelease=\(survivedRelease), ended=\(ended), openings=\(openings), key=\(window.isKeyWindow), active=\(NSApp.isActive), targetAttached=\(liveTarget.window === window)")
                 try require(workspace.selectedID == target.id, "Context click did not select its target")
             }
             let menu = try tabView(target.id).buildMenu!()!

@@ -34,3 +34,7 @@ The ANSI bright-bold mapping promotes only indices 0–7 for bold text. Explicit
 
 - Allow the macOS host to override drawing for a temporary reading image on the existing surface, preserving alpha instead of compositing translucent overlays over live text.
 - 允许 macOS 主程序覆盖绘制，在原表面呈现临时阅读图像并保持透明度，避免透明叠层与实时文字透叠。
+
+- Progressive logical-row selection has a host opt-in for alternate-screen coordinate repaint (including stale wrap flags). It infers continuation from full-width nonblank boundaries, matching styles and absence of aligned pane/table separators; ordinary drag selection and buffer flags remain unchanged. Only explicit token/logical-row selection passes selection-only wrap overrides to text extraction, rejecting stale hard-boundary flags as well as restoring joins. Exact-width hard breaks are inherently ambiguous; screen-line copy remains available. Blank delimiters also include Braille blank and Hangul fillers, without splitting emoji joiners. MyTerm 的备用屏幕逻辑行选择增加坐标重绘兜底，普通拖选与缓冲区折行标记不变；保留屏幕分行复制及满行硬换行的歧义说明。空白分隔增加盲文空白和韩文填充字符，不拆分 emoji 连接符。
+
+- Native autowrap and explicit LF record a weak predecessor identity, its existing mutation generation and the boundary kind. Opted-in selection trusts current soft and hard boundaries, preserving exact-width hard breaks, whitespace and wide-character wraps; coordinate repaint uses visual evidence when the record has become stale. This metadata does not alter normal copying, rendering or wrap flags. 原生自动折行及显式 LF 记录前行弱引用、已有修改代数和软／硬边界类型；兜底选择优先信任仍有效的原生关系，保留恰好满行的硬换行、空白和宽字符折行。该元数据不改变普通复制、渲染或折行标记。

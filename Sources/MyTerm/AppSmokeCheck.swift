@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 
 /// Exercises the real window and PTY without connecting to a remote server.
@@ -165,4 +164,3 @@ enum AppSmokeCheck {
         exit(1)
     }
 }
-#endif

@@ -24,6 +24,26 @@ public final class BufferLine: CustomDebugStringConvertible {
     /// True when this line is a continuation of the previous line: the text
     /// soft-wrapped onto it rather than starting after an explicit newline.
     public internal(set) var isWrapped: Bool { didSet { bump() } }
+    // Native soft/hard boundary provenance is only consulted by opted-in
+    // coordinate selection. A repaint can leave stale isWrapped values.
+    private weak var nativeBoundaryPrevious: BufferLine?
+    private var nativeBoundaryPreviousGeneration: UInt64 = 0
+    private var nativeBoundaryWrapped = false
+
+    func recordNativeBoundary(after previous: BufferLine) {
+        nativeBoundaryPrevious = previous
+        nativeBoundaryPreviousGeneration = previous.generation
+        nativeBoundaryWrapped = isWrapped
+    }
+
+    func hasCurrentNativeBoundary(after previous: BufferLine) -> Bool {
+        nativeBoundaryPrevious === previous && nativeBoundaryPreviousGeneration == previous.generation && nativeBoundaryWrapped == isWrapped
+    }
+
+    func hasCurrentNativeWrap(after previous: BufferLine) -> Bool {
+        isWrapped && hasCurrentNativeBoundary(after: previous)
+    }
+
     /// BiDi state for the paragraph that contains this row.
     public internal(set) var bidiState: BidiPresentationState { didSet { bump() } }
     var renderMode: RenderLineMode = .single { didSet { bump() } }

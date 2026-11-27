@@ -15,6 +15,7 @@ enum TerminalCopyCheck {
             }
             if !items.isEmpty { clipboard.writeObjects(items) }
         }
+        try TerminalSelectionCheck.run()
         func require(_ condition: Bool, _ message: String) throws {
             if !condition { throw ConfigurationError.invalid("Terminal copy: " + message) }
         }

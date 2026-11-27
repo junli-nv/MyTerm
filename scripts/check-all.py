@@ -24,6 +24,8 @@ def main():
     parser.add_argument("--password-python", type=Path, default=Path(".test-venv/bin/python"))
     parser.add_argument("--logs", type=Path)
     parser.add_argument("--x11", action="store_true", help="Require running XQuartz and test real forwarded windows")
+    parser.add_argument("--keep-going", action="store_true", help="Continue independent suites after failures; retain a failing exit status")
+    parser.add_argument("--codex", default="/opt/homebrew/bin/codex", help="Explicit Codex executable for proxy validation, matching the app default")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     app = args.app.resolve()
@@ -35,7 +37,24 @@ def main():
     for path in (binary, checks, root / ".build" / args.configuration / "MyTermProxy", password_python):
         if not path.is_file():
             parser.error(f"Required executable missing: {path}")
-    for tool in ("codex", "tmux", "rz", "sz"):
+    codex = shutil.which(args.codex)
+    if not codex:
+        parser.error("Codex executable missing; select it with --codex")
+    # An existing executable may belong to a previous source revision. A
+    # successful run of that binary would not exercise current core/PTY code.
+    core_sources = [path for folder in ("Sources/MyTermCore", "Tests/MyTermCoreTests", "vendor/SwiftTerm/Sources", "vendor/SwiftTerm/Plugins")
+                    for path in (root / folder).rglob("*.swift")]
+    stale_source = next((path for path in core_sources if path.stat().st_mtime_ns > checks.stat().st_mtime_ns), None)
+    if stale_source:
+        parser.error(f"Core checks are older than {stale_source.relative_to(root)}; rebuild: "
+                     f"swift build --build-system native -c {args.configuration} --product MyTermChecks")
+    app_sources = list((root / "Sources").rglob("*.swift")) + [
+        path for folder in ("vendor/SwiftTerm/Sources", "vendor/SwiftTerm/Plugins")
+        for path in (root / folder).rglob("*.swift")]
+    stale_app_source = next((path for path in app_sources if path.stat().st_mtime_ns > binary.stat().st_mtime_ns), None)
+    if stale_app_source:
+        parser.error(f"Application is older than {stale_app_source.relative_to(root)}; rebuild the selected app before validation")
+    for tool in ("tmux", "rz", "sz"):
         if not shutil.which(tool):
             parser.error(f"Required tool missing: {tool}")
     subprocess.run([str(password_python), "-c", "import paramiko"], check=True)
@@ -47,7 +66,8 @@ def main():
     metadata = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     identity = dict(version=metadata["CFBundleShortVersionString"], build=metadata["CFBundleVersion"],
                     executable_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
-                    checks_sha256=hashlib.sha256(checks.read_bytes()).hexdigest())
+                    checks_sha256=hashlib.sha256(checks.read_bytes()).hexdigest(),
+                    codex_executable=codex, codex_sha256=hashlib.sha256(Path(codex).read_bytes()).hexdigest())
     python = sys.executable
     suites = [
         ("core", [str(checks)], 120),
@@ -56,16 +76,30 @@ def main():
         ("zmodem", [str(binary), "--smoke-test", "--transfer-check"], 90),
         ("trzsz", [python, "scripts/trzsz-check.py"], 150),
         ("password", [str(password_python), "scripts/password-check.py"], 120),
-        ("codex-proxy", [python, "scripts/codex-proxy-check.py"], 90),
+        ("codex-proxy", [python, "scripts/codex-proxy-check.py", "--codex", codex], 90),
         ("codex-execution", [python, "scripts/codex-execution-check.py", str(checks)], 60),
     ]
-    if args.configuration == "debug":
-        suites.append(("app-smoke", [str(binary), "--smoke-test"], 60))
+    suites.append(("app-smoke", [str(binary), "--smoke-test"], 60))
     if args.x11:
         suites.append(("x11", [python, "scripts/x11-check.py"], 90))
+    gui_suites = {"ssh-integration", "window-controls", "zmodem", "trzsz", "app-smoke", "x11"}
+    gui_blocked = False
+    failed = False
     results = []
+    def save_summary():
+        (logs / "summary.json").write_text(json.dumps(dict(
+            app=str(app), configuration=args.configuration, x11_requested=args.x11,
+            identity=identity, results=results,
+            pending=[name for name, _, _ in suites if name not in {item["suite"] for item in results}],
+        ), indent=2) + "\n")
+    save_summary()
     print(f"App: {app}\nConfiguration: {args.configuration}\nLogs: {logs}", flush=True)
     for name, command, timeout in suites:
+        if gui_blocked and name in gui_suites:
+            results.append(dict(suite=name, status="blocked", reason="Earlier GUI failure may have left active fixtures"))
+            save_summary()
+            print(f"BLOCKED: {name}: earlier GUI failure", flush=True)
+            continue
         print(f"Running {name}…", flush=True)
         started = time.monotonic()
         with (logs / f"{name}.log").open("w") as log:
@@ -76,14 +110,15 @@ def main():
             except subprocess.TimeoutExpired:
                 log.write(f"\nFAIL: suite exceeded {timeout} seconds\n")
                 code = 124
-        results.append(dict(suite=name, exit_code=code, seconds=round(time.monotonic() - started, 2)))
-        (logs / "summary.json").write_text(json.dumps(dict(app=str(app), configuration=args.configuration, x11_requested=args.x11, identity=identity,
-                                                        results=results), indent=2) + "\n")
+        results.append(dict(suite=name, status="passed" if code == 0 else "failed", exit_code=code, seconds=round(time.monotonic() - started, 2)))
+        save_summary()
         print(f"{'PASS' if code == 0 else 'FAIL'}: {name} ({results[-1]['seconds']}s)", flush=True)
         if code != 0:
-            # A failed GUI suite may leave fixtures active; stop before launching another.
-            return 1
-    return 0
+            failed = True
+            gui_blocked = gui_blocked or name in gui_suites
+            if not args.keep_going:
+                return 1
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

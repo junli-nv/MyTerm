@@ -314,6 +314,7 @@ class MouseTerminalView: LocalProcessTerminalView {
         scrollbackReplay.cancel()
         onPaneFocus?()
         progressiveDoubleClickSelection = true
+        selection.allowCoordinateSelection = getTerminal().isDisplayBufferAlternate && !usesApplicationScrolling
         super.mouseDown(with: event)
     }
 

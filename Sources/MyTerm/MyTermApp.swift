@@ -118,7 +118,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             workspace.sidebarVisible = false
             workspace.newLocal()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in
+            // Run from the event loop: synchronous checks must be able to
+            // service main-queue callbacks (for example NSItemProvider drops).
+            Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [self] _ in
                 WindowControlsCheck.run(window: window, workspace: workspace)
             }
             return
@@ -148,7 +150,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
-        #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--smoke-test") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in
                 guard workspace.sessions.isEmpty, workspace.selected == nil else {
@@ -160,7 +161,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [self] _ in AppSmokeCheck.run(workspace) }
             }
         }
-        #endif
     }
 
     private func installMenus() {

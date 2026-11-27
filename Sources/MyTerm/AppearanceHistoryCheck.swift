@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 import MyTermCore
 
@@ -48,4 +47,3 @@ enum AppearanceHistoryCheck {
         print("PASS: theme persistence and application, normal/alternate history, UTF-8 export and deletion")
     }
 }
-#endif

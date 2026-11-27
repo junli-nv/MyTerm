@@ -3,6 +3,7 @@
 No real API key, model endpoint, SSH session, user config, or saved thread is used.
 """
 import os
+import argparse
 import base64
 from pathlib import Path
 import shutil
@@ -12,8 +13,13 @@ import tempfile
 import threading
 import time
 
-codex = shutil.which('codex')
-assert codex, 'Codex CLI is required for this integration check'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--codex', default=os.environ.get('MYTERM_TEST_CODEX', '/opt/homebrew/bin/codex'),
+                    help='Explicit CLI executable; defaults to MyTerm CodexConnection default, not a PATH wrapper')
+args = parser.parse_args()
+codex = shutil.which(args.codex)
+assert codex, 'Codex CLI executable missing; select it with --codex'
+print(f'Codex proxy fixture executable: {codex}', flush=True)
 
 for scheme in ('http', 'socks5h'):
     with socket.socket() as listener, tempfile.TemporaryDirectory(prefix='myterm-codex-proxy-') as work:

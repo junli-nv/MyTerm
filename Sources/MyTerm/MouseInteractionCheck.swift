@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 
 enum MouseInteractionCheck {
@@ -33,7 +32,8 @@ enum MouseInteractionCheck {
         try require(zoom.consume(delta: -500, inverted: true, precise: true, control: false, momentum: true, began: false, timestamp: 2.4) == 0, "Zoom momentum must be swallowed after Ctrl release")
         try require(zoom.consume(delta: 500, inverted: false, precise: true, control: true, momentum: false, began: true, timestamp: 3) == 0.5, "Large non-natural motion must still be capped at half a point")
         print("PASS: Ctrl scroll font zoom direction, threshold, half-point cap, throttling and momentum suppression")
-        try require(preferences.rightClickPastes && preferences.copyOnSelection, "Default mouse behavior")
+        try require(preferences.rightClickPastes && preferences.copyOnSelection && preferences.disableBell, "Default mouse/bell behavior")
+        preferences.disableBell = false
         terminal.rightMouseDown(with: event(.rightMouseDown))
         terminal.rightMouseUp(with: event(.rightMouseUp))
         try require(terminal.pasteCount == 1, "Right click must paste exactly once")
@@ -48,7 +48,7 @@ enum MouseInteractionCheck {
         terminal.mouseUp(with: event(.leftMouseUp))
         try require(terminal.copies.count == 1, "Disabled auto-copy must not alter clipboard")
         let reloaded = MousePreferences(defaults: UserDefaults(suiteName: suite)!)
-        try require(!reloaded.rightClickPastes && !reloaded.copyOnSelection, "Mouse settings must survive reload")
+        try require(!reloaded.rightClickPastes && !reloaded.copyOnSelection && !reloaded.disableBell, "Mouse settings must survive reload")
         preferences.copyOnSelection = true
         terminal.selection.selectNone()
         terminal.mouseUp(with: event(.leftMouseUp))
@@ -56,4 +56,3 @@ enum MouseInteractionCheck {
         print("PASS: right-click paste once, context menu fallback, selection copy, switches, persistence")
     }
 }
-#endif

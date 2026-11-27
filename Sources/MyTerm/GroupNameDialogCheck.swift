@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 import MyTermCore
 
@@ -173,4 +172,3 @@ enum GroupNameDialogCheck {
         print("PASS: actual NSItemProvider drop delivery from ungrouped to group, between groups, back to ungrouped, and invalid drop rejection")
     }
 }
-#endif

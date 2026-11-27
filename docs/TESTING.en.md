@@ -6,7 +6,7 @@ Codex execution configuration regression checks cover command byte bounds, setti
 
 ## Full regression entry point
 
-Run from the repository root. Requires a macOS GUI session, Swift, system OpenSSH/SFTP, Codex CLI, tmux, lrzsz, and a separate Python environment with `scripts/requirements-password-test.txt` installed. Missing dependencies fail rather than silently skipping suites.
+Run from the repository root. Requires a macOS GUI session, Swift, system OpenSSH/SFTP, Codex CLI, tmux, lrzsz, and a separate Python environment with `scripts/requirements-password-test.txt` installed. Missing dependencies fail rather than silently skipping suites. Rebuild `MyTermChecks` for the selected configuration after core, vendor or test source changes; the runner rejects a core binary older than those Swift sources and an app older than its Swift sources. This timestamp guard prevents a common stale-binary mistake, but does not prove source identity when timestamps have been preserved or altered.
 
 ```bash
 bash scripts/check.sh
@@ -14,7 +14,7 @@ bash scripts/build-app.sh debug /tmp/myterm-check/Debug/MyTerm.app
 python3 scripts/check-all.py /tmp/myterm-check/Debug/MyTerm.app --configuration debug
 ```
 
-`--password-python` selects the password-test virtual environment, defaulting to `.test-venv/bin/python`. `--logs` selects a log directory; otherwise a temporary directory is created. Individual logs and `summary.json` retain exit codes and timings. Stop at failures, fix them, then rerun affected checks. GUI suites run serially to avoid competing for focus; avoid interacting with test windows.
+`--password-python` selects the password-test virtual environment, defaulting to `.test-venv/bin/python`. `--logs` selects a log directory; otherwise a temporary directory is created. Individual logs and `summary.json` retain exit codes and timings. The default stops at the first failure. For an audit use `--keep-going`: independent suites continue, while later GUI suites are marked blocked after a GUI failure because fixtures may remain active. Any failure still produces a nonzero exit. The summary records passed/failed/blocked suites and pending suites, so unexecuted work cannot look like a pass. Fix failures and rerun affected checks. GUI suites run serially to avoid competing for focus; avoid interacting with test windows.
 
 Release checks require matching core binaries and the intended app:
 
@@ -54,6 +54,8 @@ Update regression covers version comparison, architecture selection, download UR
 | X11 forwarding | `x11-check.py`: production SSH arguments, temporary sshd, real XQuartz windows and exit cleanup |
 | Release/install consistency | `package-release.sh`, `create-dmg.sh`, `install-release.sh`: multiple app forms, window checks, signatures and complete bundle comparison |
 
+See the [terminal interaction regression matrix](SELECTION-REGRESSION.en.md) for exact scenarios and remaining combinations. Mouse options, font/history persistence and group dialog/drop checks run in the shared Debug/Release/DMG window suite, rather than only Debug smoke. The welcome-page/About/PTY app-smoke entry also runs in Release and actual-DMG packaging checks; both full configurations use the same suite set.
+
 ## Focused regressions
 
 Paste regression checks the first-click acceptance policy with an inactive terminal window, then sends a single right-button press/release through NSWindow and checks the exact UTF-8 bytes, multiline text, bracketed-paste boundaries, normal/alternate screens and remote mouse modes. It also checks restored focus and native activation for left-click, Shift+right-click and disabled paste. Physical switching from VS Code and user tmux configurations still require manual confirmation.
@@ -64,7 +66,7 @@ Trackpad regression checks cover page-key encoding from actual scroll events, fa
 
 Keyboard-repeat regression checks cover the app-scoped accent-menu policy, repeated h/j/k/l/a events with an ASCII input source in normal/alternate screens, and Chinese preedit/commit. The original input source is restored. Synthetic repeats do not replace a physical long-press test; OS long-press thresholds and repeat rates still require manual verification.
 
-Tab-menu regression sends full press/release gestures through NSWindow: single selection followed by right-click or Control-click, padding/edge hit areas, persistence after release, close buttons and action targets. Native drag payload checks cover reordering and invalid payloads. Additional cases cover primary-typed events with secondary button numbers, duplicate suppression for one press, and keyboard focus after switching. Rename checks use the real menu and dialog to verify immediate title/width updates, repeated edits, cancellation, and names after switching/reordering. Context-click checks also cover automatic selection of inactive tabs. Physical trackpad input still needs manual confirmation.
+Tab-menu regression sends full press/release gestures through NSWindow: single selection followed by right-click or Control-click, padding/edge hit areas, persistence after release, close buttons and action targets. Native drag payload checks cover reordering and invalid payloads. Additional cases cover primary-typed events with secondary button numbers, duplicate suppression for one press, and keyboard focus after switching. Rename checks use the real menu and dialog to verify immediate title/width updates, repeated edits, cancellation, and names after switching/reordering. Context-click checks also cover automatic selection of inactive tabs. Resolve live views and visible hit points after a tab switch; track the tested menu’s begin/end notifications, including an actual closing event, rather than another menu’s lifecycle. Physical trackpad input still needs manual confirmation.
 
 Forwarding-editor checks cover removing a middle rule, preserving other rules, stale IDs, saving/reloading an empty list and adding a rule again.
 
@@ -120,7 +122,7 @@ Codex transfer regressions in `scripts/codex-execution-check.py` use temporary l
 
 Paste checks also assert that the target becomes the keyboard window. Scroll diagnostics include actual gestures, before/after positions, history rows, trimming and clear counts. Passing append-output anchor checks does not establish a fix for real Codex jumps.
 
-The Codex proxy fixture uses an isolated `CODEX_HOME`, retains synthetic CLI failure diagnostics and stops its own daemon before cleanup; it must neither reuse nor stop the user's daemon.
+The Codex proxy fixture selects an explicit CLI with `--codex` (defaulting to the app’s CodexConnection executable), rather than a PATH wrapper that may overwrite proxy variables. `check-all.py --codex /path/to/codex` records its executable path/hash and passes it to the proxy check. It uses an isolated `CODEX_HOME`, retains synthetic CLI failure diagnostics and stops its own daemon before cleanup; it must neither reuse nor stop the user's daemon.
 
 Codex transfer-scope checks exercise startup prompts, MCP initialization and tool discovery for explicit cross-machine copies and authorized remote-edit permission. They do not call a model or establish that a model can never misinterpret instructions. CSI 3J replay checks cover real buffer clearing, a temporary reading image, chunked/repeated replay, content anchors, queued wheel intent, bottom follow, bounded fallback, keyboard/buffer cleanup and ordinary-shell isolation. Two user metadata captures identified the clear mechanism; private contents/session details are not used as fixtures.
 
